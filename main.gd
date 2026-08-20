@@ -86,8 +86,8 @@ func _complex_to_marker_position(point: Vector2) -> Vector2:
 	)
 	return portrait.position + uv * size
 
-func _packed(points: Array[Vector2]) -> PackedVector2Array:
-	var result := PackedVector2Array()
+func _shader_points(points: Array[Vector2]) -> Array[Vector2]:
+	var result: Array[Vector2] = []
 	for index in range(MAX_POINTS):
 		result.append(points[index] if index < points.size() else Vector2.ZERO)
 	return result
@@ -95,8 +95,8 @@ func _packed(points: Array[Vector2]) -> PackedVector2Array:
 func _sync_shader() -> void:
 	portrait_material.set_shader_parameter("zero_count", zeros.size())
 	portrait_material.set_shader_parameter("pole_count", poles.size())
-	portrait_material.set_shader_parameter("zeros", _packed(zeros))
-	portrait_material.set_shader_parameter("poles", _packed(poles))
+	portrait_material.set_shader_parameter("zeros", _shader_points(zeros))
+	portrait_material.set_shader_parameter("poles", _shader_points(poles))
 	portrait_material.set_shader_parameter("phase_offset", phase)
 	_update_status()
 
