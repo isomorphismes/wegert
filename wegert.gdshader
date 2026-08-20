@@ -3,12 +3,11 @@ render_mode unshaded;
 
 const int MAX_POINTS = 16;
 const float PI = 3.14159265358979323846;
-const float TAU = 6.28318530717958647692;
 
 uniform int zero_count = 0;
 uniform int pole_count = 0;
-uniform vec2 zeros[MAX_POINTS];
-uniform vec2 poles[MAX_POINTS];
+uniform vec2 zeros[16];
+uniform vec2 poles[16];
 uniform float phase_offset = 0.0;
 uniform float aspect = 1.0;
 uniform float y_half_extent = 2.5;
