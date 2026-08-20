@@ -226,7 +226,7 @@ func _toggle_animation() -> void:
 func _update_status() -> void:
 	if not is_instance_valid(status_label):
 		return
-	status_label.text = "O %d  X %d   center %.2f%+.2fi   +/- %.2f" % [
+	status_label.text = "O %d  X %d   center (%.2f, %.2f)   +/- %.2f" % [
 		zeros.size(), poles.size(), view_center.x, view_center.y, y_half_extent
 	]
 	undo_button.disabled = history.is_empty()
