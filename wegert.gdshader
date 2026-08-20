@@ -3,6 +3,7 @@ render_mode unshaded;
 
 const int MAX_POINTS = 16;
 const float PI = 3.14159265358979323846;
+const float LN_10 = 2.302585092994046;
 
 uniform int zero_count = 0;
 uniform int pole_count = 0;
@@ -10,6 +11,7 @@ uniform vec2 zeros[16];
 uniform vec2 poles[16];
 uniform float phase_offset = 0.0;
 uniform float aspect = 1.0;
+uniform vec2 view_center = vec2(0.0, 0.0);
 uniform float y_half_extent = 2.5;
 
 float linear_to_srgb(float x) {
@@ -61,7 +63,7 @@ vec3 hcl_to_srgb(float hue_degrees, float chroma, float lightness) {
 }
 
 void fragment() {
-	vec2 z = vec2(
+	vec2 z = view_center + vec2(
 		(UV.x * 2.0 - 1.0) * y_half_extent * aspect,
 		(1.0 - UV.y * 2.0) * y_half_extent
 	);
@@ -89,11 +91,10 @@ void fragment() {
 		hue += 360.0;
 	}
 
-	// Exact scalar structure from the old R Wegert.R palette:
-	// l(x) = frac(x / 100), mod(w) = l(|w|),
-	// light = 66 + 4*mod(w) + 3*l(hue), chroma = 45.
-	float modulus = exp(clamp(log_modulus, -20.0, 20.0));
-	float modulus_band = fract(modulus / 100.0);
+	// Preserve the chosen R HCL palette: hue from argument and chroma 45.
+	// Lightness keeps the old 66/4/3 weights, but the modulus band is
+	// logarithmic: each decade of |f(z)| repeats the same lightness cycle.
+	float modulus_band = fract(log_modulus / LN_10);
 	float hue_band = fract(hue / 100.0);
 	float lightness = 66.0 + 4.0 * modulus_band + 3.0 * hue_band;
 
