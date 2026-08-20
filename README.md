@@ -14,22 +14,28 @@ so the portrait changes immediately:
 
 - `O zero` mode places a zero.
 - `X infinity` mode places a pole, a point sent to infinity.
+- `move` mode drags the visible domain over the complex plane.
+- `zoom out` enlarges the visible domain.
+- `zoom in` shrinks the visible domain.
+- `center 0` returns the camera center to the ordinary complex zero.
 - `undo` removes the last placed point.
 - `clear` removes all points.
 - `pause` freezes or resumes the color animation.
 
-The complex plane uses equal horizontal and vertical scale. The visible vertical range is `[-2.5, 2.5]`; the horizontal range expands with the tablet aspect ratio.
+The complex plane uses equal horizontal and vertical scale. The initial view is centered at `0 + 0i` with vertical half-extent `2.5`; the horizontal extent follows the tablet aspect ratio. This rectangular view is only a camera onto the complex plane. The intended larger model is the Riemann sphere, so the camera state is kept separate from the zeros and poles.
 
 ## Color mapping
 
-This ports the old `Wegert.R` palette rather than replacing it with HSV:
+The palette is intentionally perceptual HCL/polar CIELUV, matching R's `hcl()` family rather than HSV or HSL:
 
 - hue: `Arg(f(z))` in degrees, modulo 360;
-- chroma: 45;
-- `l(x) = frac(x / 100)`;
-- modulus term: `l(abs(f(z)))`;
-- lightness: `66 + 4*l(abs(f(z))) + 3*l(hue)`;
+- chroma: exactly `45`;
+- logarithmic modulus band: `frac(log10(abs(f(z))))`;
+- hue band: `frac(hue / 100)`;
+- lightness: `66 + 4*frac(log10(abs(f(z)))) + 3*frac(hue / 100)`;
 - final color: polar CIELUV/HCL converted to sRGB.
+
+Thus each decade of `abs(f(z))` repeats the same lightness structure while argument continues to determine hue.
 
 The continuous six-second animation is codomain phase rotation,
 
