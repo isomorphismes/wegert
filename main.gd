@@ -88,7 +88,7 @@ func _complex_to_marker_position(point: Vector2) -> Vector2:
 
 func _packed(points: Array[Vector2]) -> PackedVector2Array:
 	var result := PackedVector2Array()
-	for index in MAX_POINTS:
+	for index in range(MAX_POINTS):
 		result.append(points[index] if index < points.size() else Vector2.ZERO)
 	return result
 
@@ -112,9 +112,9 @@ func _rebuild_markers() -> void:
 		child.queue_free()
 
 	for point in zeros:
-		_add_marker(point, "○")
+		_add_marker(point, "O")
 	for point in poles:
-		_add_marker(point, "×")
+		_add_marker(point, "X")
 
 func _add_marker(point: Vector2, glyph: String) -> void:
 	var marker := Label.new()
@@ -165,6 +165,6 @@ func _toggle_animation() -> void:
 	pause_button.text = "pause" if animate else "play"
 
 func _update_status() -> void:
-	status_label.text = "○ %d    × %d" % [zeros.size(), poles.size()]
+	status_label.text = "O %d    X %d" % [zeros.size(), poles.size()]
 	undo_button.disabled = history.is_empty()
 	clear_button.disabled = history.is_empty()
