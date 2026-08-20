@@ -1,0 +1,19 @@
+name: Godot check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: chickensoft-games/setup-godot@v2.4.1
+        with:
+          version: 4.7.1
+          use-dotnet: false
+      - name: Open project headlessly
+        run: godot --headless --path . --editor --quit
+      - name: Run main scene briefly
+        run: godot --headless --path . --quit-after 2
