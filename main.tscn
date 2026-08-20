@@ -1,0 +1,85 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://main.gd" id="1_main"]
+[ext_resource type="Shader" path="res://wegert.gdshader" id="2_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_wegert"]
+shader = ExtResource("2_shader")
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_main")
+
+[node name="Portrait" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 76.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+material = SubResource("ShaderMaterial_wegert")
+
+[node name="MarkerLayer" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Toolbar" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 76.0
+grow_horizontal = 2
+theme_override_constants/separation = 12
+
+[node name="ZeroButton" type="Button" parent="Toolbar"]
+custom_minimum_size = Vector2(150, 64)
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+text = "O  zero"
+theme_override_font_sizes/font_size = 24
+
+[node name="PoleButton" type="Button" parent="Toolbar"]
+custom_minimum_size = Vector2(190, 64)
+layout_mode = 2
+toggle_mode = true
+text = "X  infinity"
+theme_override_font_sizes/font_size = 24
+
+[node name="UndoButton" type="Button" parent="Toolbar"]
+custom_minimum_size = Vector2(120, 64)
+layout_mode = 2
+text = "undo"
+theme_override_font_sizes/font_size = 22
+
+[node name="ClearButton" type="Button" parent="Toolbar"]
+custom_minimum_size = Vector2(120, 64)
+layout_mode = 2
+text = "clear"
+theme_override_font_sizes/font_size = 22
+
+[node name="PauseButton" type="Button" parent="Toolbar"]
+custom_minimum_size = Vector2(120, 64)
+layout_mode = 2
+text = "pause"
+theme_override_font_sizes/font_size = 22
+
+[node name="Status" type="Label" parent="Toolbar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "O 0    X 0"
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 22
