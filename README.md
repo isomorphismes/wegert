@@ -39,7 +39,20 @@ The APK is written to:
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-GitHub Actions builds the same APK and uploads it as `wegert-debug-apk`.
+The debug APK contains `arm64-v8a` for the actual phone/tablet targets and `x86_64` solely for CI emulation.
+
+## Device emulation
+
+GitHub Actions smoke-tests the APK against two constrained virtual-device profiles:
+
+| Target | Android | RAM | logical display | CI CPU/GPU |
+| --- | --- | ---: | --- | --- |
+| MIRO A1 approximation | 14 / API 34 | 2 GiB | 720x1280 @ 320 dpi | x86_64 / SwiftShader GLES |
+| TAB_P10 approximation | 15 / API 35 | 4 GiB | 1280x800 @ 160 dpi | x86_64 / SwiftShader GLES |
+
+Each emulator installs and launches Wegert, performs a tap and a drag, checks that the native process survives, fails on EGL/shader/link/fatal errors, and saves a screenshot plus application log.
+
+These are compatibility profiles, not cycle-accurate hardware emulations. In particular the CI tablet cannot reproduce the Allwinner A333/Mali-G57 driver. Real-device testing still covers ARM64 code generation, vendor GLES behavior, multi-touch, and device-specific Android quirks. The MIRO profile similarly constrains Android 14 to 2 GiB but is not an Android Go system image.
 
 ## Shader/compiler boundary
 

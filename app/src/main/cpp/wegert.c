@@ -14,21 +14,17 @@
 
 #define LOG_TAG "Wegert"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define MAX_FACTORS 16
 
 static const char *VERTEX_SHADER =
     "#version 300 es\n"
     "precision highp float;\n"
-    "const vec2 positions[3] = vec2[3](\n"
-    "    vec2(-1.0, -1.0),\n"
-    "    vec2( 3.0, -1.0),\n"
-    "    vec2(-1.0,  3.0)\n"
-    ");\n"
+    "layout(location = 0) in vec2 a_position;\n"
     "out vec2 v_ndc;\n"
     "void main() {\n"
-    "    vec2 position = positions[gl_VertexID];\n"
-    "    v_ndc = position;\n"
-    "    gl_Position = vec4(position, 0.0, 1.0);\n"
+    "    v_ndc = a_position;\n"
+    "    gl_Position = vec4(a_position, 0.0, 1.0);\n"
     "}\n";
 
 enum gesture_kind {
@@ -49,6 +45,7 @@ struct engine {
 
     GLuint program;
     GLuint vao;
+    GLuint vbo;
     GLint center_location;
     GLint half_height_location;
     GLint aspect_location;
@@ -86,6 +83,7 @@ struct engine {
     float pinch_last_mid_y;
 
     bool dirty;
+    bool logged_first_frame;
 };
 
 static void reset_function(struct engine *engine) {
@@ -190,6 +188,12 @@ static GLuint link_program(GLuint vertex_shader, GLuint fragment_shader) {
 #include "polynomial_overlay.h"
 
 static bool create_renderer(struct engine *engine) {
+    static const GLfloat fullscreen_triangle[] = {
+        -1.0f, -1.0f,
+         3.0f, -1.0f,
+        -1.0f,  3.0f
+    };
+
     char *fragment_source = load_asset_text(engine->app->activity->assetManager, "wegert.frag");
     if (fragment_source == NULL) {
         return false;
@@ -223,7 +227,23 @@ static bool create_renderer(struct engine *engine) {
 
     glGenVertexArrays(1, &engine->vao);
     glBindVertexArray(engine->vao);
+
+    glGenBuffers(1, &engine->vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, engine->vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(fullscreen_triangle), fullscreen_triangle, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * (GLsizei)sizeof(GLfloat), (const void *)0);
+    glEnableVertexAttribArray(0);
+
     glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_SCISSOR_TEST);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+    LOGI("renderer ready: GL_VERSION=%s GL_RENDERER=%s program=%u vao=%u vbo=%u uniforms=%d,%d,%d,%d,%d,%d,%d,%d",
+         glGetString(GL_VERSION), glGetString(GL_RENDERER), engine->program, engine->vao, engine->vbo,
+         engine->center_location, engine->half_height_location, engine->aspect_location,
+         engine->resolution_location, engine->zero_count_location, engine->pole_count_location,
+         engine->zeros_location, engine->poles_location);
     return true;
 }
 
@@ -287,6 +307,7 @@ static bool initialize_display(struct engine *engine) {
     engine->context = context;
     eglQuerySurface(display, surface, EGL_WIDTH, &engine->width);
     eglQuerySurface(display, surface, EGL_HEIGHT, &engine->height);
+    LOGI("EGL surface ready: %dx%d", engine->width, engine->height);
 
     if (!create_renderer(engine)) {
         eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
@@ -311,13 +332,17 @@ static void terminate_display(struct engine *engine) {
     }
 
     polynomial_overlay_destroy(engine);
-    if (engine->program != 0) {
-        glDeleteProgram(engine->program);
-        engine->program = 0;
+    if (engine->vbo != 0) {
+        glDeleteBuffers(1, &engine->vbo);
+        engine->vbo = 0;
     }
     if (engine->vao != 0) {
         glDeleteVertexArrays(1, &engine->vao);
         engine->vao = 0;
+    }
+    if (engine->program != 0) {
+        glDeleteProgram(engine->program);
+        engine->program = 0;
     }
 
     eglMakeCurrent(engine->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
@@ -365,6 +390,15 @@ static void draw_frame(struct engine *engine) {
     glBindVertexArray(engine->vao);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     polynomial_overlay_draw(engine);
+
+    if (!engine->logged_first_frame) {
+        GLubyte pixel[4] = {0, 0, 0, 0};
+        glReadPixels(engine->width / 2, engine->height / 2, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+        GLenum error = glGetError();
+        LOGI("first frame: center rgba=%u,%u,%u,%u glError=0x%x",
+             pixel[0], pixel[1], pixel[2], pixel[3], error);
+        engine->logged_first_frame = true;
+    }
 
     if (!eglSwapBuffers(engine->display, engine->surface)) {
         LOGE("eglSwapBuffers failed: 0x%x", eglGetError());
@@ -589,7 +623,8 @@ void android_main(struct android_app *app) {
         .surface = EGL_NO_SURFACE,
         .context = EGL_NO_CONTEXT,
         .gesture = GESTURE_NONE,
-        .dirty = true
+        .dirty = true,
+        .logged_first_frame = false
     };
     reset_function(&engine);
 
