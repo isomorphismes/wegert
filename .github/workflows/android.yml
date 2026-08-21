@@ -11,6 +11,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Run factor-drag host tests
+        run: |
+          cc -std=c11 -Wall -Wextra -Wpedantic -Werror \
+            -Iapp/src/main/cpp tests/factor_drag_test.c -lm \
+            -o "$RUNNER_TEMP/wegert-factor-drag-test"
+          "$RUNNER_TEMP/wegert-factor-drag-test"
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
