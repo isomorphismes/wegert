@@ -7,7 +7,7 @@ This first Android slice is deliberately small: a C `NativeActivity` owns touch 
 ## First playable controls
 
 - tap the ○ or × control, then tap the portrait to add that kind of factor (up to 64 each)
-- one-finger drag: move the visible complex domain
+- one-finger drag: move a nearby zero or pole, or move the visible complex domain when starting on empty space
 - pinch: zoom the visible domain
 - `clear`: remove every zero and pole without moving the visible domain
 - three-finger tap: reset to `g(z) = (z - 1)(z - 2)(z - 5)`
@@ -31,6 +31,15 @@ Requirements are Android SDK 36, NDK r29 (`29.0.14206865`), CMake 3.22.1, JDK 17
 
 ```sh
 gradle :app:assembleDebug
+```
+
+The platform-independent factor hit-testing and drag helpers have a small host
+test that can run without the Android SDK:
+
+```sh
+cc -std=c11 -Wall -Wextra -Wpedantic -Iapp/src/main/cpp \
+  tests/factor_drag_test.c -lm -o /tmp/wegert-factor-drag-test
+/tmp/wegert-factor-drag-test
 ```
 
 The APK is written to:

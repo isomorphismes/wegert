@@ -1,4 +1,5 @@
 #include <android/asset_manager.h>
+#include <android/configuration.h>
 #include <android/input.h>
 #include <android/log.h>
 #include <android/native_activity.h>
@@ -11,6 +12,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+
+#include "factor_drag.h"
 
 #define LOG_TAG "Wegert"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
@@ -82,14 +85,10 @@ static const char *VERTEX_SHADER =
 enum gesture_kind {
     GESTURE_NONE,
     GESTURE_SINGLE,
+    GESTURE_FACTOR,
     GESTURE_PINCH,
     GESTURE_CLEAR_BUTTON,
     GESTURE_BLOCKED
-};
-
-enum factor_kind {
-    FACTOR_ZERO,
-    FACTOR_POLE
 };
 
 struct engine {
@@ -145,6 +144,10 @@ struct engine {
     float down_y;
     float last_x;
     float last_y;
+    enum factor_kind captured_factor_kind;
+    int captured_factor_index;
+    float captured_factor_original[2];
+    float captured_factor_world_units_per_pixel;
     float pinch_last_distance;
     float pinch_last_mid_x;
     float pinch_last_mid_y;
@@ -567,6 +570,83 @@ static void add_pole(struct engine *engine, float x, float y) {
     engine->dirty = true;
 }
 
+static struct factor_viewport factor_viewport_for_engine(const struct engine *engine) {
+    return (struct factor_viewport) {
+        .width = engine->width,
+        .height = engine->height,
+        .center_x = engine->center[0],
+        .center_y = engine->center[1],
+        .half_height = engine->half_height
+    };
+}
+
+static struct factor_target factor_target_at(
+    const struct engine *engine,
+    float x,
+    float y
+) {
+    int density_dpi = 0;
+    if (engine->app != NULL && engine->app->config != NULL) {
+        density_dpi = AConfiguration_getDensity(engine->app->config);
+    }
+    struct factor_viewport viewport = factor_viewport_for_engine(engine);
+    return nearest_factor_target(
+        &viewport,
+        engine->zeros,
+        engine->zero_count,
+        engine->poles,
+        engine->pole_count,
+        x,
+        y,
+        factor_touch_radius_pixels(density_dpi)
+    );
+}
+
+static void capture_factor(
+    struct engine *engine,
+    const struct factor_target *target
+) {
+    engine->captured_factor_kind = target->kind;
+    engine->captured_factor_index = target->index;
+    const float *position = target->kind == FACTOR_POLE
+        ? engine->poles[target->index]
+        : engine->zeros[target->index];
+    engine->captured_factor_original[0] = position[0];
+    engine->captured_factor_original[1] = position[1];
+    engine->captured_factor_world_units_per_pixel =
+        2.0f * engine->half_height / (float)engine->height;
+}
+
+static void move_captured_factor(struct engine *engine, float x, float y) {
+    float *position = NULL;
+    if (
+        engine->captured_factor_kind == FACTOR_ZERO &&
+        engine->captured_factor_index >= 0 &&
+        engine->captured_factor_index < engine->zero_count
+    ) {
+        position = engine->zeros[engine->captured_factor_index];
+    } else if (
+        engine->captured_factor_kind == FACTOR_POLE &&
+        engine->captured_factor_index >= 0 &&
+        engine->captured_factor_index < engine->pole_count
+    ) {
+        position = engine->poles[engine->captured_factor_index];
+    }
+    if (position == NULL) {
+        return;
+    }
+
+    dragged_factor_position(
+        engine->captured_factor_original,
+        x - engine->down_x,
+        y - engine->down_y,
+        engine->captured_factor_world_units_per_pixel,
+        position
+    );
+    engine->overlay_dirty = true;
+    engine->dirty = true;
+}
+
 static float placement_control_radius(const struct engine *engine) {
     float radius = 0.065f * fminf((float)engine->width, (float)engine->height);
     if (radius < 36.0f) radius = 36.0f;
@@ -644,12 +724,18 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
                 engine->moved = false;
                 return 1;
             }
-            engine->gesture = GESTURE_SINGLE;
             engine->moved = false;
             engine->down_x = x;
             engine->down_y = y;
             engine->last_x = engine->down_x;
             engine->last_y = engine->down_y;
+            struct factor_target target = factor_target_at(engine, x, y);
+            if (target.found) {
+                capture_factor(engine, &target);
+                engine->gesture = GESTURE_FACTOR;
+            } else {
+                engine->gesture = GESTURE_SINGLE;
+            }
             return 1;
         }
 
@@ -670,12 +756,26 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
         }
 
         case AMOTION_EVENT_ACTION_MOVE: {
+            if (engine->gesture == GESTURE_FACTOR && pointer_count == 1) {
+                float x = AMotionEvent_getX(event, 0);
+                float y = AMotionEvent_getY(event, 0);
+                float from_down_x = x - engine->down_x;
+                float from_down_y = y - engine->down_y;
+                if (drag_threshold_exceeded(from_down_x, from_down_y)) {
+                    engine->moved = true;
+                }
+                if (engine->moved) {
+                    move_captured_factor(engine, x, y);
+                }
+                return 1;
+            }
+
             if (engine->gesture == GESTURE_SINGLE && pointer_count == 1) {
                 float x = AMotionEvent_getX(event, 0);
                 float y = AMotionEvent_getY(event, 0);
                 float from_down_x = x - engine->down_x;
                 float from_down_y = y - engine->down_y;
-                if (hypotf(from_down_x, from_down_y) > 12.0f) {
+                if (drag_threshold_exceeded(from_down_x, from_down_y)) {
                     engine->moved = true;
                 }
                 if (engine->moved) {
