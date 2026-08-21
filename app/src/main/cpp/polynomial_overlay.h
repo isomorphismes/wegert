@@ -61,31 +61,12 @@ static void overlay_append(char *buffer, size_t capacity, size_t *used, const ch
 }
 
 static void overlay_format_number(double value, char *output, size_t capacity) {
-    if (overlay_near_zero(value)) {
+    double rounded = round(value);
+    if (overlay_near_zero(rounded)) {
         snprintf(output, capacity, "0");
         return;
     }
-
-    double absolute = fabs(value);
-    double rounded = round(value);
-    if (fabs(value - rounded) < 1.0e-6 * fmax(1.0, absolute)) {
-        snprintf(output, capacity, "%.0f", rounded);
-        return;
-    }
-
-    if (absolute >= 1000000.0 || absolute < 0.01) {
-        snprintf(output, capacity, "%.2e", value);
-        return;
-    }
-
-    snprintf(output, capacity, "%.2f", value);
-    size_t length = strlen(output);
-    while (length > 0u && output[length - 1u] == '0') {
-        output[--length] = '\0';
-    }
-    if (length > 0u && output[length - 1u] == '.') {
-        output[--length] = '\0';
-    }
+    snprintf(output, capacity, "%.0f", rounded);
 }
 
 static void overlay_expand_roots(
@@ -173,6 +154,8 @@ static void overlay_format_polynomial(
 
     for (int power = degree; power >= 0; --power) {
         struct overlay_complex coefficient = coefficients[power];
+        coefficient.real = round(coefficient.real);
+        coefficient.imag = round(coefficient.imag);
         if (overlay_near_zero(coefficient.real) && overlay_near_zero(coefficient.imag)) {
             continue;
         }
@@ -241,6 +224,20 @@ static void polynomial_overlay_format_function(const struct engine *engine, char
     overlay_expand_roots(engine->poles, engine->pole_count, denominator_coefficients);
     overlay_format_polynomial(denominator_coefficients, engine->pole_count, denominator, sizeof(denominator));
     snprintf(output, capacity, "expanded: f(z) = (%s) / (%s)", numerator, denominator);
+}
+
+static int overlay_max_digit_run(const char *text) {
+    int maximum = 0;
+    int current = 0;
+    for (const char *cursor = text; *cursor != '\0'; ++cursor) {
+        if (*cursor >= '0' && *cursor <= '9') {
+            current += 1;
+            if (current > maximum) maximum = current;
+        } else {
+            current = 0;
+        }
+    }
+    return maximum;
 }
 
 static uint8_t overlay_glyph_row(char character, int row) {
@@ -402,6 +399,33 @@ static void overlay_draw_wrapped_text(
         }
 
         for (int index = 0; index < word_length; ++index) {
+            if (cursor[index] == '^') {
+                int superscript_scale = scale > 1 ? scale - 1 : 1;
+                int superscript_y = y - 2 * scale;
+                column += 1;
+                index += 1;
+                while (
+                    index < word_length &&
+                    cursor[index] >= '0' &&
+                    cursor[index] <= '9'
+                ) {
+                    overlay_draw_glyph(
+                        pixels,
+                        width,
+                        height,
+                        x,
+                        superscript_y,
+                        superscript_scale,
+                        cursor[index]
+                    );
+                    x += 6 * superscript_scale;
+                    column += 1;
+                    index += 1;
+                }
+                index -= 1;
+                continue;
+            }
+
             overlay_draw_glyph(pixels, width, height, x, y, scale, cursor[index]);
             x += character_advance;
             column += 1;
@@ -461,6 +485,9 @@ static bool polynomial_overlay_rebuild_texture(struct engine *engine) {
     int width = engine->width - 32;
     if (width > 1280) width = 1280;
     int scale = width >= 900 ? 3 : 2;
+    int max_number_digits = overlay_max_digit_run(text);
+    if (max_number_digits >= 4 && scale > 2) scale = 2;
+    if (max_number_digits >= 7) scale = 1;
     int padding = 4 * scale;
     int character_advance = 6 * scale;
     int line_advance = 9 * scale;
