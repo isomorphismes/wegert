@@ -18,11 +18,12 @@ static const char *POLYNOMIAL_OVERLAY_FRAGMENT_SHADER =
     "#version 300 es\n"
     "precision highp float;\n"
     "uniform vec2 u_resolution;\n"
+    "uniform vec2 u_overlay_origin;\n"
     "uniform vec2 u_overlay_size;\n"
     "uniform sampler2D u_overlay;\n"
     "out vec4 frag_color;\n"
     "void main() {\n"
-    "    vec2 screen = vec2(gl_FragCoord.x, u_resolution.y - gl_FragCoord.y) - vec2(16.0);\n"
+    "    vec2 screen = vec2(gl_FragCoord.x, u_resolution.y - gl_FragCoord.y) - u_overlay_origin;\n"
     "    if (screen.x < 0.0 || screen.y < 0.0 || screen.x >= u_overlay_size.x || screen.y >= u_overlay_size.y) {\n"
     "        discard;\n"
     "    }\n"
@@ -260,12 +261,15 @@ static uint8_t overlay_glyph_row(char character, int row) {
 
     switch (character) {
         case 'a': { static const uint8_t glyph[7] = {0x00,0x00,0x0e,0x01,0x0f,0x11,0x0f}; return glyph[row]; }
+        case 'c': { static const uint8_t glyph[7] = {0x00,0x00,0x0e,0x10,0x10,0x11,0x0e}; return glyph[row]; }
         case 'd': { static const uint8_t glyph[7] = {0x01,0x01,0x0f,0x11,0x11,0x11,0x0f}; return glyph[row]; }
         case 'e': { static const uint8_t glyph[7] = {0x00,0x00,0x0e,0x11,0x1f,0x10,0x0f}; return glyph[row]; }
         case 'f': { static const uint8_t glyph[7] = {0x06,0x08,0x08,0x1e,0x08,0x08,0x08}; return glyph[row]; }
         case 'i': { static const uint8_t glyph[7] = {0x04,0x00,0x0c,0x04,0x04,0x04,0x0e}; return glyph[row]; }
+        case 'l': { static const uint8_t glyph[7] = {0x0c,0x04,0x04,0x04,0x04,0x04,0x0e}; return glyph[row]; }
         case 'n': { static const uint8_t glyph[7] = {0x00,0x00,0x1e,0x11,0x11,0x11,0x11}; return glyph[row]; }
         case 'p': { static const uint8_t glyph[7] = {0x00,0x00,0x1e,0x11,0x1e,0x10,0x10}; return glyph[row]; }
+        case 'r': { static const uint8_t glyph[7] = {0x00,0x00,0x16,0x19,0x10,0x10,0x10}; return glyph[row]; }
         case 'x': { static const uint8_t glyph[7] = {0x00,0x00,0x11,0x0a,0x04,0x0a,0x11}; return glyph[row]; }
         case 'z': { static const uint8_t glyph[7] = {0x00,0x00,0x1f,0x02,0x04,0x08,0x1f}; return glyph[row]; }
         case '+': { static const uint8_t glyph[7] = {0x00,0x04,0x04,0x1f,0x04,0x04,0x00}; return glyph[row]; }
@@ -435,6 +439,15 @@ static void overlay_draw_wrapped_text(
     }
 }
 
+static void overlay_configure_texture(GLuint texture) {
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
 static bool polynomial_overlay_initialize(struct engine *engine) {
     if (engine->overlay_program != 0) {
         return true;
@@ -461,16 +474,75 @@ static bool polynomial_overlay_initialize(struct engine *engine) {
     }
 
     engine->overlay_resolution_location = glGetUniformLocation(engine->overlay_program, "u_resolution");
+    engine->overlay_origin_location = glGetUniformLocation(engine->overlay_program, "u_overlay_origin");
     engine->overlay_size_location = glGetUniformLocation(engine->overlay_program, "u_overlay_size");
     engine->overlay_sampler_location = glGetUniformLocation(engine->overlay_program, "u_overlay");
 
     glGenTextures(1, &engine->overlay_texture);
-    glBindTexture(GL_TEXTURE_2D, engine->overlay_texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    overlay_configure_texture(engine->overlay_texture);
+    glGenTextures(1, &engine->clear_button_texture);
+    overlay_configure_texture(engine->clear_button_texture);
+    return true;
+}
+
+static bool clear_button_rebuild_texture(struct engine *engine) {
+    int density = AConfiguration_getDensity(engine->app->config);
+    if (density < 72 || density > 1000) density = 160;
+
+    int scale = (density + 40) / 80;
+    if (scale < 2) scale = 2;
+    if (scale > 6) scale = 6;
+
+    const char *label = "clear";
+    int label_width = 29 * scale;
+    int minimum_height = (48 * density + 159) / 160;
+    int horizontal_padding = (16 * density + 159) / 160;
+    int width = label_width + 2 * horizontal_padding;
+    int height = minimum_height;
+    if (height < 11 * scale) height = 11 * scale;
+
+    size_t pixel_count = (size_t)width * (size_t)height;
+    uint8_t *pixels = malloc(pixel_count * 4u);
+    if (pixels == NULL) {
+        return false;
+    }
+
+    for (size_t index = 0; index < pixel_count; ++index) {
+        pixels[index * 4u + 0u] = 18;
+        pixels[index * 4u + 1u] = 18;
+        pixels[index * 4u + 2u] = 18;
+        pixels[index * 4u + 3u] = 230;
+    }
+
+    int border = scale > 2 ? 2 : 1;
+    for (int x = 0; x < width; ++x) {
+        for (int thickness = 0; thickness < border; ++thickness) {
+            overlay_set_pixel(pixels, width, height, x, thickness, 238, 235, 224, 255);
+            overlay_set_pixel(pixels, width, height, x, height - 1 - thickness, 238, 235, 224, 255);
+        }
+    }
+    for (int y = 0; y < height; ++y) {
+        for (int thickness = 0; thickness < border; ++thickness) {
+            overlay_set_pixel(pixels, width, height, thickness, y, 238, 235, 224, 255);
+            overlay_set_pixel(pixels, width, height, width - 1 - thickness, y, 238, 235, 224, 255);
+        }
+    }
+
+    int x = (width - label_width) / 2;
+    int y = (height - 7 * scale) / 2;
+    for (int index = 0; label[index] != '\0'; ++index) {
+        overlay_draw_glyph(pixels, width, height, x, y, scale, label[index]);
+        x += 6 * scale;
+    }
+
+    glBindTexture(GL_TEXTURE_2D, engine->clear_button_texture);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
     glBindTexture(GL_TEXTURE_2D, 0);
+    free(pixels);
+
+    engine->clear_button_width = width;
+    engine->clear_button_height = height;
     return true;
 }
 
@@ -540,6 +612,23 @@ static bool polynomial_overlay_rebuild_texture(struct engine *engine) {
     return true;
 }
 
+static void overlay_draw_texture(
+    struct engine *engine,
+    GLuint texture,
+    int width,
+    int height,
+    float x,
+    float y
+) {
+    glUniform2f(engine->overlay_origin_location, x, y);
+    glUniform2f(engine->overlay_size_location, (float)width, (float)height);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glUniform1i(engine->overlay_sampler_location, 0);
+    glBindVertexArray(engine->vao);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+}
+
 static void polynomial_overlay_draw(struct engine *engine) {
     if (!polynomial_overlay_initialize(engine)) {
         return;
@@ -547,7 +636,10 @@ static void polynomial_overlay_draw(struct engine *engine) {
     if (engine->overlay_dirty && !polynomial_overlay_rebuild_texture(engine)) {
         return;
     }
-    if (engine->overlay_width <= 0 || engine->overlay_height <= 0) {
+    if (
+        (engine->clear_button_width <= 0 || engine->clear_button_height <= 0) &&
+        !clear_button_rebuild_texture(engine)
+    ) {
         return;
     }
 
@@ -555,12 +647,24 @@ static void polynomial_overlay_draw(struct engine *engine) {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glUseProgram(engine->overlay_program);
     glUniform2f(engine->overlay_resolution_location, (float)engine->width, (float)engine->height);
-    glUniform2f(engine->overlay_size_location, (float)engine->overlay_width, (float)engine->overlay_height);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, engine->overlay_texture);
-    glUniform1i(engine->overlay_sampler_location, 0);
-    glBindVertexArray(engine->vao);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    overlay_draw_texture(
+        engine,
+        engine->overlay_texture,
+        engine->overlay_width,
+        engine->overlay_height,
+        16.0f,
+        16.0f
+    );
+    overlay_draw_texture(
+        engine,
+        engine->clear_button_texture,
+        engine->clear_button_width,
+        engine->clear_button_height,
+        (float)(engine->width - 16 - engine->clear_button_width),
+        (float)(engine->height - 16 - engine->clear_button_height)
+    );
+
     glBindTexture(GL_TEXTURE_2D, 0);
     glDisable(GL_BLEND);
 }
@@ -570,12 +674,18 @@ static void polynomial_overlay_destroy(struct engine *engine) {
         glDeleteTextures(1, &engine->overlay_texture);
         engine->overlay_texture = 0;
     }
+    if (engine->clear_button_texture != 0) {
+        glDeleteTextures(1, &engine->clear_button_texture);
+        engine->clear_button_texture = 0;
+    }
     if (engine->overlay_program != 0) {
         glDeleteProgram(engine->overlay_program);
         engine->overlay_program = 0;
     }
     engine->overlay_width = 0;
     engine->overlay_height = 0;
+    engine->clear_button_width = 0;
+    engine->clear_button_height = 0;
     engine->overlay_unavailable = false;
     engine->overlay_dirty = true;
 }
@@ -584,6 +694,14 @@ static bool polynomial_overlay_contains(const struct engine *engine, float x, fl
     return engine->overlay_width > 0 && engine->overlay_height > 0 &&
         x >= 16.0f && x < 16.0f + (float)engine->overlay_width &&
         y >= 16.0f && y < 16.0f + (float)engine->overlay_height;
+}
+
+static bool clear_button_contains(const struct engine *engine, float x, float y) {
+    float left = (float)(engine->width - 16 - engine->clear_button_width);
+    float top = (float)(engine->height - 16 - engine->clear_button_height);
+    return engine->clear_button_width > 0 && engine->clear_button_height > 0 &&
+        x >= left && x < left + (float)engine->clear_button_width &&
+        y >= top && y < top + (float)engine->clear_button_height;
 }
 
 #endif

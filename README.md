@@ -9,6 +9,7 @@ This first Android slice is deliberately small: a C `NativeActivity` owns touch 
 - tap the ○ or × control, then tap the portrait to add that kind of factor (up to 64 each)
 - one-finger drag: move the visible complex domain
 - pinch: zoom the visible domain
+- `clear`: remove every zero and pole without moving the visible domain
 - three-finger tap: reset to `g(z) = (z - 1)(z - 2)(z - 5)`
 
 The initial view is centered at the ordinary complex zero. Zeros are shown as dark rings with light centers; poles are shown as dark crosses.

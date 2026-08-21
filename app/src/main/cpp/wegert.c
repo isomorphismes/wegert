@@ -83,6 +83,7 @@ enum gesture_kind {
     GESTURE_NONE,
     GESTURE_SINGLE,
     GESTURE_PINCH,
+    GESTURE_CLEAR_BUTTON,
     GESTURE_BLOCKED
 };
 
@@ -118,11 +119,15 @@ struct engine {
 
     GLuint overlay_program;
     GLuint overlay_texture;
+    GLuint clear_button_texture;
     GLint overlay_resolution_location;
+    GLint overlay_origin_location;
     GLint overlay_size_location;
     GLint overlay_sampler_location;
     int overlay_width;
     int overlay_height;
+    int clear_button_width;
+    int clear_button_height;
     bool overlay_dirty;
     bool overlay_unavailable;
 
@@ -162,6 +167,13 @@ static void reset_function(struct engine *engine) {
     engine->zeros[2][1] = 0.0f;
     engine->pole_count = 0;
     engine->placement_kind = FACTOR_ZERO;
+    engine->overlay_dirty = true;
+    engine->dirty = true;
+}
+
+static void clear_function(struct engine *engine) {
+    engine->zero_count = 0;
+    engine->pole_count = 0;
     engine->overlay_dirty = true;
     engine->dirty = true;
 }
@@ -622,6 +634,11 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
                 engine->dirty = true;
                 return 1;
             }
+            if (clear_button_contains(engine, x, y)) {
+                engine->gesture = GESTURE_CLEAR_BUTTON;
+                engine->moved = false;
+                return 1;
+            }
             if (polynomial_overlay_contains(engine, x, y)) {
                 engine->gesture = GESTURE_BLOCKED;
                 engine->moved = false;
@@ -713,6 +730,15 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
                 } else {
                     add_zero(engine, x, y);
                 }
+            } else if (
+                engine->gesture == GESTURE_CLEAR_BUTTON &&
+                clear_button_contains(
+                    engine,
+                    AMotionEvent_getX(event, 0),
+                    AMotionEvent_getY(event, 0)
+                )
+            ) {
+                clear_function(engine);
             }
             engine->gesture = GESTURE_NONE;
             engine->moved = false;
