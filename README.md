@@ -6,8 +6,8 @@ This first Android slice is deliberately small: a C `NativeActivity` owns touch 
 
 ## First playable controls
 
-- one-finger tap: add a simple zero
-- two-finger tap: add a simple pole at the midpoint
+- one-finger tap: add a simple zero (up to 64)
+- two-finger tap: add a simple pole at the midpoint (up to 64)
 - one-finger drag: move the visible complex domain
 - pinch: zoom the visible domain
 - three-finger tap: reset to `g(z) = (z - 1)(z - 2)(z - 5)`

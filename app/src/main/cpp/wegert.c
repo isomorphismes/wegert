@@ -15,7 +15,8 @@
 #define LOG_TAG "Wegert"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define MAX_FACTORS 16
+#define MAX_FACTORS 64
+#define TWO_FINGER_TAP_SLOP_PIXELS 24.0f
 
 static const char *VERTEX_SHADER =
     "#version 300 es\n"
@@ -529,7 +530,10 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
                     midpoint_x - engine->pinch_last_mid_x,
                     midpoint_y - engine->pinch_last_mid_y
                 );
-                if (midpoint_motion > 4.0f || fabsf(distance - engine->pinch_last_distance) > 4.0f) {
+                if (
+                    midpoint_motion > TWO_FINGER_TAP_SLOP_PIXELS ||
+                    fabsf(distance - engine->pinch_last_distance) > TWO_FINGER_TAP_SLOP_PIXELS
+                ) {
                     engine->moved = true;
                 }
 
