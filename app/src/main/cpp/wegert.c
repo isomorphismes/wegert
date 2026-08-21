@@ -557,8 +557,6 @@ static void handle_command(struct android_app *app, int32_t command) {
 }
 
 void android_main(struct android_app *app) {
-    app_dummy();
-
     struct engine engine = {
         .app = app,
         .display = EGL_NO_DISPLAY,
@@ -572,7 +570,6 @@ void android_main(struct android_app *app) {
     app->userData = &engine;
     app->onAppCmd = handle_command;
     app->onInputEvent = handle_input;
-    ANativeActivity_setWindowFlags(app->activity, AWINDOW_FLAG_FULLSCREEN, 0);
 
     while (true) {
         int events = 0;
