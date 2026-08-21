@@ -16,7 +16,58 @@
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define MAX_FACTORS 64
-#define TWO_FINGER_TAP_SLOP_PIXELS 24.0f
+
+static const char *PLACEMENT_CONTROL_FRAGMENT_SHADER =
+    "#version 300 es\n"
+    "precision highp float;\n"
+    "in vec2 v_ndc;\n"
+    "uniform vec2 u_resolution;\n"
+    "uniform int u_placement_kind;\n"
+    "out vec4 out_color;\n"
+    "float circle_mask(vec2 point, vec2 center, float radius) {\n"
+    "    return 1.0 - smoothstep(radius - 1.5, radius + 1.5, length(point - center));\n"
+    "}\n"
+    "float line_mask(vec2 point, vec2 start, vec2 finish, float half_width) {\n"
+    "    vec2 segment = finish - start;\n"
+    "    float along = clamp(dot(point - start, segment) / dot(segment, segment), 0.0, 1.0);\n"
+    "    float distance_to_line = length(point - (start + along * segment));\n"
+    "    return 1.0 - smoothstep(half_width - 1.0, half_width + 1.0, distance_to_line);\n"
+    "}\n"
+    "vec4 button(vec2 point, vec2 center, bool selected, bool pole) {\n"
+    "    float radius = clamp(min(u_resolution.x, u_resolution.y) * 0.065, 36.0, 56.0);\n"
+    "    float disk = circle_mask(point, center, radius);\n"
+    "    float rim = circle_mask(point, center, radius) - circle_mask(point, center, radius - 3.0);\n"
+    "    vec4 background = selected ? vec4(0.96, 0.96, 0.93, 0.94) : vec4(0.05, 0.05, 0.05, 0.72);\n"
+    "    vec3 mark_color = selected ? vec3(0.05) : vec3(0.96);\n"
+    "    float mark = 0.0;\n"
+    "    if (pole) {\n"
+    "        float reach = radius * 0.38;\n"
+    "        float width = max(2.5, radius * 0.075);\n"
+    "        mark = max(\n"
+    "            line_mask(point, center - vec2(reach), center + vec2(reach), width),\n"
+    "            line_mask(point, center + vec2(-reach, reach), center + vec2(reach, -reach), width)\n"
+    "        );\n"
+    "    } else {\n"
+    "        float outer = circle_mask(point, center, radius * 0.40);\n"
+    "        float inner = circle_mask(point, center, radius * 0.27);\n"
+    "        mark = outer - inner;\n"
+    "    }\n"
+    "    vec4 color = background * disk;\n"
+    "    color.rgb = mix(color.rgb, vec3(0.96), rim);\n"
+    "    color.rgb = mix(color.rgb, mark_color, mark);\n"
+    "    color.a = max(color.a, max(rim, mark));\n"
+    "    return color;\n"
+    "}\n"
+    "void main() {\n"
+    "    vec2 point = gl_FragCoord.xy;\n"
+    "    float radius = clamp(min(u_resolution.x, u_resolution.y) * 0.065, 36.0, 56.0);\n"
+    "    float margin = max(18.0, radius * 0.38);\n"
+    "    vec2 zero_center = vec2(margin + radius, margin + radius);\n"
+    "    vec2 pole_center = zero_center + vec2(2.0 * radius + margin * 0.55, 0.0);\n"
+    "    vec4 zero_button = button(point, zero_center, u_placement_kind == 0, false);\n"
+    "    vec4 pole_button = button(point, pole_center, u_placement_kind == 1, true);\n"
+    "    out_color = zero_button.a >= pole_button.a ? zero_button : pole_button;\n"
+    "}\n";
 
 static const char *VERTEX_SHADER =
     "#version 300 es\n"
@@ -33,6 +84,11 @@ enum gesture_kind {
     GESTURE_SINGLE,
     GESTURE_PINCH,
     GESTURE_BLOCKED
+};
+
+enum factor_kind {
+    FACTOR_ZERO,
+    FACTOR_POLE
 };
 
 struct engine {
@@ -56,6 +112,10 @@ struct engine {
     GLint zeros_location;
     GLint poles_location;
 
+    GLuint placement_program;
+    GLint placement_resolution_location;
+    GLint placement_kind_location;
+
     GLuint overlay_program;
     GLuint overlay_texture;
     GLint overlay_resolution_location;
@@ -72,6 +132,7 @@ struct engine {
     float poles[MAX_FACTORS][2];
     int zero_count;
     int pole_count;
+    enum factor_kind placement_kind;
 
     enum gesture_kind gesture;
     bool moved;
@@ -100,6 +161,7 @@ static void reset_function(struct engine *engine) {
     engine->zeros[2][0] = 5.0f;
     engine->zeros[2][1] = 0.0f;
     engine->pole_count = 0;
+    engine->placement_kind = FACTOR_ZERO;
     engine->overlay_dirty = true;
     engine->dirty = true;
 }
@@ -226,6 +288,32 @@ static bool create_renderer(struct engine *engine) {
     engine->zeros_location = glGetUniformLocation(engine->program, "u_zeros[0]");
     engine->poles_location = glGetUniformLocation(engine->program, "u_poles[0]");
 
+    GLuint placement_vertex_shader = compile_shader(GL_VERTEX_SHADER, VERTEX_SHADER);
+    GLuint placement_fragment_shader = compile_shader(
+        GL_FRAGMENT_SHADER,
+        PLACEMENT_CONTROL_FRAGMENT_SHADER
+    );
+    if (placement_vertex_shader != 0 && placement_fragment_shader != 0) {
+        engine->placement_program = link_program(
+            placement_vertex_shader,
+            placement_fragment_shader
+        );
+    }
+    if (placement_vertex_shader != 0) glDeleteShader(placement_vertex_shader);
+    if (placement_fragment_shader != 0) glDeleteShader(placement_fragment_shader);
+    if (engine->placement_program == 0) {
+        LOGE("placement controls unavailable");
+    } else {
+        engine->placement_resolution_location = glGetUniformLocation(
+            engine->placement_program,
+            "u_resolution"
+        );
+        engine->placement_kind_location = glGetUniformLocation(
+            engine->placement_program,
+            "u_placement_kind"
+        );
+    }
+
     glGenVertexArrays(1, &engine->vao);
     glBindVertexArray(engine->vao);
 
@@ -345,6 +433,10 @@ static void terminate_display(struct engine *engine) {
         glDeleteProgram(engine->program);
         engine->program = 0;
     }
+    if (engine->placement_program != 0) {
+        glDeleteProgram(engine->placement_program);
+        engine->placement_program = 0;
+    }
 
     eglMakeCurrent(engine->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
     if (engine->context != EGL_NO_CONTEXT) {
@@ -391,6 +483,21 @@ static void draw_frame(struct engine *engine) {
     glBindVertexArray(engine->vao);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     polynomial_overlay_draw(engine);
+
+    if (engine->placement_program != 0) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glUseProgram(engine->placement_program);
+        glUniform2f(
+            engine->placement_resolution_location,
+            (float)engine->width,
+            (float)engine->height
+        );
+        glUniform1i(engine->placement_kind_location, (int)engine->placement_kind);
+        glBindVertexArray(engine->vao);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDisable(GL_BLEND);
+    }
 
     if (!engine->logged_first_frame) {
         GLubyte pixel[4] = {0, 0, 0, 0};
@@ -448,6 +555,40 @@ static void add_pole(struct engine *engine, float x, float y) {
     engine->dirty = true;
 }
 
+static float placement_control_radius(const struct engine *engine) {
+    float radius = 0.065f * fminf((float)engine->width, (float)engine->height);
+    if (radius < 36.0f) radius = 36.0f;
+    if (radius > 56.0f) radius = 56.0f;
+    return radius;
+}
+
+static bool placement_control_hit(
+    const struct engine *engine,
+    float x,
+    float y,
+    enum factor_kind *kind
+) {
+    if (engine->width <= 0 || engine->height <= 0) {
+        return false;
+    }
+
+    float radius = placement_control_radius(engine);
+    float margin = fmaxf(18.0f, radius * 0.38f);
+    float zero_center_x = margin + radius;
+    float pole_center_x = zero_center_x + 2.0f * radius + margin * 0.55f;
+    float center_y = (float)engine->height - margin - radius;
+
+    if (hypotf(x - zero_center_x, y - center_y) <= radius) {
+        *kind = FACTOR_ZERO;
+        return true;
+    }
+    if (hypotf(x - pole_center_x, y - center_y) <= radius) {
+        *kind = FACTOR_POLE;
+        return true;
+    }
+    return false;
+}
+
 static float pointer_distance(const AInputEvent *event) {
     float dx = AMotionEvent_getX(event, 0) - AMotionEvent_getX(event, 1);
     float dy = AMotionEvent_getY(event, 0) - AMotionEvent_getY(event, 1);
@@ -473,6 +614,14 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
         case AMOTION_EVENT_ACTION_DOWN: {
             float x = AMotionEvent_getX(event, 0);
             float y = AMotionEvent_getY(event, 0);
+            enum factor_kind selected_kind = FACTOR_ZERO;
+            if (placement_control_hit(engine, x, y, &selected_kind)) {
+                engine->placement_kind = selected_kind;
+                engine->gesture = GESTURE_BLOCKED;
+                engine->moved = false;
+                engine->dirty = true;
+                return 1;
+            }
             if (polynomial_overlay_contains(engine, x, y)) {
                 engine->gesture = GESTURE_BLOCKED;
                 engine->moved = false;
@@ -526,17 +675,6 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
                 pointer_midpoint(event, &midpoint_x, &midpoint_y);
                 float distance = pointer_distance(event);
 
-                float midpoint_motion = hypotf(
-                    midpoint_x - engine->pinch_last_mid_x,
-                    midpoint_y - engine->pinch_last_mid_y
-                );
-                if (
-                    midpoint_motion > TWO_FINGER_TAP_SLOP_PIXELS ||
-                    fabsf(distance - engine->pinch_last_distance) > TWO_FINGER_TAP_SLOP_PIXELS
-                ) {
-                    engine->moved = true;
-                }
-
                 pan_by_pixels(
                     engine,
                     midpoint_x - engine->pinch_last_mid_x,
@@ -560,12 +698,6 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
 
         case AMOTION_EVENT_ACTION_POINTER_UP: {
             if (engine->gesture == GESTURE_PINCH && pointer_count == 2) {
-                if (!engine->moved) {
-                    float midpoint_x = 0.0f;
-                    float midpoint_y = 0.0f;
-                    pointer_midpoint(event, &midpoint_x, &midpoint_y);
-                    add_pole(engine, midpoint_x, midpoint_y);
-                }
                 engine->gesture = GESTURE_BLOCKED;
                 return 1;
             }
@@ -574,7 +706,13 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
 
         case AMOTION_EVENT_ACTION_UP: {
             if (engine->gesture == GESTURE_SINGLE && !engine->moved) {
-                add_zero(engine, AMotionEvent_getX(event, 0), AMotionEvent_getY(event, 0));
+                float x = AMotionEvent_getX(event, 0);
+                float y = AMotionEvent_getY(event, 0);
+                if (engine->placement_kind == FACTOR_POLE) {
+                    add_pole(engine, x, y);
+                } else {
+                    add_zero(engine, x, y);
+                }
             }
             engine->gesture = GESTURE_NONE;
             engine->moved = false;
