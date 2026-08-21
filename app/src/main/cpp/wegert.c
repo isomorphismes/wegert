@@ -20,16 +20,11 @@
 static const char *VERTEX_SHADER =
     "#version 300 es\n"
     "precision highp float;\n"
-    "const vec2 positions[3] = vec2[3](\n"
-    "    vec2(-1.0, -1.0),\n"
-    "    vec2( 3.0, -1.0),\n"
-    "    vec2(-1.0,  3.0)\n"
-    ");\n"
+    "layout(location = 0) in vec2 a_position;\n"
     "out vec2 v_ndc;\n"
     "void main() {\n"
-    "    vec2 position = positions[gl_VertexID];\n"
-    "    v_ndc = position;\n"
-    "    gl_Position = vec4(position, 0.0, 1.0);\n"
+    "    v_ndc = a_position;\n"
+    "    gl_Position = vec4(a_position, 0.0, 1.0);\n"
     "}\n";
 
 enum gesture_kind {
@@ -50,6 +45,7 @@ struct engine {
 
     GLuint program;
     GLuint vao;
+    GLuint vbo;
     GLint center_location;
     GLint half_height_location;
     GLint aspect_location;
@@ -179,6 +175,12 @@ static GLuint link_program(GLuint vertex_shader, GLuint fragment_shader) {
 }
 
 static bool create_renderer(struct engine *engine) {
+    static const GLfloat fullscreen_triangle[] = {
+        -1.0f, -1.0f,
+         3.0f, -1.0f,
+        -1.0f,  3.0f
+    };
+
     char *fragment_source = load_asset_text(engine->app->activity->assetManager, "wegert.frag");
     if (fragment_source == NULL) {
         return false;
@@ -212,10 +214,20 @@ static bool create_renderer(struct engine *engine) {
 
     glGenVertexArrays(1, &engine->vao);
     glBindVertexArray(engine->vao);
-    glDisable(GL_DEPTH_TEST);
 
-    LOGI("renderer ready: GL_VERSION=%s GL_RENDERER=%s program=%u vao=%u uniforms=%d,%d,%d,%d,%d,%d,%d,%d",
-         glGetString(GL_VERSION), glGetString(GL_RENDERER), engine->program, engine->vao,
+    glGenBuffers(1, &engine->vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, engine->vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(fullscreen_triangle), fullscreen_triangle, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * (GLsizei)sizeof(GLfloat), (const void *)0);
+    glEnableVertexAttribArray(0);
+
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_SCISSOR_TEST);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+    LOGI("renderer ready: GL_VERSION=%s GL_RENDERER=%s program=%u vao=%u vbo=%u uniforms=%d,%d,%d,%d,%d,%d,%d,%d",
+         glGetString(GL_VERSION), glGetString(GL_RENDERER), engine->program, engine->vao, engine->vbo,
          engine->center_location, engine->half_height_location, engine->aspect_location,
          engine->resolution_location, engine->zero_count_location, engine->pole_count_location,
          engine->zeros_location, engine->poles_location);
@@ -305,13 +317,17 @@ static void terminate_display(struct engine *engine) {
         return;
     }
 
-    if (engine->program != 0) {
-        glDeleteProgram(engine->program);
-        engine->program = 0;
+    if (engine->vbo != 0) {
+        glDeleteBuffers(1, &engine->vbo);
+        engine->vbo = 0;
     }
     if (engine->vao != 0) {
         glDeleteVertexArrays(1, &engine->vao);
         engine->vao = 0;
+    }
+    if (engine->program != 0) {
+        glDeleteProgram(engine->program);
+        engine->program = 0;
     }
 
     eglMakeCurrent(engine->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
