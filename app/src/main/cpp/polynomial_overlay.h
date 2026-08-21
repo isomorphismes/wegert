@@ -218,13 +218,13 @@ static void polynomial_overlay_format_function(const struct engine *engine, char
     overlay_format_polynomial(numerator_coefficients, engine->zero_count, numerator, sizeof(numerator));
 
     if (engine->pole_count == 0) {
-        snprintf(output, capacity, "expanded: f(z) = %s", numerator);
+        snprintf(output, capacity, "%s", numerator);
         return;
     }
 
     overlay_expand_roots(engine->poles, engine->pole_count, denominator_coefficients);
     overlay_format_polynomial(denominator_coefficients, engine->pole_count, denominator, sizeof(denominator));
-    snprintf(output, capacity, "expanded: f(z) = (%s) / (%s)", numerator, denominator);
+    snprintf(output, capacity, "(%s) / (%s)", numerator, denominator);
 }
 
 static int overlay_max_digit_run(const char *text) {
