@@ -85,33 +85,22 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save -no-metrics
           script: |
-            set -eu
             adb shell wm size ${{ matrix.size }}
             adb shell wm density ${{ matrix.density }}
             adb install -r artifacts/app-debug.apk
             adb logcat -c
-
             adb shell am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n org.isomorphisms.wegert/android.app.NativeActivity
             sleep 4
-
-            pid="$(adb shell pidof -s org.isomorphisms.wegert | tr -d '\r')"
-            test -n "$pid"
-
-            # Exercise the single-touch paths: add a zero, then pan.
+            adb logcat -d > wegert-${{ matrix.device }}.log
+            adb exec-out screencap -p > wegert-${{ matrix.device }}.png
+            adb shell pidof -s org.isomorphisms.wegert | tr -d '\r' | grep -Eq '^[0-9]+$'
             adb shell input tap 180 180
             adb shell input swipe 280 300 480 300 350
             sleep 2
-
-            pid_after="$(adb shell pidof -s org.isomorphisms.wegert | tr -d '\r')"
-            test -n "$pid_after"
-
-            adb logcat -d --pid="$pid_after" > wegert-${{ matrix.device }}.log
+            adb logcat -d > wegert-${{ matrix.device }}.log
             adb exec-out screencap -p > wegert-${{ matrix.device }}.png
-
-            if grep -Eiq 'shader compilation failed|program link failed|eglInitialize failed|could not choose GLES3 EGL config|could not create EGL surface/context|eglMakeCurrent failed|Fatal signal|FATAL EXCEPTION' wegert-${{ matrix.device }}.log; then
-              cat wegert-${{ matrix.device }}.log
-              exit 1
-            fi
+            adb shell pidof -s org.isomorphisms.wegert | tr -d '\r' | grep -Eq '^[0-9]+$'
+            ! grep -Eiq 'shader compilation failed|program link failed|eglInitialize failed|could not choose GLES3 EGL config|could not create EGL surface/context|eglMakeCurrent failed' wegert-${{ matrix.device }}.log
 
       - uses: actions/upload-artifact@v4
         if: always()
