@@ -14,6 +14,7 @@
 
 #define LOG_TAG "Wegert"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define MAX_FACTORS 16
 
 static const char *VERTEX_SHADER =
@@ -76,6 +77,7 @@ struct engine {
     float pinch_last_mid_y;
 
     bool dirty;
+    bool logged_first_frame;
 };
 
 static void reset_function(struct engine *engine) {
@@ -211,6 +213,12 @@ static bool create_renderer(struct engine *engine) {
     glGenVertexArrays(1, &engine->vao);
     glBindVertexArray(engine->vao);
     glDisable(GL_DEPTH_TEST);
+
+    LOGI("renderer ready: GL_VERSION=%s GL_RENDERER=%s program=%u vao=%u uniforms=%d,%d,%d,%d,%d,%d,%d,%d",
+         glGetString(GL_VERSION), glGetString(GL_RENDERER), engine->program, engine->vao,
+         engine->center_location, engine->half_height_location, engine->aspect_location,
+         engine->resolution_location, engine->zero_count_location, engine->pole_count_location,
+         engine->zeros_location, engine->poles_location);
     return true;
 }
 
@@ -274,6 +282,7 @@ static bool initialize_display(struct engine *engine) {
     engine->context = context;
     eglQuerySurface(display, surface, EGL_WIDTH, &engine->width);
     eglQuerySurface(display, surface, EGL_HEIGHT, &engine->height);
+    LOGI("EGL surface ready: %dx%d", engine->width, engine->height);
 
     if (!create_renderer(engine)) {
         eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
@@ -348,6 +357,15 @@ static void draw_frame(struct engine *engine) {
 
     glBindVertexArray(engine->vao);
     glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    if (!engine->logged_first_frame) {
+        GLubyte pixel[4] = {0, 0, 0, 0};
+        glReadPixels(engine->width / 2, engine->height / 2, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+        GLenum error = glGetError();
+        LOGI("first frame: center rgba=%u,%u,%u,%u glError=0x%x",
+             pixel[0], pixel[1], pixel[2], pixel[3], error);
+        engine->logged_first_frame = true;
+    }
 
     if (!eglSwapBuffers(engine->display, engine->surface)) {
         LOGE("eglSwapBuffers failed: 0x%x", eglGetError());
@@ -563,7 +581,8 @@ void android_main(struct android_app *app) {
         .surface = EGL_NO_SURFACE,
         .context = EGL_NO_CONTEXT,
         .gesture = GESTURE_NONE,
-        .dirty = true
+        .dirty = true,
+        .logged_first_frame = false
     };
     reset_function(&engine);
 
