@@ -39,6 +39,10 @@ The APK is written to:
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
+Debug APKs use the repository's test-only signing key, and CI uses its increasing run number as the Android version code. After installing one of these stable-signed builds, later CI builds can update it normally. Builds from before this key was added used disposable runner keys and must be uninstalled once before the first stable-signed APK will install.
+
+The checked-in debug key is deliberately public and must never sign a production release.
+
 The debug APK contains `arm64-v8a` for the actual phone/tablet targets and `x86_64` solely for CI emulation.
 
 ## Device emulation
