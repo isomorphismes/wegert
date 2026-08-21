@@ -3,6 +3,7 @@ precision highp float;
 precision highp int;
 
 #define MAX_FACTORS 64
+#define MAX_CONTINUATION_STEPS 24
 
 in vec2 v_ndc;
 out vec4 frag_color;
@@ -15,6 +16,10 @@ uniform int u_zero_count;
 uniform int u_pole_count;
 uniform vec2 u_zeros[MAX_FACTORS];
 uniform vec2 u_poles[MAX_FACTORS];
+uniform int u_view_kind;
+uniform int u_continuation_count;
+uniform vec2 u_continuation_centers[MAX_CONTINUATION_STEPS];
+uniform float u_continuation_radii[MAX_CONTINUATION_STEPS];
 
 const float TAU = 6.28318530717958647692;
 const float LOG_10 = 2.30258509299404568402;
@@ -61,6 +66,16 @@ vec3 hcl_to_srgb(float hue_degrees, float chroma, float lightness) {
     ), 0.0, 1.0);
 }
 
+float distance_to_segment(vec2 point, vec2 start, vec2 finish) {
+    vec2 segment = finish - start;
+    float length_squared = dot(segment, segment);
+    if (length_squared < 1.0e-20) {
+        return length(point - start);
+    }
+    float along = clamp(dot(point - start, segment) / length_squared, 0.0, 1.0);
+    return length(point - (start + along * segment));
+}
+
 void main() {
     vec2 z = u_center + vec2(
         v_ndc.x * u_half_height * u_aspect,
@@ -102,6 +117,64 @@ void main() {
     float world_per_pixel = (2.0 * u_half_height) / max(u_resolution.y, 1.0);
     vec3 marker_dark = vec3(0.09411765);
     vec3 marker_light = vec3(0.96078431, 0.94901961, 0.92156863);
+
+    if (u_view_kind == 1) {
+        float revealed = 0.0;
+        float boundary = 0.0;
+        float path_line = 0.0;
+        float center_mark = 0.0;
+
+        for (int index = 0; index < MAX_CONTINUATION_STEPS; ++index) {
+            if (index >= u_continuation_count) {
+                break;
+            }
+
+            vec2 disc_center = u_continuation_centers[index];
+            float disc_radius = u_continuation_radii[index];
+            float distance_from_center = length(z - disc_center);
+            if (disc_radius < 0.0) {
+                revealed = 1.0;
+            } else {
+                float edge_width = 1.25 * world_per_pixel;
+                revealed = max(
+                    revealed,
+                    1.0 - smoothstep(disc_radius - edge_width, disc_radius + edge_width, distance_from_center)
+                );
+                boundary = max(
+                    boundary,
+                    1.0 - smoothstep(
+                        1.0 * world_per_pixel,
+                        2.5 * world_per_pixel,
+                        abs(distance_from_center - disc_radius)
+                    )
+                );
+            }
+
+            center_mark = max(
+                center_mark,
+                1.0 - smoothstep(3.0, 4.5, distance_from_center / world_per_pixel)
+            );
+
+            if (index > 0) {
+                float segment_distance = distance_to_segment(
+                    z,
+                    u_continuation_centers[index - 1],
+                    disc_center
+                );
+                path_line = max(
+                    path_line,
+                    1.0 - smoothstep(1.5, 3.0, segment_distance / world_per_pixel)
+                );
+            }
+        }
+
+        float gray = dot(color, vec3(0.2126, 0.7152, 0.0722));
+        vec3 unrevealed = vec3(gray * 0.38);
+        color = mix(unrevealed, color, revealed);
+        color = mix(color, vec3(0.98, 0.95, 0.76), boundary * 0.86);
+        color = mix(color, marker_dark, path_line);
+        color = mix(color, marker_light, center_mark);
+    }
 
     for (int index = 0; index < MAX_FACTORS; ++index) {
         if (index >= u_zero_count) {
