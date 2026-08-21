@@ -58,6 +58,16 @@ struct engine {
     GLint zeros_location;
     GLint poles_location;
 
+    GLuint overlay_program;
+    GLuint overlay_texture;
+    GLint overlay_resolution_location;
+    GLint overlay_size_location;
+    GLint overlay_sampler_location;
+    int overlay_width;
+    int overlay_height;
+    bool overlay_dirty;
+    bool overlay_unavailable;
+
     float center[2];
     float half_height;
     float zeros[MAX_FACTORS][2];
@@ -91,6 +101,7 @@ static void reset_function(struct engine *engine) {
     engine->zeros[2][0] = 5.0f;
     engine->zeros[2][1] = 0.0f;
     engine->pole_count = 0;
+    engine->overlay_dirty = true;
     engine->dirty = true;
 }
 
@@ -175,6 +186,8 @@ static GLuint link_program(GLuint vertex_shader, GLuint fragment_shader) {
     glDeleteProgram(program);
     return 0;
 }
+
+#include "polynomial_overlay.h"
 
 static bool create_renderer(struct engine *engine) {
     char *fragment_source = load_asset_text(engine->app->activity->assetManager, "wegert.frag");
@@ -287,6 +300,7 @@ static bool initialize_display(struct engine *engine) {
     }
 
     glViewport(0, 0, engine->width, engine->height);
+    engine->overlay_dirty = true;
     engine->dirty = true;
     return true;
 }
@@ -296,6 +310,7 @@ static void terminate_display(struct engine *engine) {
         return;
     }
 
+    polynomial_overlay_destroy(engine);
     if (engine->program != 0) {
         glDeleteProgram(engine->program);
         engine->program = 0;
@@ -326,6 +341,7 @@ static void update_surface_size(struct engine *engine) {
     eglQuerySurface(engine->display, engine->surface, EGL_WIDTH, &engine->width);
     eglQuerySurface(engine->display, engine->surface, EGL_HEIGHT, &engine->height);
     glViewport(0, 0, engine->width, engine->height);
+    engine->overlay_dirty = true;
     engine->dirty = true;
 }
 
@@ -348,6 +364,7 @@ static void draw_frame(struct engine *engine) {
 
     glBindVertexArray(engine->vao);
     glDrawArrays(GL_TRIANGLES, 0, 3);
+    polynomial_overlay_draw(engine);
 
     if (!eglSwapBuffers(engine->display, engine->surface)) {
         LOGE("eglSwapBuffers failed: 0x%x", eglGetError());
@@ -382,6 +399,7 @@ static void add_zero(struct engine *engine, float x, float y) {
     }
     screen_to_complex(engine, x, y, engine->zeros[engine->zero_count]);
     engine->zero_count += 1;
+    engine->overlay_dirty = true;
     engine->dirty = true;
 }
 
@@ -391,6 +409,7 @@ static void add_pole(struct engine *engine, float x, float y) {
     }
     screen_to_complex(engine, x, y, engine->poles[engine->pole_count]);
     engine->pole_count += 1;
+    engine->overlay_dirty = true;
     engine->dirty = true;
 }
 
@@ -417,10 +436,17 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
 
     switch (masked_action) {
         case AMOTION_EVENT_ACTION_DOWN: {
+            float x = AMotionEvent_getX(event, 0);
+            float y = AMotionEvent_getY(event, 0);
+            if (polynomial_overlay_contains(engine, x, y)) {
+                engine->gesture = GESTURE_BLOCKED;
+                engine->moved = false;
+                return 1;
+            }
             engine->gesture = GESTURE_SINGLE;
             engine->moved = false;
-            engine->down_x = AMotionEvent_getX(event, 0);
-            engine->down_y = AMotionEvent_getY(event, 0);
+            engine->down_x = x;
+            engine->down_y = y;
             engine->last_x = engine->down_x;
             engine->last_y = engine->down_y;
             return 1;
