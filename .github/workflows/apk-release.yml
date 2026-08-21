@@ -1,0 +1,92 @@
+name: Publish tested APK
+
+on:
+  push:
+    branches:
+      - apk-release
+    paths:
+      - .github/workflows/apk-release.yml
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Successful Android workflow run containing wegert-debug-apk
+        required: true
+        type: string
+      source_sha:
+        description: Commit tested by the source workflow run
+        required: true
+        type: string
+      release_version:
+        description: App version shown by the APK, without a leading v
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_RUN_ID: ${{ inputs.source_run_id || '32514600662' }}
+      SOURCE_SHA: ${{ inputs.source_sha || 'f8104344da2efd57a4ea0b59c4f420a86e534ecc' }}
+      RELEASE_VERSION: ${{ inputs.release_version || '0.1.50' }}
+    steps:
+      - name: Validate the requested source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [[ "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]
+          test "$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json conclusion --jq .conclusion)" = success
+          test "$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha --jq .headSha)" = "$SOURCE_SHA"
+
+      - name: Download the exact tested APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir release
+          gh run download "$SOURCE_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name wegert-debug-apk \
+            --dir release
+          test -s release/app-debug.apk
+          unzip -Z1 release/app-debug.apk | grep -Fxq AndroidManifest.xml
+          mv release/app-debug.apk "release/wegert-${RELEASE_VERSION}.apk"
+          (
+            cd release
+            sha256sum "wegert-${RELEASE_VERSION}.apk" > "wegert-${RELEASE_VERSION}.apk.sha256"
+          )
+
+      - name: Publish durable GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release_tag="v${RELEASE_VERSION}"
+          release_title="Wegert Android test ${RELEASE_VERSION}"
+          release_notes="Installable test APK produced by Android CI run ${SOURCE_RUN_ID} from commit ${SOURCE_SHA}.
+
+          The build and its phone/tablet emulator checks passed before publication. This APK is signed with the repository's public test-only debug key; it is not a Google Play production build. The remaining check is touch and rendering behavior on real ARM hardware."
+
+          if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$release_tag" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$release_title" \
+              --notes "$release_notes" \
+              --prerelease
+          else
+            gh release create "$release_tag" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$SOURCE_SHA" \
+              --title "$release_title" \
+              --notes "$release_notes" \
+              --prerelease
+          fi
+
+          gh release upload "$release_tag" \
+            "release/wegert-${RELEASE_VERSION}.apk" \
+            "release/wegert-${RELEASE_VERSION}.apk.sha256" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
