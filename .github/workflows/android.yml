@@ -44,14 +44,14 @@ jobs:
         include:
           - device: miro-a1
             api: 34
-            profile: pixel_2
-            memory: 2048
+            profile: medium_phone
+            memory: 2048M
             size: 720x1280
             density: 320
           - device: tab-p10
             api: 35
             profile: pixel_tablet
-            memory: 4096
+            memory: 4096M
             size: 1280x800
             density: 160
 
@@ -78,11 +78,12 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api }}
-          target: google_apis
+          target: default
           arch: x86_64
           profile: ${{ matrix.profile }}
+          ram-size: ${{ matrix.memory }}
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -memory ${{ matrix.memory }}
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save -no-metrics
           script: |
             set -eu
             adb shell wm size ${{ matrix.size }}
@@ -90,10 +91,7 @@ jobs:
             adb install -r artifacts/app-debug.apk
             adb logcat -c
 
-            adb shell am start -W \
-              -a android.intent.action.MAIN \
-              -c android.intent.category.LAUNCHER \
-              -n org.isomorphisms.wegert/android.app.NativeActivity
+            adb shell am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n org.isomorphisms.wegert/android.app.NativeActivity
             sleep 4
 
             pid="$(adb shell pidof -s org.isomorphisms.wegert | tr -d '\r')"
