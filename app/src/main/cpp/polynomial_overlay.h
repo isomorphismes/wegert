@@ -448,6 +448,22 @@ static void overlay_configure_texture(GLuint texture) {
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+static int overlay_density(const struct engine *engine) {
+    int density = AConfiguration_getDensity(engine->app->config);
+    if (density < 72 || density > 1000) density = 160;
+    return density;
+}
+
+static float clear_button_margin(const struct engine *engine) {
+    return (float)((56 * overlay_density(engine) + 159) / 160);
+}
+
+static void clear_button_origin(const struct engine *engine, float *x, float *y) {
+    float margin = clear_button_margin(engine);
+    *x = (float)(engine->width - engine->clear_button_width) - margin;
+    *y = (float)(engine->height - engine->clear_button_height) - margin;
+}
+
 static bool polynomial_overlay_initialize(struct engine *engine) {
     if (engine->overlay_program != 0) {
         return true;
@@ -486,8 +502,7 @@ static bool polynomial_overlay_initialize(struct engine *engine) {
 }
 
 static bool clear_button_rebuild_texture(struct engine *engine) {
-    int density = AConfiguration_getDensity(engine->app->config);
-    if (density < 72 || density > 1000) density = 160;
+    int density = overlay_density(engine);
 
     int scale = (density + 40) / 80;
     if (scale < 2) scale = 2;
@@ -648,6 +663,10 @@ static void polynomial_overlay_draw(struct engine *engine) {
     glUseProgram(engine->overlay_program);
     glUniform2f(engine->overlay_resolution_location, (float)engine->width, (float)engine->height);
 
+    float clear_button_x = 0.0f;
+    float clear_button_y = 0.0f;
+    clear_button_origin(engine, &clear_button_x, &clear_button_y);
+
     overlay_draw_texture(
         engine,
         engine->overlay_texture,
@@ -661,8 +680,8 @@ static void polynomial_overlay_draw(struct engine *engine) {
         engine->clear_button_texture,
         engine->clear_button_width,
         engine->clear_button_height,
-        (float)(engine->width - 16 - engine->clear_button_width),
-        (float)(engine->height - 16 - engine->clear_button_height)
+        clear_button_x,
+        clear_button_y
     );
 
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -697,8 +716,9 @@ static bool polynomial_overlay_contains(const struct engine *engine, float x, fl
 }
 
 static bool clear_button_contains(const struct engine *engine, float x, float y) {
-    float left = (float)(engine->width - 16 - engine->clear_button_width);
-    float top = (float)(engine->height - 16 - engine->clear_button_height);
+    float left = 0.0f;
+    float top = 0.0f;
+    clear_button_origin(engine, &left, &top);
     return engine->clear_button_width > 0 && engine->clear_button_height > 0 &&
         x >= left && x < left + (float)engine->clear_button_width &&
         y >= top && y < top + (float)engine->clear_button_height;
