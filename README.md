@@ -72,6 +72,10 @@ Debug APKs use the repository's test-only signing key, and CI uses its increasin
 
 The checked-in debug key is deliberately public and must never sign a production release.
 
+Play releases use a different upload key and an Android App Bundle. See
+[`docs/google-play-release.md`](docs/google-play-release.md) for the permanent
+package identity and the credential-gated internal-testing workflow.
+
 The debug APK contains `arm64-v8a` and `armeabi-v7a` for phone/tablet targets and `x86_64` solely for CI emulation.
 
 ## Device emulation
