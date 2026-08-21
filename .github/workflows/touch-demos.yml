@@ -1,9 +1,7 @@
 name: Record touch demonstrations
 
 on:
-  push:
-    branches:
-      - touch-demo-videos
+  pull_request:
 
 permissions:
   contents: read
