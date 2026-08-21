@@ -105,39 +105,17 @@ jobs:
             adb logcat -d > wegert-${{ matrix.device }}.log
             adb exec-out screencap -p > wegert-${{ matrix.device }}.png
             adb shell pidof -s org.isomorphisms.wegert | tr -d '\r' | grep -Eq '^[0-9]+$'
-            wegert_surface="$(adb logcat -d | tr -d '\r' | awk '/EGL surface ready:/ { value=$NF } END { print value }')"
-            wegert_surface_width="${wegert_surface%x*}"
-            wegert_surface_height="${wegert_surface#*x}"
-            test "$wegert_surface_width" -gt 0
-            test "$wegert_surface_height" -gt 0
-            wegert_portrait_y="$((wegert_surface_height / 2))"
-            wegert_drag_start_x="$((2 * wegert_surface_width / 5))"
-            wegert_drag_end_x="$((3 * wegert_surface_width / 5))"
-            wegert_pole_control="$(adb logcat -d | tr -d '\r' | awk '/placement control centers:/ { value=$NF } END { print value }')"
-            wegert_pole_control="${wegert_pole_control#pole=}"
-            wegert_pole_control_x="${wegert_pole_control%,*}"
-            wegert_pole_control_y="${wegert_pole_control#*,}"
-            test "$wegert_pole_control_x" -gt 0
-            test "$wegert_pole_control_y" -gt 0
-            adb shell input tap "$wegert_pole_control_x" "$wegert_pole_control_y"
-            wegert_pole_x="$((3 * wegert_surface_width / 4))"
-            wegert_pole_y="$((2 * wegert_surface_height / 5))"
-            adb shell input tap "$wegert_pole_x" "$wegert_pole_y"
+            awk '/EGL surface ready:/ { split($NF, dimensions, "x"); width=dimensions[1]; height=dimensions[2] } END { exit !(width > 0 && height > 0) }' wegert-${{ matrix.device }}.log
+            adb shell input tap "$(awk '/placement control centers:/ { value=$NF } END { sub(/^pole=/, "", value); split(value, coordinates, ","); print coordinates[1] }' wegert-${{ matrix.device }}.log)" "$(awk '/placement control centers:/ { value=$NF } END { sub(/^pole=/, "", value); split(value, coordinates, ","); print coordinates[2] }' wegert-${{ matrix.device }}.log)"
+            adb shell input tap "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(3 * dimensions[1] / 4) }' wegert-${{ matrix.device }}.log)" "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(2 * dimensions[2] / 5) }' wegert-${{ matrix.device }}.log)"
             sleep 1
-            wegert_view_x="$(adb logcat -d | tr -d '\r' | awk '/view control center:/ { value=$(NF-1) } END { print value }')"
-            wegert_view_y="$(adb logcat -d | tr -d '\r' | awk '/view control center:/ { value=$NF } END { print value }')"
-            test -n "$wegert_view_x"
-            test -n "$wegert_view_y"
-            adb shell input tap "$wegert_view_x" "$wegert_view_y"
+            adb shell input tap "$(awk '/view control center:/ { value=$(NF-1) } END { print value }' wegert-${{ matrix.device }}.log)" "$(awk '/view control center:/ { value=$NF } END { print value }' wegert-${{ matrix.device }}.log)"
             sleep 1
-            wegert_inside_x="$(((wegert_surface_width / 2 + wegert_pole_x) / 2))"
-            wegert_inside_y="$(((wegert_surface_height / 2 + wegert_pole_y) / 2))"
-            adb shell input tap "$wegert_inside_x" "$wegert_inside_y"
+            adb shell input tap "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(5 * dimensions[1] / 8) }' wegert-${{ matrix.device }}.log)" "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(9 * dimensions[2] / 20) }' wegert-${{ matrix.device }}.log)"
             sleep 1
-            wegert_outside_x="$((wegert_surface_width / 4))"
-            adb shell input tap "$wegert_outside_x" "$wegert_portrait_y"
+            adb shell input tap "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(dimensions[1] / 4) }' wegert-${{ matrix.device }}.log)" "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(dimensions[2] / 2) }' wegert-${{ matrix.device }}.log)"
             sleep 1
-            adb shell input swipe "$wegert_drag_start_x" "$wegert_portrait_y" "$wegert_drag_end_x" "$wegert_portrait_y" 350
+            adb shell input swipe "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(2 * dimensions[1] / 5) }' wegert-${{ matrix.device }}.log)" "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(dimensions[2] / 2) }' wegert-${{ matrix.device }}.log)" "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(3 * dimensions[1] / 5) }' wegert-${{ matrix.device }}.log)" "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(dimensions[2] / 2) }' wegert-${{ matrix.device }}.log)" 350
             sleep 1
             adb logcat -d > wegert-${{ matrix.device }}.log
             adb exec-out screencap -p > wegert-${{ matrix.device }}.png
@@ -145,12 +123,8 @@ jobs:
             grep -Fq 'continuation view enabled' wegert-${{ matrix.device }}.log
             grep -Fq 'continuation step added' wegert-${{ matrix.device }}.log
             grep -Fq 'continuation step rejected: tap must be inside the preceding Taylor disc' wegert-${{ matrix.device }}.log
-            wegert_seed_radius="$(awk '/continuation seeded at/ { sub(/^.*radius=/, ""); value=$1 } END { print value }' wegert-${{ matrix.device }}.log)"
-            printf '%s\n' "$wegert_seed_radius" | grep -Eq '^[+]?[0-9]+([.][0-9]+)?([eE][+-]?[0-9]+)?$'
-            awk -v radius="$wegert_seed_radius" 'BEGIN { exit !(radius > 0 && radius < 1000) }'
-            wegert_step_radius="$(awk '/continuation step added:/ { sub(/^.*radius=/, ""); value=$1 } END { print value }' wegert-${{ matrix.device }}.log)"
-            printf '%s\n' "$wegert_step_radius" | grep -Eq '^[+]?[0-9]+([.][0-9]+)?([eE][+-]?[0-9]+)?$'
-            awk -v radius="$wegert_step_radius" 'BEGIN { exit !(radius > 0 && radius < 1000) }'
+            awk '/continuation seeded at/ { sub(/^.*radius=/, ""); value=$1 } END { exit !(value != "" && value + 0 > 0 && value + 0 < 1000) }' wegert-${{ matrix.device }}.log
+            awk '/continuation step added:/ { sub(/^.*radius=/, ""); value=$1 } END { exit !(value != "" && value + 0 > 0 && value + 0 < 1000) }' wegert-${{ matrix.device }}.log
             ! grep -Eiq 'shader compilation failed|program link failed|eglInitialize failed|could not choose GLES3 EGL config|could not create EGL surface/context|eglMakeCurrent failed' wegert-${{ matrix.device }}.log
 
       - uses: actions/upload-artifact@v4
