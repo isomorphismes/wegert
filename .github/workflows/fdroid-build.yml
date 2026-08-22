@@ -52,6 +52,7 @@ jobs:
           grep -Fxq lib/x86_64/libwegert.so "$RUNNER_TEMP/wegert-release-files.txt"
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" > "$RUNNER_TEMP/wegert-release-badging.txt"
           grep -Fq "package: name='org.isomorphisms.wegert' versionCode='100' versionName='0.1.100'" "$RUNNER_TEMP/wegert-release-badging.txt"
+          grep -Fq "application-label:'zero & infinity'" "$RUNNER_TEMP/wegert-release-badging.txt"
 
       - uses: actions/upload-artifact@v4
         with:
