@@ -1,0 +1,17 @@
+name: PR10 video inspection artifact
+
+on:
+  push:
+    branches:
+      - tmp/inspect-pr10-videos-20260822
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pr10-touch-demo-videos
+          path: docs/demos/*.mp4
+          if-no-files-found: error
