@@ -6,7 +6,7 @@ Wegert's F-Droid build must come from a tagged source commit and must not depend
 
 1. Keep `versionCode` and `versionName` in `app/build.gradle.kts` source-controlled.
 2. Run the `F-Droid release build` workflow. It builds `assembleRelease`, checks the package/version and all three native ABIs, and retains the unsigned APK as evidence.
-3. Choose and add a FLOSS `LICENSE` file before submission. Replace `CHOOSE-A-FLOSS-SPDX-ID` in the metadata template with its SPDX identifier.
+3. Keep the repository license and F-Droid metadata aligned on `GPL-3.0-or-later`. `THIRD_PARTY.md` records material that is not relicensed by that grant.
 4. Tag the exact release commit `v<versionName>`.
 5. Replace `FULL_COMMIT_HASH` in `org.isomorphisms.wegert.yml.template` with the full hash of that tagged commit.
 6. Copy the template to `fdroiddata/metadata/org.isomorphisms.wegert.yml`, run `fdroid lint org.isomorphisms.wegert`, then submit the fdroiddata merge request.
