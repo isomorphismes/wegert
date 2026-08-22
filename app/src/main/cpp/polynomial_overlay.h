@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "complex_math.h"
+
 struct overlay_complex {
     double real;
     double imag;
@@ -75,33 +77,12 @@ static void overlay_expand_roots(
     int root_count,
     struct overlay_complex coefficients[MAX_FACTORS + 1]
 ) {
+    double coefficients_cartesian[(MAX_FACTORS + 1) * 2];
+    wegert_expand_roots_cartesian(&roots[0][0], root_count, coefficients_cartesian);
+
     for (int index = 0; index <= MAX_FACTORS; ++index) {
-        coefficients[index].real = 0.0;
-        coefficients[index].imag = 0.0;
-    }
-    coefficients[0].real = 1.0;
-
-    int degree = 0;
-    for (int root_index = 0; root_index < root_count; ++root_index) {
-        struct overlay_complex next[MAX_FACTORS + 1] = {{0.0, 0.0}};
-        double root_real = roots[root_index][0];
-        double root_imag = roots[root_index][1];
-
-        for (int power = 0; power <= degree; ++power) {
-            double coefficient_real = coefficients[power].real;
-            double coefficient_imag = coefficients[power].imag;
-
-            next[power + 1].real += coefficient_real;
-            next[power + 1].imag += coefficient_imag;
-
-            next[power].real += -root_real * coefficient_real + root_imag * coefficient_imag;
-            next[power].imag += -root_real * coefficient_imag - root_imag * coefficient_real;
-        }
-
-        degree += 1;
-        for (int power = 0; power <= degree; ++power) {
-            coefficients[power] = next[power];
-        }
+        coefficients[index].real = coefficients_cartesian[2 * index];
+        coefficients[index].imag = coefficients_cartesian[2 * index + 1];
     }
 }
 
