@@ -2,28 +2,47 @@ plugins {
     id("com.android.application")
 }
 
+val buildNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+
 android {
     namespace = "org.isomorphisms.wegert"
     compileSdk = 36
     ndkVersion = "29.0.14206865"
 
+    signingConfigs {
+        create("stableDebug") {
+            storeFile = file("wegert-debug.keystore")
+            storePassword = "wegert-debug"
+            keyAlias = "wegert-debug"
+            keyPassword = "wegert-debug"
+            storeType = "pkcs12"
+        }
+    }
+
     defaultConfig {
         applicationId = "org.isomorphisms.wegert"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = buildNumber
+        versionName = "0.1.$buildNumber"
 
-        // arm64-v8a is the real phone/tablet target. x86_64 is included so the
-        // same APK can be installed on CI Android emulators.
+        // arm64-v8a is the main real phone/tablet target. armeabi-v7a keeps
+        // the same native app installable on 32-bit Android/Android Go userspace,
+        // and x86_64 is included so the same APK can be installed on CI emulators.
         ndk {
-            abiFilters += listOf("arm64-v8a", "x86_64")
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
         }
 
         externalNativeBuild {
             cmake {
                 arguments += listOf("-DANDROID_STL=none")
             }
+        }
+    }
+
+    buildTypes {
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("stableDebug")
         }
     }
 
