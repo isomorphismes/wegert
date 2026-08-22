@@ -30,6 +30,7 @@ android {
         targetSdk = 36
         versionCode = releaseVersionCode
         versionName = releaseVersionName
+        manifestPlaceholders["appLabel"] = if (fdroidBuild) "zero & infinity" else "Wegert"
 
         // arm64-v8a is the main real phone/tablet target. armeabi-v7a keeps
         // the same native app installable on 32-bit Android/Android Go userspace,
