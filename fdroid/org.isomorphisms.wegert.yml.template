@@ -11,7 +11,7 @@ Repo: https://github.com/isomorphisms/wegert.git
 Builds:
   - versionName: 0.1.100
     versionCode: 100
-    commit: FULL_COMMIT_HASH
+    commit: v0.1.100
     ndk: 29.0.14206865
     rm:
       - app/wegert-debug.keystore
