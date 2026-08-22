@@ -1,0 +1,45 @@
+name: Tag F-Droid release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/build.gradle.kts'
+      - '.github/workflows/fdroid-auto-tag.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  tag-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read source-controlled release version
+        id: release
+        shell: bash
+        run: |
+          version="$(sed -n 's/^val releaseVersionName = "\([^"]*\)"$/\1/p' app/build.gradle.kts)"
+          code="$(sed -n 's/^val releaseVersionCode = \([0-9][0-9]*\)$/\1/p' app/build.gradle.kts)"
+          test -n "$version"
+          test -n "$code"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "code=${code}" >> "$GITHUB_OUTPUT"
+
+      - name: Create matching release tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        shell: bash
+        run: |
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" >/dev/null 2>&1; then
+            echo "${TAG} already exists"
+            exit 0
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+            -f ref="refs/tags/${TAG}" \
+            -f sha="${GITHUB_SHA}"
