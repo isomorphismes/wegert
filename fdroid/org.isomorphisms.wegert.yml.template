@@ -1,0 +1,21 @@
+Categories:
+  - Science & Education
+License: CHOOSE-A-FLOSS-SPDX-ID
+SourceCode: https://github.com/isomorphisms/wegert
+IssueTracker: https://github.com/isomorphisms/wegert/issues
+
+RepoType: git
+Repo: https://github.com/isomorphisms/wegert.git
+
+Builds:
+  - versionName: 0.1.100
+    versionCode: 100
+    commit: FULL_COMMIT_HASH
+    ndk: 29.0.14206865
+    gradle:
+      - yes
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
+CurrentVersion: 0.1.100
+CurrentVersionCode: 100
