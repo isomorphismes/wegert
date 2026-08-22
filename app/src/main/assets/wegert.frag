@@ -2,7 +2,7 @@
 precision highp float;
 precision highp int;
 
-#define MAX_FACTORS 16
+#define MAX_FACTORS 64
 
 in vec2 v_ndc;
 out vec4 frag_color;

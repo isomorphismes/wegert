@@ -11,6 +11,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Run factor-drag host tests
+        run: |
+          cc -std=c11 -Wall -Wextra -Wpedantic -Werror \
+            -Iapp/src/main/cpp tests/factor_drag_test.c -lm \
+            -o "$RUNNER_TEMP/wegert-factor-drag-test"
+          "$RUNNER_TEMP/wegert-factor-drag-test"
+
+      - name: Test non-arm64 Cartesian complex fallback
+        run: |
+          cc -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
+            app/src/main/cpp/complex_math_fallback.c \
+            tests/complex_math_test.c \
+            -lm -o /tmp/wegert-complex-math-test
+          /tmp/wegert-complex-math-test
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -22,12 +37,40 @@ jobs:
         run: |
           sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865" "cmake;3.22.1"
 
+      - name: Verify isolated ICK arm64 object
+        shell: bash
+        run: |
+          set -euxo pipefail
+          object_dir="app/src/main/cpp/prebuilt/arm64-v8a"
+          (
+            cd "$object_dir"
+            sha256sum -c complex_math_ick.o.sha256
+          )
+
+          sdk_root="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          llvm_bin="$sdk_root/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          "$llvm_bin/llvm-readelf" -h "$object_dir/complex_math_ick.o" \
+            | tee /tmp/ick-complex-math.elf
+          grep -q 'Machine:.*AArch64' /tmp/ick-complex-math.elf
+
+          "$llvm_bin/llvm-nm" -u "$object_dir/complex_math_ick.o" \
+            | tee /tmp/ick-complex-math.undefined
+          ! grep -Eq '__mul(sc|dc|xc)3|__div(sc|dc|xc)3' \
+            /tmp/ick-complex-math.undefined
+
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
 
       - name: Build debug APK
         run: gradle --no-daemon :app:assembleDebug
+
+      - name: Verify APK contains every supported ABI
+        run: |
+          unzip -l app/build/outputs/apk/debug/app-debug.apk > /tmp/apk-files
+          grep -q 'lib/arm64-v8a/libwegert.so' /tmp/apk-files
+          grep -q 'lib/armeabi-v7a/libwegert.so' /tmp/apk-files
+          grep -q 'lib/x86_64/libwegert.so' /tmp/apk-files
 
       - uses: actions/upload-artifact@v4
         with:
