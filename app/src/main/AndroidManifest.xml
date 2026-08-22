@@ -4,7 +4,9 @@
     <application
         android:allowBackup="false"
         android:hasCode="false"
+        android:icon="@mipmap/ic_launcher"
         android:label="Wegert"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen">
         <activity
             android:name="android.app.NativeActivity"
