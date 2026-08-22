@@ -2,14 +2,14 @@
 set -eu
 
 mkdir -p raw-demos
-adb shell wm size 1280x720
+adb shell wm size 720x1280
 adb shell wm density 320
 adb install -r wegert.apk
 adb shell settings put system show_touches 1
 adb shell am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n org.isomorphisms.wegert/android.app.NativeActivity
 sleep 4
 
-# Wegert is landscape. At 1280x720/320 dpi the clear button is centered
+# Wegert rotates this 720x1280 logical device to a 1280x720 landscape surface.\n# At 320 dpi the clear button is centered
 # near (1078, 560), the zero control near (65, 655), and the pole
 # control near (168, 655).
 adb shell input tap 1078 560
