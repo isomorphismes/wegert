@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - tmp/inspect-pr10-videos-20260822
+  pull_request:
 
 jobs:
   package:
