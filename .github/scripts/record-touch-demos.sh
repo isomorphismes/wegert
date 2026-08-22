@@ -32,6 +32,7 @@ adb shell input swipe 500 760 420 900 1100
 sleep 2.2
 wait "$first_recorder_pid"
 adb pull /sdcard/add-and-drag-zero-and-pole.mp4 raw-demos/
+adb exec-out screencap -p > raw-demos/add-and-drag-zero-and-pole-final.png
 
 adb shell input tap 518 1120
 sleep 1
@@ -61,3 +62,4 @@ adb shell input swipe 470 820 540 940 1000
 sleep 2
 wait "$second_recorder_pid"
 adb pull /sdcard/add-and-drag-two-zeros-and-two-poles.mp4 raw-demos/
+adb exec-out screencap -p > raw-demos/add-and-drag-two-zeros-and-two-poles-final.png

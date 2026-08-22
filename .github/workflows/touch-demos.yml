@@ -42,21 +42,15 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save -no-metrics
           script: sh .github/scripts/record-touch-demos.sh
 
-      - name: Encode repository-sized MP4s
+      - name: Verify native recordings
         run: |
-          mkdir -p encoded-demos
-          for input in raw-demos/*.mp4; do
-            output="encoded-demos/$(basename "$input")"
-            ffmpeg -hide_banner -loglevel error -y -i "$input" \
-              -an -vf fps=30 -c:v libx264 -preset medium -crf 24 \
-              -pix_fmt yuv420p -movflags +faststart "$output"
-          done
-          ffprobe -v error -show_entries format=filename,duration,size \
-            -of default=noprint_wrappers=1 encoded-demos/*.mp4
+          test -s raw-demos/add-and-drag-zero-and-pole.mp4
+          test -s raw-demos/add-and-drag-two-zeros-and-two-poles.mp4
+          file raw-demos/*
 
       - uses: actions/upload-artifact@v4
         with:
           name: wegert-touch-demos
-          path: encoded-demos/*.mp4
+          path: raw-demos/*
           if-no-files-found: error
           retention-days: 7
