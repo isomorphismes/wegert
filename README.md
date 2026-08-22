@@ -14,6 +14,13 @@ This first Android slice is deliberately small: a C `NativeActivity` owns touch 
 
 The initial view is centered at the ordinary complex zero. Zeros are shown as dark rings with light centers; poles are shown as dark crosses.
 
+## Touch demonstrations
+
+Both recordings use the tested [v0.1.50 APK](https://github.com/isomorphisms/wegert/releases/tag/v0.1.50).
+
+- [Place and drag one zero and one pole](docs/demos/add-and-drag-zero-and-pole.mp4)
+- [Place and drag two zeros and two poles](docs/demos/add-and-drag-two-zeros-and-two-poles.mp4)
+
 ## Colouring
 
 The shader preserves the established Wegert palette constants from the earlier R version:
