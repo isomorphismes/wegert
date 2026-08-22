@@ -8,8 +8,14 @@ add_library(native_app_glue STATIC
 )
 target_include_directories(native_app_glue PUBLIC "${NATIVE_GLUE_DIR}")
 
+option(
+    WEGERT_USE_ICK_PREBUILT
+    "Use the separately compiled ICK complex-math object on arm64"
+    ON
+)
+
 set(WEGERT_SOURCES wegert.c)
-if(ANDROID_ABI STREQUAL "arm64-v8a")
+if(ANDROID_ABI STREQUAL "arm64-v8a" AND WEGERT_USE_ICK_PREBUILT)
     set(ICK_COMPLEX_MATH_OBJECT
         "${CMAKE_CURRENT_SOURCE_DIR}/prebuilt/arm64-v8a/complex_math_ick.o"
     )
