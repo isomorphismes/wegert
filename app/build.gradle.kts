@@ -7,6 +7,7 @@ plugins {
 // run-number-based debug builds already published from this repository.
 val releaseVersionCode = 100
 val releaseVersionName = "0.1.100"
+val fdroidBuild = providers.gradleProperty("fdroidBuild").orNull == "true"
 
 android {
     namespace = "org.isomorphisms.wegert"
@@ -39,7 +40,10 @@ android {
 
         externalNativeBuild {
             cmake {
-                arguments += listOf("-DANDROID_STL=none")
+                arguments += listOf(
+                    "-DANDROID_STL=none",
+                    "-DWEGERT_USE_ICK_PREBUILT=${if (fdroidBuild) "OFF" else "ON"}",
+                )
             }
         }
     }
