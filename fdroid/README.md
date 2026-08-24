@@ -13,3 +13,16 @@ Wegert stays the internal project and package name. F-Droid publishes it as **ze
 F-Droid performs its own source build and signs the resulting APK. The upstream unsigned artifact is only a build gate and inspection artifact.
 
 After first inclusion, `UpdateCheckMode: Tags` plus `AutoUpdateMode: Version` lets F-Droid detect later release tags automatically, provided each tag contains the matching source-controlled Android version.
+
+## Publication status
+
+The `F-Droid publication status` workflow runs the read-only Grease checks after the release workflow, once a day, on relevant pull requests, and on demand.
+
+```sh
+ysh fdroid/gitlab-status.grease
+ysh fdroid/store-status.grease
+```
+
+`gitlab-status.grease` checks the cross-fork fdroiddata merge request even after it is closed or merged. It reports whether it was accepted, merge/pipeline state, labels, dates, and non-system reviewer comments. The defaults are `black-ballers/share-freely -> fdroid/fdroiddata` with source branch `master`; pass another source branch as the first argument for later submissions. Public reads need no token, but `GITLAB_TOKEN` is used when present.
+
+`store-status.grease` checks F-Droid's public package API and store page for `org.isomorphisms.wegert`. It reads the expected `versionCode` and `versionName` directly from `app/build.gradle.kts`, then reports whether the app is visible, what F-Droid currently suggests, whether the exact expected version is published, and whether that version is current. A package 404 is reported as `pending` and exits successfully; transport/API errors still fail CI.
