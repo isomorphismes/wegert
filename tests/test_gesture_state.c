@@ -17,14 +17,19 @@ int main(void) {
     }
 
     assert(gesture_pointer_down_starts_pinch(GESTURE_SINGLE, 2));
+    assert(gesture_pointer_down_starts_pinch(GESTURE_FACTOR, 2));
     assert(!gesture_pointer_down_starts_pinch(GESTURE_SINGLE, 3));
     assert(gesture_pointer_down_resets(GESTURE_SINGLE, 3));
+    assert(gesture_pointer_down_resets(GESTURE_FACTOR, 3));
     assert(gesture_pointer_down_resets(GESTURE_PINCH, 3));
     assert(!gesture_pointer_down_resets(GESTURE_NONE, 3));
 
     assert(!gesture_view_release_toggles(GESTURE_VIEW_BUTTON, false));
     assert(gesture_view_release_toggles(GESTURE_VIEW_BUTTON, true));
     assert(!gesture_view_release_toggles(GESTURE_BLOCKED, true));
+
+    assert(gesture_touch_can_capture_factor(false));
+    assert(!gesture_touch_can_capture_factor(true));
 
     puts("gesture state tests passed");
     return 0;

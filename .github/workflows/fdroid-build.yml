@@ -1,0 +1,61 @@
+name: F-Droid release build
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/fdroid-build.yml'
+      - 'app/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'fdroid/**'
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+
+jobs:
+  release-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Remove non-F-Droid binary inputs
+        run: rm -rf app/src/main/cpp/prebuilt app/wegert-debug.keystore
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android build inputs
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865" "cmake;3.22.1"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+
+      - name: Build unsigned release APK from source-only inputs
+        run: gradle --no-daemon -PfdroidBuild=true :app:assembleRelease
+
+      - name: Verify F-Droid release output
+        run: |
+          apk=app/build/outputs/apk/release/app-release-unsigned.apk
+          test -s "$apk"
+          unzip -t "$apk"
+          unzip -Z1 "$apk" > "$RUNNER_TEMP/wegert-release-files.txt"
+          grep -Fxq lib/arm64-v8a/libwegert.so "$RUNNER_TEMP/wegert-release-files.txt"
+          grep -Fxq lib/armeabi-v7a/libwegert.so "$RUNNER_TEMP/wegert-release-files.txt"
+          grep -Fxq lib/x86_64/libwegert.so "$RUNNER_TEMP/wegert-release-files.txt"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" > "$RUNNER_TEMP/wegert-release-badging.txt"
+          grep -Fq "package: name='org.isomorphisms.wegert' versionCode='100' versionName='0.1.100'" "$RUNNER_TEMP/wegert-release-badging.txt"
+          grep -Fq "application-label:'zero & infinity'" "$RUNNER_TEMP/wegert-release-badging.txt"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wegert-fdroid-unsigned
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: error

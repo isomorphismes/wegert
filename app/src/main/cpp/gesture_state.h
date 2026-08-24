@@ -6,6 +6,7 @@
 enum gesture_kind {
     GESTURE_NONE,
     GESTURE_SINGLE,
+    GESTURE_FACTOR,
     GESTURE_PINCH,
     GESTURE_CLEAR_BUTTON,
     GESTURE_VIEW_BUTTON,
@@ -19,16 +20,21 @@ static bool gesture_is_ui_hold(enum gesture_kind gesture) {
 }
 
 static bool gesture_pointer_down_starts_pinch(enum gesture_kind gesture, int pointer_count) {
-    return gesture == GESTURE_SINGLE && pointer_count == 2;
+    return pointer_count == 2 &&
+        (gesture == GESTURE_SINGLE || gesture == GESTURE_FACTOR);
 }
 
 static bool gesture_pointer_down_resets(enum gesture_kind gesture, int pointer_count) {
     return pointer_count >= 3 &&
-        (gesture == GESTURE_SINGLE || gesture == GESTURE_PINCH);
+        (gesture == GESTURE_SINGLE || gesture == GESTURE_FACTOR || gesture == GESTURE_PINCH);
 }
 
 static bool gesture_view_release_toggles(enum gesture_kind gesture, bool released_inside) {
     return gesture == GESTURE_VIEW_BUTTON && released_inside;
+}
+
+static bool gesture_touch_can_capture_factor(bool continuation_view) {
+    return !continuation_view;
 }
 
 #endif

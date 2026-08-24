@@ -7,7 +7,8 @@ This first Android slice is deliberately small: a C `NativeActivity` owns touch 
 ## First playable controls
 
 - tap the ○ or × control, then tap the portrait to add that kind of factor (up to 64 each)
-- one-finger drag: move the visible complex domain
+- one-finger drag from an existing marker: move that factor
+- one-finger drag from empty portrait space: move the visible complex domain
 - pinch: zoom the visible domain
 - `continuation`: switch from the whole portrait to a continuation view; `whole portrait` switches back
 - in continuation view, tap inside the preceding Taylor disc to add the next center
@@ -29,6 +30,15 @@ Wegert uses the normalized model $g(z)=\prod_j(z-a_j)/\prod_k(z-b_k)$, with comp
 The first Taylor-disc center is the camera center when it is a regular point. Only a center exactly equal to an uncancelled pole is mathematically rejected. For usable touch input, a continuation-center tap within a pole's screen-space touch target first snaps to that exact pole and is therefore rejected; the planner itself retains exact Taylor geometry with no epsilon. Each disc radius is the distance from its center to the nearest uncancelled pole. A function with no uncancelled finite poles has an unbounded Taylor disc. Interactive factor insertion keeps the stored arrays reduced as described above; the continuation planner also defensively cancels exact opposite pairs with multiplicity if a future imported or raw state contains them.
 
 A newly tapped center is accepted only inside the immediately preceding open disc. The shader retains the rational portrait inside the revealed union, desaturates and darkens the unrevealed region, and draws the disc boundaries, centers, and path. If the path is empty, the portrait remains darkened until a regular point is tapped as a new seed. The path is deliberately bounded to 24 centers for predictable GLES uniform use.
+
+In the whole portrait, dragging from an existing marker moves only that factor; dragging empty space pans. Factor dragging does not snap or retarget after finger-down. In the continuation view, marker touches remain continuation-center input so a touch near a pole can snap to the exact pole and be rejected.
+
+## Touch demonstrations
+
+Both recordings use the tested [v0.1.50 APK](https://github.com/isomorphisms/wegert/releases/tag/v0.1.50).
+
+- [Place and drag one zero and one pole](docs/demos/add-and-drag-zero-and-pole.mp4)
+- [Place and drag two zeros and two poles](docs/demos/add-and-drag-two-zeros-and-two-poles.mp4)
 
 ## Colouring
 
@@ -68,7 +78,7 @@ The APK is written to:
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Debug APKs use the repository's test-only signing key, and CI uses its increasing run number as the Android version code. After installing one of these stable-signed builds, later CI builds can update it normally. Builds from before this key was added used disposable runner keys and must be uninstalled once before the first stable-signed APK will install.
+Debug APKs use the repository's public test-only signing key and the source-controlled `0.1.100` version identity. Builds from before this key was added used disposable runner keys and must be uninstalled once before the first stable-signed APK will install.
 
 The checked-in debug key is deliberately public and must never sign a production release.
 
