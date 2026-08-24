@@ -1,0 +1,93 @@
+#!/usr/bin/env ysh
+
+shopt --set ysh:upgrade
+
+# Check the public F-Droid main-repository API. A 404 is a normal "not published
+# yet" state, not an infrastructure failure.
+var package_name = ARGV[0] if len(ARGV) > 0 else ${FDROID_PACKAGE:-org.isomorphisms.wegert}
+var gradle_file = ${FDROID_GRADLE_FILE:-app/build.gradle.kts}
+var expected_code = ${FDROID_EXPECTED_VERSION_CODE:-}
+var expected_name = ${FDROID_EXPECTED_VERSION_NAME:-}
+var need_version_source = 'yes' if expected_code === '' else 'no'
+if (expected_name === '') {
+  setvar need_version_source = 'yes'
+}
+
+if (need_version_source === 'yes') {
+  if ! test -f $gradle_file {
+    echo "F-Droid version source not found: $gradle_file" >&2
+    echo 'Set FDROID_EXPECTED_VERSION_CODE and FDROID_EXPECTED_VERSION_NAME to override.' >&2
+    exit 1
+  }
+
+  if (expected_code === '') {
+    setvar expected_code = $(sed -n 's/.*releaseVersionCode = \([0-9][0-9]*\).*/\1/p' $gradle_file | head -n 1)
+  }
+  if (expected_name === '') {
+    setvar expected_name = $(sed -n 's/.*releaseVersionName = "\([^"]*\)".*/\1/p' $gradle_file | head -n 1)
+  }
+}
+
+if (expected_code === '') {
+  echo "Could not read the expected F-Droid version code from $gradle_file" >&2
+  exit 1
+}
+if (expected_name === '') {
+  echo "Could not read the expected F-Droid version name from $gradle_file" >&2
+  exit 1
+}
+
+var api_url = "https://f-droid.org/api/v1/packages/$package_name"
+var page_url = "https://f-droid.org/packages/$package_name/"
+var body = $(mktemp)
+var http_code = $(curl --silent --show-error --output $body --write-out '%{http_code}' $api_url)
+
+printf 'Package:          %s\n' $package_name
+printf 'Expected:         %s (%s)\n' $expected_name $expected_code
+
+if (http_code === '404') {
+  echo 'Visible:          no'
+  echo 'Expected version: pending'
+  echo "Store page:       $page_url"
+  rm -f $body
+  exit 0
+}
+
+if (http_code !== '200') {
+  echo "F-Droid package API returned HTTP $http_code" >&2
+  cat $body >&2
+  rm -f $body
+  exit 1
+}
+
+var returned_package = $(jq -er '.packageName' $body)
+if (returned_package !== package_name) {
+  echo "F-Droid returned package $returned_package, expected $package_name" >&2
+  rm -f $body
+  exit 1
+}
+
+var suggested_code = $(jq -r '.suggestedVersionCode // "none"' $body)
+var suggested_name = $(jq -r --arg code $suggested_code '[.packages[]? | select((.versionCode | tostring) == $code)] | first | .versionName // "unknown"' $body)
+var newest = $(jq -r '[.packages[]?] | if length == 0 then "none" else (max_by(.versionCode) | "\(.versionName) (\(.versionCode))") end' $body)
+var exact_count = $(jq --arg code $expected_code --arg name $expected_name '[.packages[]? | select((.versionCode | tostring) == $code and .versionName == $name)] | length' $body)
+var expected_present = 'yes' if exact_count !== '0' else 'no'
+var current_expected = 'no'
+if (expected_present === 'yes') {
+  if (suggested_code === expected_code) {
+    setvar current_expected = 'yes'
+  }
+}
+
+var page_code = $(curl --silent --show-error --output /dev/null --write-out '%{http_code}' $page_url)
+var page_visible = 'yes' if page_code === '200' else 'no'
+
+printf 'Visible:          yes\n'
+printf 'Store page HTTP:  %s (%s)\n' $page_code $page_visible
+printf 'Suggested/current: %s (%s)\n' $suggested_name $suggested_code
+printf 'Highest code:     %s\n' $newest
+printf 'Expected present: %s\n' $expected_present
+printf 'On new version:   %s\n' $current_expected
+printf 'Store page:       %s\n' $page_url
+
+rm -f $body
