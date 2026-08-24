@@ -8,8 +8,12 @@ var package_name = ARGV[0] if len(ARGV) > 0 else ${FDROID_PACKAGE:-org.isomorphi
 var gradle_file = ${FDROID_GRADLE_FILE:-app/build.gradle.kts}
 var expected_code = ${FDROID_EXPECTED_VERSION_CODE:-}
 var expected_name = ${FDROID_EXPECTED_VERSION_NAME:-}
+var need_version_source = 'yes' if expected_code === '' else 'no'
+if (expected_name === '') {
+  setvar need_version_source = 'yes'
+}
 
-if (expected_code === '' || expected_name === '') {
+if (need_version_source === 'yes') {
   if ! test -f $gradle_file {
     echo "F-Droid version source not found: $gradle_file" >&2
     echo 'Set FDROID_EXPECTED_VERSION_CODE and FDROID_EXPECTED_VERSION_NAME to override.' >&2
@@ -24,8 +28,12 @@ if (expected_code === '' || expected_name === '') {
   }
 }
 
-if (expected_code === '' || expected_name === '') {
-  echo "Could not read the expected F-Droid version from $gradle_file" >&2
+if (expected_code === '') {
+  echo "Could not read the expected F-Droid version code from $gradle_file" >&2
+  exit 1
+}
+if (expected_name === '') {
+  echo "Could not read the expected F-Droid version name from $gradle_file" >&2
   exit 1
 }
 
@@ -64,14 +72,19 @@ var suggested_name = $(jq -r --arg code $suggested_code '[.packages[]? | select(
 var newest = $(jq -r '[.packages[]?] | if length == 0 then "none" else (max_by(.versionCode) | "\(.versionName) (\(.versionCode))") end' $body)
 var exact_count = $(jq --arg code $expected_code --arg name $expected_name '[.packages[]? | select((.versionCode | tostring) == $code and .versionName == $name)] | length' $body)
 var expected_present = 'yes' if exact_count !== '0' else 'no'
-var current_expected = 'yes' if expected_present === 'yes' && suggested_code === expected_code else 'no'
+var current_expected = 'no'
+if (expected_present === 'yes') {
+  if (suggested_code === expected_code) {
+    setvar current_expected = 'yes'
+  }
+}
 
 var page_code = $(curl --silent --show-error --output /dev/null --write-out '%{http_code}' $page_url)
 var page_visible = 'yes' if page_code === '200' else 'no'
 
 printf 'Visible:          yes\n'
 printf 'Store page HTTP:  %s (%s)\n' $page_code $page_visible
-printf 'Suggested/current:%s (%s)\n' $suggested_name $suggested_code
+printf 'Suggested/current: %s (%s)\n' $suggested_name $suggested_code
 printf 'Highest code:     %s\n' $newest
 printf 'Expected present: %s\n' $expected_present
 printf 'On new version:   %s\n' $current_expected
