@@ -9,6 +9,31 @@ val releaseVersionCode = 100
 val releaseVersionName = "0.1.100"
 val fdroidBuild = providers.gradleProperty("fdroidBuild").orNull == "true"
 
+val wegertColorMarker = "/*__WEGERT_COLOR_CORE__*/"
+val generatedWegertAssets = layout.buildDirectory.dir("generated/wegert-assets")
+val assembleWegertShader = tasks.register("assembleWegertShader") {
+    val template = file("src/main/assets/wegert.frag.in")
+    val colorCore = file("src/main/assets/wegert_color.glsl")
+    val output = generatedWegertAssets.map { it.file("wegert.frag") }
+
+    inputs.files(template, colorCore)
+    outputs.file(output)
+
+    doLast {
+        val templateText = template.readText()
+        check(templateText.contains(wegertColorMarker)) {
+            "Wegert fragment template is missing the coloring-core marker"
+        }
+        check(templateText.indexOf(wegertColorMarker) == templateText.lastIndexOf(wegertColorMarker)) {
+            "Wegert fragment template must contain exactly one coloring-core marker"
+        }
+
+        val outputFile = output.get().asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(templateText.replace(wegertColorMarker, colorCore.readText()))
+    }
+}
+
 android {
     namespace = "org.isomorphisms.wegert"
     compileSdk = 36
@@ -55,10 +80,23 @@ android {
         }
     }
 
+    sourceSets {
+        getByName("main") {
+            // AGP forbids Provider objects in SourceSet. Resolve the directory
+            // eagerly here; the explicit preBuild dependency below carries the
+            // generation ordering.
+            assets.srcDir(generatedWegertAssets.get().asFile)
+        }
+    }
+
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
             version = "3.22.1"
         }
     }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(assembleWegertShader)
 }
