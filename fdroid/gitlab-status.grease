@@ -27,9 +27,9 @@ proc gitlab_get(url) {
   }
 }
 
-var fork_encoded = $(printf '%s' $fork_project | jq -sRr @uri)
-var upstream_encoded = $(printf '%s' $upstream_project | jq -sRr @uri)
-var branch_encoded = $(printf '%s' $source_branch | jq -sRr @uri)
+var fork_encoded = $(printf '%s' $fork_project | jq -sRr '@uri')
+var upstream_encoded = $(printf '%s' $upstream_project | jq -sRr '@uri')
+var branch_encoded = $(printf '%s' $source_branch | jq -sRr '@uri')
 var fork_id = $(gitlab_get "$api_base/projects/$fork_encoded" | jq -er '.id')
 
 # state=all matters: after acceptance the MR is merged, so an open-only check
