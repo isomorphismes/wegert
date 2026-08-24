@@ -1,0 +1,71 @@
+name: F-Droid publication status
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/fdroid-status.yml'
+      - 'fdroid/**'
+      - 'app/build.gradle.kts'
+  workflow_run:
+    workflows:
+      - 'F-Droid release build'
+    types:
+      - completed
+  schedule:
+    - cron: '17 12 * * *'
+  workflow_dispatch:
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Grease/YSH runtime
+        env:
+          OILS_VERSION: '0.37.0'
+          OILS_SHA256: 'f4d41d20a0523dbcfbd4ba231f82edf25b08d4965d65bc71fcb56666d6743000'
+        run: |
+          archive="$RUNNER_TEMP/oils-for-unix-$OILS_VERSION.tar.gz"
+          source="$RUNNER_TEMP/oils-for-unix-$OILS_VERSION"
+          prefix="$RUNNER_TEMP/grease-runtime"
+
+          curl --fail --location --silent --show-error \
+            "https://oils.pub/download/oils-for-unix-$OILS_VERSION.tar.gz" \
+            --output "$archive"
+          echo "$OILS_SHA256  $archive" | sha256sum --check --strict
+          mkdir -p "$source"
+          tar -xzf "$archive" --strip-components=1 -C "$source"
+
+          cd "$source"
+          ./configure --prefix "$prefix" --without-readline
+          _build/oils.sh
+          ./install
+          echo "$prefix/bin" >> "$GITHUB_PATH"
+
+      - name: Parse Grease status scripts
+        run: |
+          ysh -n fdroid/gitlab-status.grease
+          ysh -n fdroid/store-status.grease
+
+      - name: Check fdroiddata merge request
+        run: |
+          ysh fdroid/gitlab-status.grease | tee "$RUNNER_TEMP/fdroid-gitlab-status.txt"
+          {
+            echo '## fdroiddata merge request'
+            echo '```text'
+            cat "$RUNNER_TEMP/fdroid-gitlab-status.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check public F-Droid store
+        run: |
+          ysh fdroid/store-status.grease | tee "$RUNNER_TEMP/fdroid-store-status.txt"
+          {
+            echo '## F-Droid store'
+            echo '```text'
+            cat "$RUNNER_TEMP/fdroid-store-status.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
