@@ -20,6 +20,14 @@ proc gitlab_get(url) {
     $url
 }
 
+proc gitlab_graphql(url) {
+  curl --fail-with-body --silent --show-error \
+    --request POST \
+    --header 'Content-Type: application/json' \
+    --data-binary '@-' \
+    $url
+}
+
 var upstream_encoded = $(printf '%s' $upstream_project | jq -sRr '@uri')
 var branch_encoded = $(printf '%s' $source_branch | jq -sRr '@uri')
 var search_encoded = $(printf '%s' $mr_search | jq -sRr '@uri')
@@ -84,19 +92,30 @@ if (source_http === '200') {
   }
 }
 
-# The Notes API is GitLab's list of merge-request comments. Use it directly so
-# standalone comments and replies are not lost by a discussions-only query.
-var notes = $(gitlab_get "$api_base/projects/$upstream_encoded/merge_requests/$iid/notes?sort=asc&order_by=created_at&per_page=100")
-var comment_count = $(printf '%s\n' $notes | jq '[.[] | select(.system == false)] | length')
+# GitLab's anonymous REST Notes endpoint returns 401, but the public GraphQL MR
+# exposes both notes and discussions. Query the notes connection directly: it is
+# the complete note feed, whereas the earlier discussions-only query missed a
+# later standalone reply/comment.
+var graphql_query = 'query($project: ID!, $iid: String!) { project(fullPath: $project) { mergeRequest(iid: $iid) { notes(first: 100, filter: ONLY_COMMENTS) { pageInfo { hasNextPage } nodes { id author { username } body createdAt system } } } } }'
+var graphql_payload = $(jq -cn --arg query $graphql_query --arg project $upstream_project --arg iid $iid '{query:$query, variables:{project:$project, iid:$iid}}')
+var notes = $(printf '%s' $graphql_payload | gitlab_graphql "$host/api/graphql")
+var graphql_errors = $(printf '%s\n' $notes | jq '[.errors[]?] | length')
+if (graphql_errors !== '0') {
+  printf '%s\n' $notes | jq -r '.errors[]?.message' >&2
+  exit 1
+}
+
+var comments = $(printf '%s\n' $notes | jq -c '[.data.project.mergeRequest.notes.nodes[]? | select(.system == false)]')
+var comment_count = $(printf '%s\n' $comments | jq 'length')
 printf 'Public comments: %s\n' $comment_count
 
 if (comment_count === '0') {
   echo '  none'
 } else {
-  printf '%s\n' $notes | jq -r '.[] | select(.system == false) | "----\n\(.author.username // "unknown") @ \(.created_at)\n\(.body)"'
+  printf '%s\n' $comments | jq -r '.[] | "----\n\(.author.username // "unknown") @ \(.createdAt)\n\(.body)"'
 }
 
-var note_count = $(printf '%s\n' $notes | jq 'length')
-if (note_count === '100') {
-  echo 'Public notes may be truncated after the first 100 entries.'
+var more_notes = $(printf '%s\n' $notes | jq -r '.data.project.mergeRequest.notes.pageInfo.hasNextPage // false')
+if (more_notes === 'true') {
+  echo 'Public comments truncated after the first 100 notes.'
 }
