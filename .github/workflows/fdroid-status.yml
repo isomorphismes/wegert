@@ -47,11 +47,12 @@ jobs:
 
       - name: Parse Grease status scripts
         run: |
-          ysh -n fdroid/gitlab-status.grease
-          ysh -n fdroid/store-status.grease
+          ysh -n fdroid/gitlab-status.grease >/dev/null
+          ysh -n fdroid/store-status.grease >/dev/null
 
       - name: Check fdroiddata merge request
         run: |
+          set -o pipefail
           ysh fdroid/gitlab-status.grease | tee "$RUNNER_TEMP/fdroid-gitlab-status.txt"
           {
             echo '## fdroiddata merge request'
@@ -62,6 +63,7 @@ jobs:
 
       - name: Check public F-Droid store
         run: |
+          set -o pipefail
           ysh fdroid/store-status.grease | tee "$RUNNER_TEMP/fdroid-store-status.txt"
           {
             echo '## F-Droid store'
