@@ -92,10 +92,9 @@ if (source_http === '200') {
   }
 }
 
-# GitLab's anonymous REST Notes endpoint returns 401, but the public GraphQL MR
-# exposes both notes and discussions. Query the notes connection directly: it is
-# the complete note feed, whereas the earlier discussions-only query missed a
-# later standalone reply/comment.
+# GitLab's anonymous REST Notes endpoint returns 401. Its public GraphQL notes
+# connection exposes the submitted comments visible to an unsigned-in reviewer;
+# unpublished draft notes are intentionally outside this public-status check.
 var graphql_query = 'query($project: ID!, $iid: String!) { project(fullPath: $project) { mergeRequest(iid: $iid) { notes(first: 100, filter: ONLY_COMMENTS) { pageInfo { hasNextPage } nodes { id author { username } body createdAt system } } } } }'
 var graphql_payload = $(jq -cn --arg query $graphql_query --arg project $upstream_project --arg iid $iid '{query:$query, variables:{project:$project, iid:$iid}}')
 var notes = $(printf '%s' $graphql_payload | gitlab_graphql "$host/api/graphql")
