@@ -71,7 +71,7 @@ var labels = $(printf '%s\n' $full | jq -r 'if (.labels | length) == 0 then "non
 var merged_at = $(printf '%s\n' $full | jq -r '.merged_at // "-"')
 var closed_at = $(printf '%s\n' $full | jq -r '.closed_at // "-"')
 var web_url = $(printf '%s\n' $full | jq -r '.web_url')
-var source = $(printf '%s\n' $full | jq -r 'if .references.full then .references.full else (.source_branch // "unknown") end')
+var reference = $(printf '%s\n' $full | jq -r 'if .references.full then .references.full else (.source_branch // "unknown") end')
 
 printf 'MR:       %s\n' $web_url
 printf 'State:    %s\n' $state
@@ -81,7 +81,7 @@ printf 'Pipeline: %s\n' $pipeline
 printf 'Labels:   %s\n' $labels
 printf 'Merged:   %s\n' $merged_at
 printf 'Closed:   %s\n' $closed_at
-printf 'Source:   %s\n' $source
+printf 'Reference:%s\n' $reference
 
 # The REST Notes endpoint requires authentication on GitLab.com even for a
 # public MR. GraphQL exposes the same public discussions anonymously, matching
