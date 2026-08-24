@@ -3,8 +3,8 @@
 shopt --set ysh:upgrade
 
 # Read-only status check for the fdroiddata submission. The merge request lives
-# in the public upstream project, so checking it does not require access to the
-# submitter's fork. GITLAB_TOKEN is still used when present.
+# in the public upstream project, so public status needs no authentication.
+# GITLAB_TOKEN, when present, additionally lets us report the user's draft notes.
 var host = ${GITLAB_HOST:-https://gitlab.com}
 var api_base = ${GITLAB_API:-}
 if (api_base === '') {
@@ -57,7 +57,7 @@ var mr = $(printf '%s\n' $candidates | jq -c 'first')
 if (mr === 'null') {
   echo "MR:       none matching '$mr_search' from branch '$source_branch'"
   echo 'Accepted: no'
-  echo 'Comments: none'
+  echo 'Public comments: none'
   exit 0
 }
 
@@ -72,6 +72,7 @@ var merged_at = $(printf '%s\n' $full | jq -r '.merged_at // "-"')
 var closed_at = $(printf '%s\n' $full | jq -r '.closed_at // "-"')
 var web_url = $(printf '%s\n' $full | jq -r '.web_url')
 var reference = $(printf '%s\n' $full | jq -r 'if .references.full then .references.full else (.source_branch // "unknown") end')
+var source_project_id = $(printf '%s\n' $full | jq -r '.source_project_id // ""')
 
 printf 'MR:       %s\n' $web_url
 printf 'State:    %s\n' $state
@@ -83,9 +84,26 @@ printf 'Merged:   %s\n' $merged_at
 printf 'Closed:   %s\n' $closed_at
 printf 'Reference: %s\n' $reference
 
-# The REST Notes endpoint requires authentication on GitLab.com even for a
-# public MR. GraphQL exposes the same public discussions anonymously, matching
-# what an unsigned-in visitor can read on the MR page.
+# Probe anonymously even if a token is configured: the reviewer asked for the
+# source repository to be public, so authenticated visibility is not enough.
+if (source_project_id !== '') {
+  var source_probe = $(mktemp)
+  var source_http = $(curl --silent --show-error --output $source_probe --write-out '%{http_code}' "$api_base/projects/$source_project_id")
+  if (source_http === '200') {
+    var source_path = $(jq -r '.path_with_namespace // "unknown"' $source_probe)
+    var source_visibility = $(jq -r '.visibility // "unknown"' $source_probe)
+    printf 'Source repo: %s\n' $source_path
+    printf 'Source public: %s\n' $source_visibility
+  } else {
+    printf 'Source repo HTTP: %s\n' $source_http
+    echo 'Source public: no'
+  }
+  rm -f $source_probe
+}
+
+# GraphQL exposes the public MR discussion feed anonymously. GitLab documents
+# ordinary comments and threaded replies as discussions, so this is the public
+# comment count that another unsigned-in reviewer can actually see.
 var graphql_query = 'query($project: ID!, $iid: String!) { project(fullPath: $project) { mergeRequest(iid: $iid) { discussions(first: 100) { pageInfo { hasNextPage } nodes { notes(first: 100) { nodes { author { username } body createdAt system } } } } } } }'
 var graphql_payload = $(jq -cn --arg query $graphql_query --arg project $upstream_project --arg iid $iid '{query:$query, variables:{project:$project, iid:$iid}}')
 var discussions = $(printf '%s' $graphql_payload | gitlab_graphql "$host/api/graphql")
@@ -96,7 +114,7 @@ if (graphql_errors !== '0') {
 }
 
 var comment_count = $(printf '%s\n' $discussions | jq '[.data.project.mergeRequest.discussions.nodes[]?.notes.nodes[]? | select(.system == false)] | length')
-printf 'Comments: %s\n' $comment_count
+printf 'Public comments: %s\n' $comment_count
 
 if (comment_count === '0') {
   echo '  none'
@@ -106,5 +124,19 @@ if (comment_count === '0') {
 
 var more_discussions = $(printf '%s\n' $discussions | jq -r '.data.project.mergeRequest.discussions.pageInfo.hasNextPage // false')
 if (more_discussions === 'true') {
-  echo 'Comments truncated after first 100 discussion threads.'
+  echo 'Public comments truncated after first 100 discussion threads.'
+}
+
+# Draft notes are intentionally private to their author until published. Report
+# them separately when the caller supplied credentials instead of calling them
+# public comments or silently omitting them.
+if (token !== '') {
+  var drafts = $(gitlab_get "$api_base/projects/$upstream_encoded/merge_requests/$iid/draft_notes?per_page=100")
+  var draft_count = $(printf '%s\n' $drafts | jq 'length')
+  printf 'Draft comments: %s\n' $draft_count
+  if (draft_count !== '0') {
+    printf '%s\n' $drafts | jq -r '.[] | "---- DRAFT ----\n\(.note)"'
+  }
+} else {
+  echo 'Draft comments: unavailable without GITLAB_TOKEN'
 }
