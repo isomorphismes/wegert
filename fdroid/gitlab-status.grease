@@ -34,13 +34,13 @@ proc gitlab_graphql(url) {
       --request POST \
       --header 'Content-Type: application/json' \
       --header "PRIVATE-TOKEN: $token" \
-      --data-binary @- \
+      --data-binary '@-' \
       $url
   } else {
     curl --fail-with-body --silent --show-error \
       --request POST \
       --header 'Content-Type: application/json' \
-      --data-binary @- \
+      --data-binary '@-' \
       $url
   }
 }
