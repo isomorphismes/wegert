@@ -2,16 +2,17 @@
 
 shopt --set ysh:upgrade
 
-# Read-only status check for the fdroiddata submission. Public projects need no
-# token; GITLAB_TOKEN is used when present.
+# Read-only status check for the fdroiddata submission.  The merge request lives
+# in the public upstream project, so checking it does not require access to the
+# submitter's fork. GITLAB_TOKEN is still used when present.
 var host = ${GITLAB_HOST:-https://gitlab.com}
 var api_base = ${GITLAB_API:-}
 if (api_base === '') {
   setvar api_base = "$host/api/v4"
 }
-var fork_project = ${GITLAB_FORK:-black-ballers/share-freely}
 var upstream_project = ${GITLAB_UPSTREAM:-fdroid/fdroiddata}
 var source_branch = ARGV[0] if len(ARGV) > 0 else ${GITLAB_BRANCH:-master}
+var mr_search = ${GITLAB_MR_SEARCH:-zero & infinity}
 var token = ${GITLAB_TOKEN:-}
 
 proc gitlab_get(url) {
@@ -27,18 +28,17 @@ proc gitlab_get(url) {
   }
 }
 
-var fork_encoded = $(printf '%s' $fork_project | jq -sRr '@uri')
 var upstream_encoded = $(printf '%s' $upstream_project | jq -sRr '@uri')
 var branch_encoded = $(printf '%s' $source_branch | jq -sRr '@uri')
-var fork_id = $(gitlab_get "$api_base/projects/$fork_encoded" | jq -er '.id')
+var search_encoded = $(printf '%s' $mr_search | jq -sRr '@uri')
 
-# state=all matters: after acceptance the MR is merged, so an open-only check
-# loses the very result we care about.
-var candidates = $(gitlab_get "$api_base/projects/$upstream_encoded/merge_requests?scope=all&state=all&source_branch=$branch_encoded&order_by=updated_at&sort=desc&per_page=100")
-var mr = $(printf '%s\n' $candidates | jq -c --argjson fork_id $fork_id '[.[] | select(.source_project_id == $fork_id)] | first')
+# Query the target project, not the fork. state=all matters: after acceptance the
+# MR is merged, so an open-only check loses the result we care about.
+var candidates = $(gitlab_get "$api_base/projects/$upstream_encoded/merge_requests?scope=all&state=all&source_branch=$branch_encoded&search=$search_encoded&order_by=updated_at&sort=desc&per_page=100")
+var mr = $(printf '%s\n' $candidates | jq -c 'first')
 
 if (mr === 'null') {
-  echo "MR:       none for $fork_project:$source_branch"
+  echo "MR:       none matching '$mr_search' from branch '$source_branch'"
   echo 'Accepted: no'
   echo 'Comments: none'
   exit 0
@@ -54,6 +54,7 @@ var labels = $(printf '%s\n' $full | jq -r 'if (.labels | length) == 0 then "non
 var merged_at = $(printf '%s\n' $full | jq -r '.merged_at // "-"')
 var closed_at = $(printf '%s\n' $full | jq -r '.closed_at // "-"')
 var web_url = $(printf '%s\n' $full | jq -r '.web_url')
+var source = $(printf '%s\n' $full | jq -r 'if .references.full then .references.full else (.source_branch // "unknown") end')
 
 printf 'MR:       %s\n' $web_url
 printf 'State:    %s\n' $state
@@ -63,7 +64,7 @@ printf 'Pipeline: %s\n' $pipeline
 printf 'Labels:   %s\n' $labels
 printf 'Merged:   %s\n' $merged_at
 printf 'Closed:   %s\n' $closed_at
-printf 'Source:   %s:%s\n' $fork_project $source_branch
+printf 'Source:   %s\n' $source
 
 var notes = $(gitlab_get "$api_base/projects/$upstream_encoded/merge_requests/$iid/notes?sort=asc&order_by=created_at&per_page=100")
 var comment_count = $(printf '%s\n' $notes | jq '[.[] | select(.system == false)] | length')
