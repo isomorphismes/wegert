@@ -2,9 +2,8 @@
 
 shopt --set ysh:upgrade
 
-# Read-only status check for the fdroiddata submission. The merge request lives
-# in the public upstream project, so public status needs no authentication.
-# GITLAB_TOKEN, when present, additionally lets us report the user's draft notes.
+# Read-only status check for the fdroiddata submission. Everything reported here
+# is public state; the checker should not need access to the submitter's fork.
 var host = ${GITLAB_HOST:-https://gitlab.com}
 var api_base = ${GITLAB_API:-}
 if (api_base === '') {
@@ -13,36 +12,12 @@ if (api_base === '') {
 var upstream_project = ${GITLAB_UPSTREAM:-fdroid/fdroiddata}
 var source_branch = ARGV[0] if len(ARGV) > 0 else ${GITLAB_BRANCH:-master}
 var mr_search = ${GITLAB_MR_SEARCH:-zero & infinity}
-var token = ${GITLAB_TOKEN:-}
+var metadata_file = ${FDROID_METADATA_FILE:-fdroid/org.isomorphisms.wegert.yml.template}
 
 proc gitlab_get(url) {
-  if (token !== '') {
-    curl --fail-with-body --silent --show-error \
-      --header 'Accept: application/json' \
-      --header "PRIVATE-TOKEN: $token" \
-      $url
-  } else {
-    curl --fail-with-body --silent --show-error \
-      --header 'Accept: application/json' \
-      $url
-  }
-}
-
-proc gitlab_graphql(url) {
-  if (token !== '') {
-    curl --fail-with-body --silent --show-error \
-      --request POST \
-      --header 'Content-Type: application/json' \
-      --header "PRIVATE-TOKEN: $token" \
-      --data-binary '@-' \
-      $url
-  } else {
-    curl --fail-with-body --silent --show-error \
-      --request POST \
-      --header 'Content-Type: application/json' \
-      --data-binary '@-' \
-      $url
-  }
+  curl --fail-with-body --silent --show-error \
+    --header 'Accept: application/json' \
+    $url
 }
 
 var upstream_encoded = $(printf '%s' $upstream_project | jq -sRr '@uri')
@@ -72,7 +47,6 @@ var merged_at = $(printf '%s\n' $full | jq -r '.merged_at // "-"')
 var closed_at = $(printf '%s\n' $full | jq -r '.closed_at // "-"')
 var web_url = $(printf '%s\n' $full | jq -r '.web_url')
 var reference = $(printf '%s\n' $full | jq -r 'if .references.full then .references.full else (.source_branch // "unknown") end')
-var source_project_id = $(printf '%s\n' $full | jq -r '.source_project_id // ""')
 
 printf 'MR:       %s\n' $web_url
 printf 'State:    %s\n' $state
@@ -84,59 +58,45 @@ printf 'Merged:   %s\n' $merged_at
 printf 'Closed:   %s\n' $closed_at
 printf 'Reference: %s\n' $reference
 
-# Probe anonymously even if a token is configured: the reviewer asked for the
-# source repository to be public, so authenticated visibility is not enough.
-if (source_project_id !== '') {
-  var source_probe = $(mktemp)
-  var source_http = $(curl --silent --show-error --output $source_probe --write-out '%{http_code}' "$api_base/projects/$source_project_id")
-  if (source_http === '200') {
-    var source_path = $(jq -r '.path_with_namespace // "unknown"' $source_probe)
-    var source_visibility = $(jq -r '.visibility // "unknown"' $source_probe)
-    printf 'Source repo: %s\n' $source_path
-    printf 'Source public: %s\n' $source_visibility
-  } else {
-    printf 'Source repo HTTP: %s\n' $source_http
-    echo 'Source public: no'
-  }
-  rm -f $source_probe
-}
-
-# GraphQL exposes the public MR discussion feed anonymously. GitLab documents
-# ordinary comments and threaded replies as discussions, so this is the public
-# comment count that another unsigned-in reviewer can actually see.
-var graphql_query = 'query($project: ID!, $iid: String!) { project(fullPath: $project) { mergeRequest(iid: $iid) { discussions(first: 100) { pageInfo { hasNextPage } nodes { notes(first: 100) { nodes { author { username } body createdAt system } } } } } } }'
-var graphql_payload = $(jq -cn --arg query $graphql_query --arg project $upstream_project --arg iid $iid '{query:$query, variables:{project:$project, iid:$iid}}')
-var discussions = $(printf '%s' $graphql_payload | gitlab_graphql "$host/api/graphql")
-var graphql_errors = $(printf '%s\n' $discussions | jq '[.errors[]?] | length')
-if (graphql_errors !== '0') {
-  printf '%s\n' $discussions | jq -r '.errors[]?.message' >&2
+# The reviewer asked whether the app's source repository is public. The MR's
+# source_project_id names the submitter's fdroiddata fork, which is a different
+# repository. Probe the SourceCode URL from the metadata instead.
+if ! test -f $metadata_file {
+  echo "F-Droid metadata not found: $metadata_file" >&2
   exit 1
 }
+var source_url = $(sed -n 's/^SourceCode:[[:space:]]*//p' $metadata_file | head -n 1)
+if (source_url === '') {
+  echo "SourceCode URL not found in $metadata_file" >&2
+  exit 1
+}
+var source_http = $(curl --silent --show-error --location --output /dev/null --write-out '%{http_code}' $source_url)
+printf 'Source repo: %s\n' $source_url
+printf 'Source repo HTTP: %s\n' $source_http
+if (source_http === '200') {
+  echo 'Source public: yes'
+} else {
+  if (source_http === '404') {
+    echo 'Source public: no'
+  } else {
+    printf 'Unexpected source repository HTTP status: %s\n' $source_http >&2
+    exit 1
+  }
+}
 
-var comment_count = $(printf '%s\n' $discussions | jq '[.data.project.mergeRequest.discussions.nodes[]?.notes.nodes[]? | select(.system == false)] | length')
+# The Notes API is GitLab's list of merge-request comments. Use it directly so
+# standalone comments and replies are not lost by a discussions-only query.
+var notes = $(gitlab_get "$api_base/projects/$upstream_encoded/merge_requests/$iid/notes?sort=asc&order_by=created_at&per_page=100")
+var comment_count = $(printf '%s\n' $notes | jq '[.[] | select(.system == false)] | length')
 printf 'Public comments: %s\n' $comment_count
 
 if (comment_count === '0') {
   echo '  none'
 } else {
-  printf '%s\n' $discussions | jq -r '.data.project.mergeRequest.discussions.nodes[]?.notes.nodes[]? | select(.system == false) | "----\n\(.author.username // "unknown") @ \(.createdAt)\n\(.body)"'
+  printf '%s\n' $notes | jq -r '.[] | select(.system == false) | "----\n\(.author.username // "unknown") @ \(.created_at)\n\(.body)"'
 }
 
-var more_discussions = $(printf '%s\n' $discussions | jq -r '.data.project.mergeRequest.discussions.pageInfo.hasNextPage // false')
-if (more_discussions === 'true') {
-  echo 'Public comments truncated after first 100 discussion threads.'
-}
-
-# Draft notes are intentionally private to their author until published. Report
-# them separately when the caller supplied credentials instead of calling them
-# public comments or silently omitting them.
-if (token !== '') {
-  var drafts = $(gitlab_get "$api_base/projects/$upstream_encoded/merge_requests/$iid/draft_notes?per_page=100")
-  var draft_count = $(printf '%s\n' $drafts | jq 'length')
-  printf 'Draft comments: %s\n' $draft_count
-  if (draft_count !== '0') {
-    printf '%s\n' $drafts | jq -r '.[] | "---- DRAFT ----\n\(.note)"'
-  }
-} else {
-  echo 'Draft comments: unavailable without GITLAB_TOKEN'
+var note_count = $(printf '%s\n' $notes | jq 'length')
+if (note_count === '100') {
+  echo 'Public notes may be truncated after the first 100 entries.'
 }

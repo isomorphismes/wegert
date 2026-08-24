@@ -51,8 +51,6 @@ jobs:
           ysh -n fdroid/store-status.grease >/dev/null
 
       - name: Check fdroiddata merge request
-        env:
-          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
           set -o pipefail
           ysh fdroid/gitlab-status.grease | tee "$RUNNER_TEMP/fdroid-gitlab-status.txt"
