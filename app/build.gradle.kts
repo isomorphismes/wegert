@@ -82,7 +82,10 @@ android {
 
     sourceSets {
         getByName("main") {
-            assets.srcDir(generatedWegertAssets)
+            // AGP forbids Provider objects in SourceSet. Resolve the directory
+            // eagerly here; the explicit preBuild dependency below carries the
+            // generation ordering.
+            assets.srcDir(generatedWegertAssets.get().asFile)
         }
     }
 
