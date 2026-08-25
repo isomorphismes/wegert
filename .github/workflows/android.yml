@@ -66,12 +66,16 @@ jobs:
         run: |
           cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_continuation_path.c -lm -o /tmp/wegert-continuation-test
           /tmp/wegert-continuation-test
-          cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_gesture_state.c -o /tmp/wegert-gesture-test
+          cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_gesture_state.c -lm -o /tmp/wegert-gesture-test
           /tmp/wegert-gesture-test
           cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_factor_state.c -o /tmp/wegert-factor-test
           /tmp/wegert-factor-test
           cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_factor_snap.c -lm -o /tmp/wegert-factor-snap-test
           /tmp/wegert-factor-snap-test
+          cc -std=c11 -Wall -Wextra -Werror -pedantic \
+            tests/test_polynomial_text.c app/src/main/cpp/complex_math_fallback.c \
+            -lm -o /tmp/wegert-polynomial-text-test
+          /tmp/wegert-polynomial-text-test
 
       - name: Build debug APK
         run: gradle --no-daemon :app:assembleDebug
@@ -149,6 +153,8 @@ jobs:
             adb exec-out screencap -p > wegert-${{ matrix.device }}.png
             adb shell pidof -s org.isomorphisms.wegert | tr -d '\r' | grep -Eq '^[0-9]+$'
             awk '/EGL surface ready:/ { split($NF, dimensions, "x"); width=dimensions[1]; height=dimensions[2] } END { exit !(width > 0 && height > 0) }' wegert-${{ matrix.device }}.log
+            adb shell input swipe "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(dimensions[1] / 2 + dimensions[2] / 7) }' wegert-${{ matrix.device }}.log)" "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(dimensions[2] / 2) }' wegert-${{ matrix.device }}.log)" "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(dimensions[1] / 2 + dimensions[2] / 7 + 80) }' wegert-${{ matrix.device }}.log)" "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(dimensions[2] / 2) }' wegert-${{ matrix.device }}.log)" 350
+            sleep 1
             adb shell input tap "$(awk '/placement control centers:/ { value=$NF } END { sub(/^pole=/, "", value); split(value, coordinates, ","); print coordinates[1] }' wegert-${{ matrix.device }}.log)" "$(awk '/placement control centers:/ { value=$NF } END { sub(/^pole=/, "", value); split(value, coordinates, ","); print coordinates[2] }' wegert-${{ matrix.device }}.log)"
             adb shell input tap "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(3 * dimensions[1] / 4) }' wegert-${{ matrix.device }}.log)" "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(2 * dimensions[2] / 5) }' wegert-${{ matrix.device }}.log)"
             sleep 1
@@ -166,9 +172,22 @@ jobs:
             grep -Fq 'continuation view enabled' wegert-${{ matrix.device }}.log
             grep -Fq 'continuation step added' wegert-${{ matrix.device }}.log
             grep -Fq 'continuation step rejected: tap must be inside the preceding Taylor disc' wegert-${{ matrix.device }}.log
+            grep -Fq 'factor drag completed: kind=zero index=0' wegert-${{ matrix.device }}.log
+            grep -Fq 'function overlay: (' wegert-${{ matrix.device }}.log
+            grep -Fq ' ÷' wegert-${{ matrix.device }}.log
             awk '/continuation seeded at/ { sub(/^.*radius=/, ""); value=$1 } END { exit !(value != "" && value + 0 > 0 && value + 0 < 1000) }' wegert-${{ matrix.device }}.log
             awk '/continuation step added:/ { sub(/^.*radius=/, ""); value=$1 } END { exit !(value != "" && value + 0 > 0 && value + 0 < 1000) }' wegert-${{ matrix.device }}.log
             ! grep -Eiq 'shader compilation failed|program link failed|eglInitialize failed|could not choose GLES3 EGL config|could not create EGL surface/context|eglMakeCurrent failed' wegert-${{ matrix.device }}.log
+            adb shell input tap "$(awk '/view control center:/ { value=$(NF-1) } END { print value }' wegert-${{ matrix.device }}.log)" "$(awk '/view control center:/ { value=$NF } END { print value }' wegert-${{ matrix.device }}.log)"
+            sleep 1
+            adb logcat -d > wegert-${{ matrix.device }}.log
+            adb shell input tap "$(awk '/clear control center:/ { value=$(NF-1) } END { print value }' wegert-${{ matrix.device }}.log)" "$(awk '/clear control center:/ { value=$NF } END { print value }' wegert-${{ matrix.device }}.log)"
+            sleep 1
+            adb logcat -d > wegert-${{ matrix.device }}.log
+            grep -Fq 'whole portrait factors cleared' wegert-${{ matrix.device }}.log
+            adb shell input keyevent KEYCODE_BACK
+            sleep 1
+            ! adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity' | grep -Fq 'org.isomorphisms.wegert'
 
       - uses: actions/upload-artifact@v4
         if: always()

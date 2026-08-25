@@ -9,8 +9,16 @@ on:
       - 'settings.gradle.kts'
       - 'fdroid/**'
   push:
+    branches:
+      - main
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+    paths:
+      - '.github/workflows/fdroid-build.yml'
+      - 'app/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'fdroid/**'
   workflow_dispatch:
 
 jobs:
@@ -20,6 +28,30 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Read and verify source-controlled release identity
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^val releaseVersionName = "\([^"]*\)"$/\1/p' app/build.gradle.kts)"
+          code="$(sed -n 's/^val releaseVersionCode = \([0-9][0-9]*\)$/\1/p' app/build.gradle.kts)"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$code" =~ ^[0-9]+$ ]]
+
+          metadata=fdroid/org.isomorphisms.wegert.yml.template
+          grep -Fqx "  - versionName: $version" "$metadata"
+          grep -Fqx "    versionCode: $code" "$metadata"
+          grep -Fqx "    commit: v$version" "$metadata"
+          grep -Fqx "CurrentVersion: $version" "$metadata"
+          grep -Fqx "CurrentVersionCode: $code" "$metadata"
+
+          if test "$GITHUB_REF_TYPE" = tag; then
+            test "$GITHUB_REF_NAME" = "v$version"
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
 
       - name: Remove non-F-Droid binary inputs
         run: rm -rf app/src/main/cpp/prebuilt app/wegert-debug.keystore
@@ -42,7 +74,11 @@ jobs:
         run: gradle --no-daemon -PfdroidBuild=true :app:assembleRelease
 
       - name: Verify F-Droid release output
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_CODE: ${{ steps.release.outputs.code }}
         run: |
+          set -euo pipefail
           apk=app/build/outputs/apk/release/app-release-unsigned.apk
           test -s "$apk"
           unzip -t "$apk"
@@ -51,7 +87,7 @@ jobs:
           grep -Fxq lib/armeabi-v7a/libwegert.so "$RUNNER_TEMP/wegert-release-files.txt"
           grep -Fxq lib/x86_64/libwegert.so "$RUNNER_TEMP/wegert-release-files.txt"
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" > "$RUNNER_TEMP/wegert-release-badging.txt"
-          grep -Fq "package: name='org.isomorphisms.wegert' versionCode='100' versionName='0.1.100'" "$RUNNER_TEMP/wegert-release-badging.txt"
+          grep -Fq "package: name='org.isomorphisms.wegert' versionCode='$RELEASE_CODE' versionName='$RELEASE_VERSION'" "$RUNNER_TEMP/wegert-release-badging.txt"
           grep -Fq "application-label:'zero & infinity'" "$RUNNER_TEMP/wegert-release-badging.txt"
 
       - uses: actions/upload-artifact@v4

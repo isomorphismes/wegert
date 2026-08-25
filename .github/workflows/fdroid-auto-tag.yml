@@ -1,45 +1,119 @@
-name: Tag F-Droid release
+name: Tag tested F-Droid release
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'app/build.gradle.kts'
-      - '.github/workflows/fdroid-auto-tag.yml'
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact main-branch commit accepted on real hardware
+        required: true
+        type: string
+      android_run_id:
+        description: Successful Android workflow run for source_sha
+        required: true
+        type: string
+      fdroid_run_id:
+        description: Successful F-Droid source-build run for source_sha
+        required: true
+        type: string
 
 permissions:
+  actions: read
   contents: write
 
 jobs:
   tag-release:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    timeout-minutes: 10
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      ANDROID_RUN_ID: ${{ inputs.android_run_id }}
+      FDROID_RUN_ID: ${{ inputs.fdroid_run_id }}
 
-      - name: Read source-controlled release version
+    steps:
+      - name: Validate the exact successful runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$ANDROID_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$FDROID_RUN_ID" =~ ^[0-9]+$ ]]
+
+          validate_run() {
+            local run_id="$1"
+            local expected_name="$2"
+            local expected_path="$3"
+            local run_json
+            run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id")"
+            jq -e \
+              --arg sha "$SOURCE_SHA" \
+              --arg name "$expected_name" \
+              --arg path "$expected_path" \
+              '.conclusion == "success" and
+               .head_sha == $sha and
+               .head_branch == "main" and
+               .event == "push" and
+               .name == $name and
+               .path == $path' \
+              <<<"$run_json" >/dev/null
+          }
+
+          validate_run \
+            "$ANDROID_RUN_ID" \
+            "Android native build and device emulation" \
+            ".github/workflows/android.yml"
+          validate_run \
+            "$FDROID_RUN_ID" \
+            "F-Droid release build" \
+            ".github/workflows/fdroid-build.yml"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require the tested commit to remain on main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git merge-base --is-ancestor "$SOURCE_SHA" origin/main
+
+      - name: Read source-controlled release identity
         id: release
         shell: bash
         run: |
+          set -euo pipefail
           version="$(sed -n 's/^val releaseVersionName = "\([^"]*\)"$/\1/p' app/build.gradle.kts)"
           code="$(sed -n 's/^val releaseVersionCode = \([0-9][0-9]*\)$/\1/p' app/build.gradle.kts)"
-          test -n "$version"
-          test -n "$code"
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "code=${code}" >> "$GITHUB_OUTPUT"
+          [[ "$code" =~ ^[0-9]+$ ]]
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
 
-      - name: Create matching release tag
+      - name: Create an immutable matching release tag
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
         shell: bash
         run: |
-          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" >/dev/null 2>&1; then
-            echo "${TAG} already exists"
+          set -euo pipefail
+          existing_sha="$(
+            gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" \
+              --jq '.object.sha' 2>/dev/null || true
+          )"
+          if test -n "$existing_sha"; then
+            if test "$existing_sha" != "$SOURCE_SHA"; then
+              echo "$RELEASE_TAG already points at $existing_sha, not $SOURCE_SHA" >&2
+              exit 1
+            fi
+            echo "$RELEASE_TAG already identifies the tested source"
             exit 0
           fi
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
-            -f ref="refs/tags/${TAG}" \
-            -f sha="${GITHUB_SHA}"
+
+          gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f ref="refs/tags/$RELEASE_TAG" \
+            -f sha="$SOURCE_SHA"
