@@ -18,6 +18,10 @@ readonly data="$work_root/fdroiddata"
 readonly server="$work_root/fdroidserver"
 readonly original_metadata="$work_root/original-metadata.yml"
 
+# fdroid's production build runs as the unprivileged vagrant user. mktemp
+# creates its directory as 0700, so make only this disposable parent traversable.
+chmod 0755 "$work_root"
+
 cleanup() {
     if [[ -L /home/vagrant/fdroiddata ]]; then
         rm /home/vagrant/fdroiddata
@@ -48,6 +52,10 @@ export serverwebroot=/tmp
 export ANDROID_HOME=/opt/android-sdk
 
 cd "$data"
+
+# fdroid rejects configuration files that are readable by other users.
+chmod 0600 config.yml
+find config -type f -name '*.yml' -exec chmod 0600 {} +
 
 # The production image is intentionally minimal. Install the same helper tools
 # that fdroiddata's jobs add before running metadata and build checks.
