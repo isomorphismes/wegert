@@ -9,9 +9,9 @@ RepoType: git
 Repo: https://github.com/isomorphisms/wegert.git
 
 Builds:
-  - versionName: 0.1.100
-    versionCode: 100
-    commit: v0.1.100
+  - versionName: 0.1.101
+    versionCode: 101
+    commit: v0.1.101
     ndk: 29.0.14206865
     rm:
       - app/wegert-debug.keystore
@@ -25,5 +25,5 @@ Builds:
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
-CurrentVersion: 0.1.100
-CurrentVersionCode: 100
+CurrentVersion: 0.1.101
+CurrentVersionCode: 101

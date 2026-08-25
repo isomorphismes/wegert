@@ -1,0 +1,1 @@
+Initial F-Droid release with interactive zeros and poles, pan and zoom controls, and a Taylor-disc analytic-continuation view.

@@ -1,5 +1,7 @@
-Wegert is an interactive phase-portrait explorer for complex rational functions.
+zero & infinity is an interactive phase-portrait explorer for complex rational functions.
 
-Tap to add zeros, use two fingers to add poles, drag to pan the complex plane, and pinch to zoom. The phase portrait is rendered directly on the GPU using domain coloring: hue shows phase and repeating lightness bands show modulus.
+Choose the zero or pole control, then tap the portrait to add that kind of factor. Drag an existing marker to move it, drag empty space to pan the complex plane, and pinch to zoom.
 
-The Android app is native C with EGL and OpenGL ES 3 and does not require a JavaScript layer or network service.
+The continuation view lets you explore analytic continuation by constructing a chain of Taylor discs. Each new center must lie inside the preceding disc, whose radius is determined by the nearest pole.
+
+The portrait uses domain coloring: hue shows phase and repeating lightness bands show modulus. It is rendered entirely on the device with native C, EGL, and OpenGL ES 3. The app requires no network service and requests no network permission.

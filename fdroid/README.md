@@ -5,10 +5,38 @@ Wegert stays the internal project and package name. F-Droid publishes it as **ze
 ## Upstream release contract
 
 1. Keep `versionCode` and `versionName` in `app/build.gradle.kts` source-controlled.
-2. Run the `F-Droid release build` workflow. It builds `assembleRelease` with `-PfdroidBuild=true`, checks the package/version, checks the public label `zero & infinity`, and checks all three native ABIs.
+2. Run the `F-Droid release and fdroiddata build` workflow. It makes two clean `assembleRelease` builds with `-PfdroidBuild=true` and requires byte-identical unsigned APKs. It also checks the package/version, public label `zero & infinity`, and all three native ABIs.
 3. Keep the repository license and F-Droid metadata aligned on `GPL-3.0-or-later`. `THIRD_PARTY.md` records material that is not relicensed by that grant.
 4. Merging a release-version change to `main` creates the matching `v<versionName>` tag automatically. The normal build remains named Wegert; only the F-Droid build uses the public label.
 5. Copy `org.isomorphisms.wegert.yml.template` to `fdroiddata/metadata/org.isomorphisms.wegert.yml`, run `fdroid lint org.isomorphisms.wegert`, then submit the fdroiddata merge request.
+
+The same workflow also runs the submitted recipe in F-Droid's production-like `registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie` image. `fdroid/run-fdroiddata-tests.sh` copies the relevant current fdroiddata checks: metadata lint and canonical rewriting, schema validation, redirected-Git checks, upstream Fastlane extraction, `fdroid build --on-server`, the binary scanner, and the Gradle audit. The script replaces the recipe's release tag with the exact public CI commit while testing a branch; the release recipe itself remains pinned to the immutable `v<versionName>` tag.
+
+No fdroidserver submodule is used. The production buildserver image is the meaningful dependency because it contains the surrounding Debian, Android SDK, NDK, Gradle, and scanner environment; a source-only submodule would not reproduce that environment.
+
+## Native APK packaging
+
+Wegert publishes one universal APK. That APK contains `arm64-v8a`, `armeabi-v7a`, and `x86_64` variants of `libwegert.so`. There is no Gradle `splits` configuration and therefore no set of separate APKs for native ABIs. The fdroiddata checklist item “Multiple apks for native code” does not apply and should remain unchecked.
+
+## Local F-Droid checks
+
+The cheap metadata and packaging-contract check does not require the Android SDK:
+
+```sh
+fdroid/verify-metadata.sh
+```
+
+With Gradle and the pinned Android toolchain installed, build twice and compare the APK bytes:
+
+```sh
+fdroid/reproducible-build.sh
+```
+
+With Docker installed and the current commit pushed to a public branch, run the fdroiddata production-build test:
+
+```sh
+fdroid/run-fdroiddata-tests.sh
+```
 
 F-Droid performs its own source build and signs the resulting APK. The upstream unsigned artifact is only a build gate and inspection artifact.
 
