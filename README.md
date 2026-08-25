@@ -85,7 +85,7 @@ The APK is written to:
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Debug APKs use the repository's public test-only signing key and the source-controlled `0.1.100` version identity. Builds from before this key was added used disposable runner keys and must be uninstalled once before the first stable-signed APK will install.
+Debug APKs use the repository's public test-only signing key and the source-controlled `0.2.0` version identity. Builds from before this key was added used disposable runner keys and must be uninstalled once before the first stable-signed APK will install.
 
 The checked-in debug key is deliberately public and must never sign a production release.
 
