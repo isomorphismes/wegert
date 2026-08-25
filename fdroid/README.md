@@ -12,6 +12,8 @@ Wegert stays the internal project and package name. F-Droid publishes it as **ze
 
 The same workflow also runs the submitted recipe in F-Droid's production-like `registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie` image. `fdroid/run-fdroiddata-tests.sh` copies the relevant current fdroiddata checks: metadata lint and canonical rewriting, schema validation, redirected-Git checks, upstream Fastlane extraction, `fdroid build --on-server`, the binary scanner, and the Gradle audit. The script replaces the recipe's release tag with the exact public CI commit while testing a branch; the release recipe itself remains pinned to the immutable `v<versionName>` tag.
 
+`gradle/wrapper/gradle-wrapper.properties` pins Gradle 9.5.1 and its SHA-256 checksum. F-Droid's `gradlew-fdroid` reads that file because it cannot infer the Gradle version from this project's modern plugins DSL.
+
 No fdroidserver submodule is used. The production buildserver image is the meaningful dependency because it contains the surrounding Debian, Android SDK, NDK, Gradle, and scanner environment; a source-only submodule would not reproduce that environment.
 
 ## Native APK packaging

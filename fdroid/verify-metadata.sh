@@ -7,6 +7,7 @@ source "$repo_root/fdroid/release-values.sh"
 appid=org.isomorphisms.wegert
 metadata="$repo_root/fdroid/$appid.yml.template"
 locale="$repo_root/fastlane/metadata/android/en-US"
+wrapper="$repo_root/gradle/wrapper/gradle-wrapper.properties"
 
 metadata_version_name="$(sed -n 's/^  - versionName: \(.*\)$/\1/p' "$metadata")"
 metadata_version_code="$(sed -n 's/^    versionCode: \([0-9][0-9]*\)$/\1/p' "$metadata")"
@@ -19,6 +20,12 @@ test "$metadata_version_code" = "$WEGERT_VERSION_CODE"
 test "$metadata_commit" = "v$WEGERT_VERSION_NAME"
 test "$current_version_name" = "$WEGERT_VERSION_NAME"
 test "$current_version_code" = "$WEGERT_VERSION_CODE"
+
+# gradlew-fdroid cannot infer Gradle from the plugins DSL, so the wrapper
+# properties are part of the F-Droid build contract even though CI invokes the
+# verified system Gradle executable directly.
+grep -Fxq 'distributionUrl=https\://services.gradle.org/distributions/gradle-9.5.1-bin.zip' "$wrapper"
+grep -Fxq 'distributionSha256Sum=bafc141b619ad6350fd975fc903156dd5c151998cc8b058e8c1044ab5f7b031f' "$wrapper"
 
 for required in \
     title.txt \
