@@ -1061,10 +1061,11 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
                     midpoint_y - engine->pinch_last_mid_y
                 );
 
-                if (distance > 1.0f && engine->pinch_last_distance > 1.0f) {
-                    engine->half_height *= engine->pinch_last_distance / distance;
-                    if (engine->half_height < 0.01f) engine->half_height = 0.01f;
-                    if (engine->half_height > 100000.0f) engine->half_height = 100000.0f;
+                if (gesture_apply_pinch_zoom(
+                    engine->pinch_last_distance,
+                    distance,
+                    &engine->half_height
+                )) {
                     engine->dirty = true;
                 }
 
@@ -1085,6 +1086,15 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
         }
 
         case AMOTION_EVENT_ACTION_UP: {
+#ifndef NDEBUG
+            if (engine->gesture == GESTURE_FACTOR && engine->moved) {
+                LOGI(
+                    "factor drag completed: kind=%s index=%d",
+                    engine->captured_factor_kind == FACTOR_POLE ? "pole" : "zero",
+                    engine->captured_factor_index
+                );
+            }
+#endif
             if (engine->gesture == GESTURE_SINGLE && !engine->moved) {
                 float x = AMotionEvent_getX(event, 0);
                 float y = AMotionEvent_getY(event, 0);

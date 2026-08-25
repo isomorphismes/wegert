@@ -37,4 +37,19 @@ static bool gesture_touch_can_capture_factor(bool continuation_view) {
     return !continuation_view;
 }
 
+static bool gesture_apply_pinch_zoom(
+    float previous_distance,
+    float distance,
+    float *half_height
+) {
+    if (previous_distance <= 1.0f || distance <= 1.0f) {
+        return false;
+    }
+
+    *half_height *= previous_distance / distance;
+    if (*half_height < 0.01f) *half_height = 0.01f;
+    if (*half_height > 100000.0f) *half_height = 100000.0f;
+    return true;
+}
+
 #endif
