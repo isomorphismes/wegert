@@ -49,6 +49,16 @@ export ANDROID_HOME=/opt/android-sdk
 
 cd "$data"
 
+# The production image is intentionally minimal. Install the same helper tools
+# that fdroiddata's jobs add before running metadata and build checks.
+apt-get update
+apt-get install -y --no-install-recommends \
+    jq \
+    openjdk-21-jdk-headless \
+    python3-markdown-it \
+    python3-pip \
+    sudo
+
 # Metadata checks copied from the fdroiddata merge-request pipeline.
 fdroid lint "$appid"
 fdroid rewritemeta "$appid"
@@ -62,7 +72,7 @@ else
     echo "checkupdates deferred until public tag v$WEGERT_VERSION_NAME exists"
 fi
 
-python3 -m pip install --quiet --break-system-packages check-jsonschema markdown-it-py
+python3 -m pip install --quiet --break-system-packages check-jsonschema
 check-jsonschema --schemafile schemas/metadata.json "metadata/$appid.yml"
 
 cp "metadata/$appid.yml" "$work_root/before-redirect.yml"
@@ -83,8 +93,6 @@ if bad:
 PY
 
 # The following setup and command mirror fdroiddata's production-like build job.
-apt-get update
-apt-get install -y --no-install-recommends sudo openjdk-21-jdk-headless jq
 update-alternatives --set java /usr/lib/jvm/java-21-openjdk-amd64/bin/java
 sdkmanager "platform-tools" "build-tools;31.0.0"
 
