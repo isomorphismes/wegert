@@ -14,6 +14,7 @@ This first Android slice is deliberately small: a C `NativeActivity` owns touch 
 - in continuation view, tap inside the preceding Taylor disc to add the next center
 - `clear`: remove every zero and pole in the whole portrait, or clear only the continuation path in continuation view
 - three-finger tap: restore `g(z) = (z - 1)(z - 2)(z - 5)`, recenter the camera, return to the whole portrait, and clear the continuation path
+- Android Back: leave the activity using the system control rather than an in-app exit button
 
 The initial view is centered at the ordinary complex zero. Zeros are shown as dark rings with light centers; poles are shown as dark crosses.
 
@@ -59,17 +60,23 @@ Requirements are Android SDK 36, NDK r29 (`29.0.14206865`), CMake 3.22.1, JDK 17
 gradle :app:assembleDebug
 ```
 
-The host-side continuation, gesture, canonical-factor, and touch-snap rules can be checked without an Android toolchain:
+The host-side continuation, gesture, pinch-zoom, factor-drag, canonical-factor, touch-snap, complex-arithmetic, and formula-formatting rules can be checked without an Android toolchain:
 
 ```sh
 cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_continuation_path.c -lm -o /tmp/wegert-continuation-test
 /tmp/wegert-continuation-test
-cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_gesture_state.c -o /tmp/wegert-gesture-test
+cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_gesture_state.c -lm -o /tmp/wegert-gesture-test
 /tmp/wegert-gesture-test
 cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_factor_state.c -o /tmp/wegert-factor-test
 /tmp/wegert-factor-test
 cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_factor_snap.c -lm -o /tmp/wegert-factor-snap-test
 /tmp/wegert-factor-snap-test
+cc -std=c11 -Wall -Wextra -Werror -pedantic -Iapp/src/main/cpp tests/factor_drag_test.c -lm -o /tmp/wegert-factor-drag-test
+/tmp/wegert-factor-drag-test
+cc -std=c11 -Wall -Wextra -Werror -pedantic app/src/main/cpp/complex_math_fallback.c tests/complex_math_test.c -lm -o /tmp/wegert-complex-math-test
+/tmp/wegert-complex-math-test
+cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_polynomial_text.c app/src/main/cpp/complex_math_fallback.c -lm -o /tmp/wegert-polynomial-text-test
+/tmp/wegert-polynomial-text-test
 ```
 
 The APK is written to:
@@ -78,7 +85,7 @@ The APK is written to:
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Debug APKs use the repository's public test-only signing key and the source-controlled `0.1.100` version identity. Builds from before this key was added used disposable runner keys and must be uninstalled once before the first stable-signed APK will install.
+Debug APKs use the repository's public test-only signing key and the source-controlled `0.2.0` version identity. Builds from before this key was added used disposable runner keys and must be uninstalled once before the first stable-signed APK will install.
 
 The checked-in debug key is deliberately public and must never sign a production release.
 
@@ -93,7 +100,7 @@ GitHub Actions smoke-tests the APK against two constrained virtual-device profil
 | MIRO A1 approximation | 14 / API 34 | 2 GiB | 720x1280 @ 320 dpi | x86_64 / SwiftShader GLES |
 | TAB_P10 approximation | 15 / API 35 | 4 GiB | 1280x800 @ 160 dpi | x86_64 / SwiftShader GLES |
 
-Each emulator installs and launches Wegert, places a finite pole away from the camera, and enters continuation view. The smoke test requires positive finite radii for both the camera seed and an accepted center inside that disc, then requires rejection of a tap outside the new disc. It performs a drag only after those geometry checks, verifies that the native process survives, fails on EGL/shader/link/fatal errors, and saves a screenshot plus application log.
+Each emulator installs and launches Wegert, drags an existing zero in the whole portrait, places a finite pole away from the camera, and enters continuation view. The smoke test requires positive finite radii for both the camera seed and an accepted center inside that disc, then requires rejection of a tap outside the new disc. It pans after those geometry checks, returns to the whole portrait, activates clear, leaves through Android Back, fails on EGL/shader/link/fatal errors, and saves a screenshot plus application log.
 
 These are compatibility profiles, not cycle-accurate hardware emulations. In particular the CI tablet cannot reproduce the Allwinner A333/Mali-G57 driver. Real-device testing still covers ARM64 code generation, vendor GLES behavior, multi-touch, and device-specific Android quirks. The MIRO profile similarly constrains Android 14 to 2 GiB but is not an Android Go system image.
 

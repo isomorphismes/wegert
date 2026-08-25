@@ -4,11 +4,15 @@ Wegert stays the internal project and package name. F-Droid publishes it as **ze
 
 ## Upstream release contract
 
-1. Keep `versionCode` and `versionName` in `app/build.gradle.kts` source-controlled.
-2. Run the `F-Droid release and fdroiddata build` workflow. It makes two clean `assembleRelease` builds with `-PfdroidBuild=true` and requires byte-identical unsigned APKs. It also checks the package/version, public label `zero & infinity`, and all three native ABIs.
-3. Keep the repository license and F-Droid metadata aligned on `GPL-3.0-or-later`. `THIRD_PARTY.md` records material that is not relicensed by that grant.
-4. Merging a release-version change to `main` creates the matching `v<versionName>` tag automatically. The normal build remains named Wegert; only the F-Droid build uses the public label.
-5. Copy `org.isomorphisms.wegert.yml.template` to `fdroiddata/metadata/org.isomorphisms.wegert.yml`, run `fdroid lint org.isomorphisms.wegert`, then submit the fdroiddata merge request.
+1. Keep `versionCode` and `versionName` in `app/build.gradle.kts` source-controlled and identical to `org.isomorphisms.wegert.yml.template`.
+2. Merge the release candidate to `main`. Record the exact commit SHA and the successful main-branch runs of `Android native build and device emulation` and `F-Droid release build`. The F-Droid workflow makes two clean `assembleRelease` builds with `-PfdroidBuild=true`, requires byte-identical APKs, and checks the package/version, public label, and all three native ABIs.
+3. Download `wegert-debug-apk` from that exact Android run. Install that APK on the release phone and tablet, then complete the interaction checklist: add and drag factors, pan, pinch, continuation success and rejection, clear in both views, and Android Back.
+4. Only after accepting that exact APK on real hardware, manually run `Tag tested F-Droid release` with the merged SHA and both run IDs. The workflow rejects unsuccessful runs, mismatched commits, non-`main` runs, and a pre-existing tag that points elsewhere.
+5. Manually run `Publish tested APK` with the same SHA and Android run ID. It inspects the downloaded artifact and requires the matching immutable tag before publishing the prerelease APK and checksum.
+6. Keep the repository license and F-Droid metadata aligned on `GPL-3.0-or-later`. `THIRD_PARTY.md` records material that is not relicensed by that grant.
+7. Copy `org.isomorphisms.wegert.yml.template` to `fdroiddata/metadata/org.isomorphisms.wegert.yml`, run `fdroid lint org.isomorphisms.wegert`, then submit the fdroiddata merge request.
+
+The normal build remains named Wegert; only the F-Droid build uses the public label **zero & infinity**. Neither tagging nor APK publication is automatic: real-hardware acceptance is the release gate.
 
 The same workflow also runs the submitted recipe in F-Droid's production-like `registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie` image. `fdroid/run-fdroiddata-tests.sh` copies the relevant current fdroiddata checks: metadata lint and canonical rewriting, schema validation, redirected-Git checks, upstream Fastlane extraction, `fdroid build --on-server`, the binary scanner, and the Gradle audit. The script replaces the recipe's release tag with the exact public CI commit while testing a branch; the release recipe itself remains pinned to the immutable `v<versionName>` tag.
 

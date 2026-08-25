@@ -10,9 +10,25 @@ RepoType: git
 Repo: https://github.com/isomorphisms/wegert.git
 
 Builds:
-  - versionName: 0.1.101
+  - versionName: 0.1.100
+    versionCode: 100
+    commit: v0.1.100
+    gradle:
+      - yes
+    output: app/build/outputs/apk/release/app-release-unsigned.apk
+    rm:
+      - app/wegert-debug.keystore
+      - app/src/main/cpp/prebuilt
+    prebuild:
+      - sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - sdkmanager "cmake;3.22.1"
+    ndk: 29.0.14206865
+    gradleprops:
+      - fdroidBuild=true
+
+  - versionName: 0.2.0
     versionCode: 101
-    commit: v0.1.101
+    commit: v0.2.0
     gradle:
       - yes
     output: app/build/outputs/apk/release/app-release-unsigned.apk
@@ -28,5 +44,5 @@ Builds:
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
-CurrentVersion: 0.1.101
+CurrentVersion: 0.2.0
 CurrentVersionCode: 101

@@ -41,7 +41,10 @@ cp "$repo_root/fdroid/$appid.yml.template" "$data/metadata/$appid.yml"
 sed -i "s|^Repo: .*|Repo: $source_repo|" "$data/metadata/$appid.yml"
 release_tag_revision="$(git ls-remote "$source_repo" "refs/tags/v$WEGERT_VERSION_NAME" | awk 'NR == 1 { print $1 }')"
 if [[ "$release_tag_revision" != "$source_revision" ]]; then
-    sed -i "s|^    commit: .*|    commit: $source_revision|" "$data/metadata/$appid.yml"
+    version_pattern="${WEGERT_VERSION_NAME//./\\.}"
+    sed -i \
+        "/^  - versionName: $version_pattern$/,/^    commit: / s|^    commit: .*|    commit: $source_revision|" \
+        "$data/metadata/$appid.yml"
 fi
 cp "$data/metadata/$appid.yml" "$original_metadata"
 

@@ -9,12 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "complex_math.h"
-
-struct overlay_complex {
-    double real;
-    double imag;
-};
+#include "polynomial_text.h"
 
 static const char *POLYNOMIAL_OVERLAY_FRAGMENT_SHADER =
     "#version 300 es\n"
@@ -32,213 +27,6 @@ static const char *POLYNOMIAL_OVERLAY_FRAGMENT_SHADER =
     "    vec2 uv = (screen + vec2(0.5)) / u_overlay_size;\n"
     "    frag_color = texture(u_overlay, uv);\n"
     "}\n";
-
-static bool overlay_near_zero(double value) {
-    return fabs(value) < 1.0e-6;
-}
-
-static bool overlay_near_one(double value) {
-    return fabs(value - 1.0) < 1.0e-6;
-}
-
-static void overlay_append(char *buffer, size_t capacity, size_t *used, const char *format, ...) {
-    if (*used + 1u >= capacity) {
-        return;
-    }
-
-    va_list arguments;
-    va_start(arguments, format);
-    int written = vsnprintf(buffer + *used, capacity - *used, format, arguments);
-    va_end(arguments);
-
-    if (written < 0) {
-        return;
-    }
-
-    size_t remaining = capacity - *used;
-    if ((size_t)written >= remaining) {
-        *used = capacity - 1u;
-    } else {
-        *used += (size_t)written;
-    }
-}
-
-static void overlay_format_number(double value, char *output, size_t capacity) {
-    double rounded = round(value);
-    if (overlay_near_zero(rounded)) {
-        snprintf(output, capacity, "0");
-        return;
-    }
-    snprintf(output, capacity, "%.0f", rounded);
-}
-
-static void overlay_expand_roots(
-    const float roots[MAX_FACTORS][2],
-    int root_count,
-    struct overlay_complex coefficients[MAX_FACTORS + 1]
-) {
-    double coefficients_cartesian[(MAX_FACTORS + 1) * 2];
-    wegert_expand_roots_cartesian(&roots[0][0], root_count, coefficients_cartesian);
-
-    for (int index = 0; index <= MAX_FACTORS; ++index) {
-        coefficients[index].real = coefficients_cartesian[2 * index];
-        coefficients[index].imag = coefficients_cartesian[2 * index + 1];
-    }
-}
-
-static void overlay_append_complex_magnitude(
-    char *output,
-    size_t capacity,
-    size_t *used,
-    struct overlay_complex value
-) {
-    bool has_real = !overlay_near_zero(value.real);
-    bool has_imag = !overlay_near_zero(value.imag);
-    char number[64];
-
-    if (has_real && has_imag) {
-        overlay_format_number(value.real, number, sizeof(number));
-        overlay_append(output, capacity, used, "(%s", number);
-
-        double imag_magnitude = fabs(value.imag);
-        overlay_append(output, capacity, used, value.imag < 0.0 ? "-" : "+");
-        if (!overlay_near_one(imag_magnitude)) {
-            overlay_format_number(imag_magnitude, number, sizeof(number));
-            overlay_append(output, capacity, used, "%s", number);
-        }
-        overlay_append(output, capacity, used, "i)");
-        return;
-    }
-
-    if (has_imag) {
-        double imag_magnitude = fabs(value.imag);
-        if (!overlay_near_one(imag_magnitude)) {
-            overlay_format_number(imag_magnitude, number, sizeof(number));
-            overlay_append(output, capacity, used, "%s", number);
-        }
-        overlay_append(output, capacity, used, "i");
-        return;
-    }
-
-    overlay_format_number(fabs(value.real), number, sizeof(number));
-    overlay_append(output, capacity, used, "%s", number);
-}
-
-static void overlay_format_polynomial(
-    const struct overlay_complex coefficients[MAX_FACTORS + 1],
-    int degree,
-    char *output,
-    size_t capacity
-) {
-    size_t used = 0u;
-    output[0] = '\0';
-    bool first_term = true;
-
-    for (int power = degree; power >= 0; --power) {
-        struct overlay_complex coefficient = coefficients[power];
-        coefficient.real = round(coefficient.real);
-        coefficient.imag = round(coefficient.imag);
-        if (overlay_near_zero(coefficient.real) && overlay_near_zero(coefficient.imag)) {
-            continue;
-        }
-
-        if (overlay_near_zero(coefficient.imag)) {
-            bool negative = coefficient.real < 0.0;
-            double magnitude = fabs(coefficient.real);
-
-            if (first_term) {
-                if (negative) overlay_append(output, capacity, &used, "-");
-            } else {
-                overlay_append(output, capacity, &used, negative ? " - " : " + ");
-            }
-
-            if (power == 0 || !overlay_near_one(magnitude)) {
-                char number[64];
-                overlay_format_number(magnitude, number, sizeof(number));
-                overlay_append(output, capacity, &used, "%s", number);
-            }
-        } else {
-            bool negative = coefficient.real < -1.0e-6 ||
-                (overlay_near_zero(coefficient.real) && coefficient.imag < 0.0);
-            struct overlay_complex magnitude = coefficient;
-            if (negative) {
-                magnitude.real = -magnitude.real;
-                magnitude.imag = -magnitude.imag;
-            }
-
-            if (first_term) {
-                if (negative) overlay_append(output, capacity, &used, "-");
-            } else {
-                overlay_append(output, capacity, &used, negative ? " - " : " + ");
-            }
-            overlay_append_complex_magnitude(output, capacity, &used, magnitude);
-        }
-
-        if (power > 0) {
-            overlay_append(output, capacity, &used, "z");
-            if (power > 1) {
-                overlay_append(output, capacity, &used, "^%d", power);
-            }
-        }
-
-        first_term = false;
-    }
-
-    if (first_term) {
-        overlay_append(output, capacity, &used, "0");
-    }
-}
-
-static void overlay_append_factor(
-    char *output,
-    size_t capacity,
-    size_t *used,
-    const float root[2]
-) {
-    double real = round((double)root[0]);
-    double imag = round((double)root[1]);
-    char number[64];
-
-    overlay_append(output, capacity, used, "(z");
-
-    if (!overlay_near_zero(real)) {
-        overlay_format_number(fabs(real), number, sizeof(number));
-        overlay_append(output, capacity, used, real > 0.0 ? "-%s" : "+%s", number);
-    }
-
-    if (!overlay_near_zero(imag)) {
-        double magnitude = fabs(imag);
-        overlay_append(output, capacity, used, imag > 0.0 ? "-" : "+");
-        if (!overlay_near_one(magnitude)) {
-            overlay_format_number(magnitude, number, sizeof(number));
-            overlay_append(output, capacity, used, "%s", number);
-        }
-        overlay_append(output, capacity, used, "i");
-    }
-
-    overlay_append(output, capacity, used, ")");
-}
-
-static void polynomial_overlay_format_function(const struct engine *engine, char *output, size_t capacity) {
-    struct overlay_complex numerator_coefficients[MAX_FACTORS + 1];
-    char numerator[2048];
-
-    overlay_expand_roots(engine->zeros, engine->zero_count, numerator_coefficients);
-    overlay_format_polynomial(numerator_coefficients, engine->zero_count, numerator, sizeof(numerator));
-
-    if (engine->pole_count == 0) {
-        snprintf(output, capacity, "%s", numerator);
-        return;
-    }
-
-    size_t used = 0u;
-    output[0] = '\0';
-    overlay_append(output, capacity, &used, "(%s)", numerator);
-    for (int index = 0; index < engine->pole_count; ++index) {
-        overlay_append(output, capacity, &used, " ÷");
-        overlay_append_factor(output, capacity, &used, engine->poles[index]);
-    }
-}
 
 static int overlay_max_digit_run(const char *text) {
     int maximum = 0;
@@ -617,13 +405,26 @@ static bool overlay_rebuild_button_texture(
 }
 
 static bool clear_button_rebuild_texture(struct engine *engine) {
-    return overlay_rebuild_button_texture(
+    bool rebuilt = overlay_rebuild_button_texture(
         engine,
         engine->clear_button_texture,
         "clear",
         &engine->clear_button_width,
         &engine->clear_button_height
     );
+#ifndef NDEBUG
+    if (rebuilt) {
+        float left = 0.0f;
+        float top = 0.0f;
+        clear_button_origin(engine, &left, &top);
+        LOGI(
+            "clear control center: %d %d",
+            (int)(left + 0.5f * (float)engine->clear_button_width),
+            (int)(top + 0.5f * (float)engine->clear_button_height)
+        );
+    }
+#endif
+    return rebuilt;
 }
 
 static bool view_button_rebuild_texture(struct engine *engine) {
@@ -657,7 +458,17 @@ static bool polynomial_overlay_rebuild_texture(struct engine *engine) {
     }
 
     char text[4096];
-    polynomial_overlay_format_function(engine, text, sizeof(text));
+    polynomial_text_format_function(
+        engine->zeros,
+        engine->zero_count,
+        engine->poles,
+        engine->pole_count,
+        text,
+        sizeof(text)
+    );
+#ifndef NDEBUG
+    LOGI("function overlay: %s", text);
+#endif
 
     int width = engine->width - 32;
     if (width > 1280) width = 1280;

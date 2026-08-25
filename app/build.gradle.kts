@@ -3,10 +3,10 @@ plugins {
 }
 
 // Release identity is source-controlled so F-Droid can rebuild a tagged commit
-// without GitHub Actions environment variables. Version code 101 is above the
-// run-number-based debug builds already published from this repository.
+// without GitHub Actions environment variables. Keep the code monotonically
+// increasing across both test APK and F-Droid releases.
 val releaseVersionCode = 101
-val releaseVersionName = "0.1.101"
+val releaseVersionName = "0.2.0"
 val fdroidBuild = providers.gradleProperty("fdroidBuild").orNull == "true"
 
 val wegertColorMarker = "/*__WEGERT_COLOR_CORE__*/"

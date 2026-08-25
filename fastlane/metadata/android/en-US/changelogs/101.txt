@@ -1,1 +1,1 @@
-Initial F-Droid release with interactive zeros and poles, pan and zoom controls, and a Taylor-disc analytic-continuation view.
+Adds the rational-function formula, a visible clear control, and a continuation view with overlapping Taylor discs. Improves pole placement and multi-touch handling, raises the factor limit, adds 32-bit ARM support, and makes release checks reproducible from the exact tested source.
