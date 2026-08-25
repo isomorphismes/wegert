@@ -15,6 +15,7 @@ Builds:
     commit: v0.1.101
     gradle:
       - yes
+    output: app/build/outputs/apk/release/app-release-unsigned.apk
     rm:
       - app/wegert-debug.keystore
       - app/src/main/cpp/prebuilt
