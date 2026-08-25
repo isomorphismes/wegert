@@ -64,15 +64,17 @@ PY
 
 # One assembleRelease output carries all three ABIs. No Android APK splits are
 # configured, so this is deliberately not a multiple-APK native-code release.
-if rg -n '(^|[^A-Za-z])splits[[:space:]]*\{' "$repo_root/app" "$repo_root/build.gradle.kts" >/dev/null; then
+if grep -R -E -n --include='*.gradle' --include='*.gradle.kts' \
+    '(^|[^A-Za-z])splits[[:space:]]*\{' \
+    "$repo_root/app" "$repo_root/build.gradle.kts" >/dev/null; then
     echo "unexpected APK split configuration" >&2
     exit 1
 fi
 for abi in arm64-v8a armeabi-v7a x86_64; do
-    rg -Fq "\"$abi\"" "$repo_root/app/build.gradle.kts"
+    grep -Fq "\"$abi\"" "$repo_root/app/build.gradle.kts"
 done
 
-if rg -q '<uses-permission[^>]+android.permission.INTERNET' "$repo_root/app/src/main/AndroidManifest.xml"; then
+if grep -Eq '<uses-permission[^>]+android.permission.INTERNET' "$repo_root/app/src/main/AndroidManifest.xml"; then
     echo "Fastlane description says there is no network permission, but the manifest requests it" >&2
     exit 1
 fi
