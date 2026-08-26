@@ -12,8 +12,8 @@ val fdroidBuild = providers.gradleProperty("fdroidBuild").orNull == "true"
 val wegertColorMarker = "/*__WEGERT_COLOR_CORE__*/"
 val generatedWegertAssets = layout.buildDirectory.dir("generated/wegert-assets")
 val assembleWegertShader = tasks.register("assembleWegertShader") {
-    val template = file("src/main/assets/wegert.frag.in")
-    val colorCore = file("src/main/assets/wegert_color.glsl")
+    val template = rootProject.file("wegert.frag.in")
+    val colorCore = rootProject.file("wegert_color.glsl")
     val output = generatedWegertAssets.map { it.file("wegert.frag") }
 
     inputs.files(template, colorCore)
@@ -91,7 +91,7 @@ android {
 
     externalNativeBuild {
         cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
+            path = rootProject.file("CMakeLists.txt")
             version = "3.22.1"
         }
     }

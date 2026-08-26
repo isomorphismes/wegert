@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 #define MAX_FACTORS 64
-#include "../app/src/main/cpp/factor_state.h"
+#include "../factor_state.h"
 
 int main(void) {
     float zeros[MAX_FACTORS][2] = {{0.0f, 0.0f}};

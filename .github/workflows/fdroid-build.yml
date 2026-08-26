@@ -4,6 +4,13 @@ on:
   pull_request:
     paths:
       - '.github/workflows/fdroid-build.yml'
+      - '*.c'
+      - '*.h'
+      - '*.glsl'
+      - '*.frag.in'
+      - '*.o'
+      - '*.sha256'
+      - 'CMakeLists.txt'
       - 'app/**'
       - 'build.gradle.kts'
       - 'gradle/**'
@@ -17,6 +24,13 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+'
     paths:
       - '.github/workflows/fdroid-build.yml'
+      - '*.c'
+      - '*.h'
+      - '*.glsl'
+      - '*.frag.in'
+      - '*.o'
+      - '*.sha256'
+      - 'CMakeLists.txt'
       - 'app/**'
       - 'build.gradle.kts'
       - 'gradle/**'

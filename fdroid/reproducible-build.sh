@@ -22,7 +22,7 @@ build_once() {
     rm -rf "$source_dir"
     mkdir -p "$source_dir" "$gradle_home"
     git -C "$repo_root" archive "$source_revision" | tar -x -C "$source_dir"
-    rm -rf "$source_dir/app/src/main/cpp/prebuilt"
+    rm -f "$source_dir/complex_math_ick.o"
     rm -f "$source_dir/app/wegert-debug.keystore"
 
     (

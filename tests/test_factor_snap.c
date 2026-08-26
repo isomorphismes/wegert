@@ -3,9 +3,9 @@
 #include <stdio.h>
 
 #define MAX_FACTORS 64
-#include "../app/src/main/cpp/continuation_path.h"
-#include "../app/src/main/cpp/factor_snap.h"
-#include "../app/src/main/cpp/factor_state.h"
+#include "../continuation_path.h"
+#include "../factor_snap.h"
+#include "../factor_state.h"
 
 int main(void) {
     float factors[MAX_FACTORS][2] = {

@@ -1,8 +1,8 @@
 # ICK arm64 complex-math object
 
-`complex_math_ick.o` is the isolated AArch64 object used only by the `arm64-v8a` Android build. Its public ABI is the scalar/array function declared in `../../complex_math.h`; `_Complex` never crosses into NDK-compiled code.
+`complex_math_ick.o` is the isolated AArch64 object used only by the `arm64-v8a` Android build. Its public ABI is the scalar/array function declared in repository-root `complex_math.h`; `_Complex` never crosses into NDK-compiled code.
 
-Source: `../../complex_math_ick.c`.
+Source: repository-root `complex_math_ick.c`.
 
 Compiler provenance:
 
