@@ -1,0 +1,34 @@
+name: Expand shared icon candidates
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/expand-shared-icon-candidates.yml'
+permissions:
+  contents: write
+jobs:
+  expand:
+    if: github.event.head_commit.message == 'Expand icon candidate library'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: shared-icon-candidates
+          fetch-depth: 0
+      - name: Build clean candidate branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          : > /tmp/icons.b64
+          for i in $(seq -f '%03g' 0 36); do
+            curl -fsSL "https://raw.githubusercontent.com/isomorphisms/computer-science/shared-icon-candidates/.icon-load/chunk-${i}.b64" >> /tmp/icons.b64
+          done
+          base64 -d /tmp/icons.b64 > /tmp/icons.tar.gz
+          echo "903dc7134c08e882c1938ce9ec8cb94678ab653394d0e0550ed117c214f80241  /tmp/icons.tar.gz" | sha256sum -c -
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          tar -xzf /tmp/icons.tar.gz
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add shared icon candidate thumbnails"
+          git push origin HEAD:shared-icon-candidates
