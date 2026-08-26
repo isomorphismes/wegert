@@ -18,7 +18,7 @@ Builds:
     output: app/build/outputs/apk/release/app-release-unsigned.apk
     rm:
       - app/wegert-debug.keystore
-      - app/src/main/cpp/prebuilt
+      - complex_math_ick.o
     prebuild:
       - sdkmanager "platforms;android-36" "build-tools;36.0.0"
       - sdkmanager "cmake;3.22.1"

@@ -6,7 +6,7 @@ This first Android slice is deliberately small: a C `NativeActivity` owns touch 
 
 ## Source layout
 
-The code meant to be read and edited lives directly at repository root: `wegert.c`, the supporting `.h` and complex-math `.c` files, `wegert.frag.in`, `wegert_color.glsl`, and `CMakeLists.txt`. Tests stay under `tests/`; Android packaging and resources stay under `app/`. The only thing left under `app/src/main/cpp` is the checked binary-only ICK object and its provenance under `prebuilt/`.
+The code meant to be read and edited lives directly at repository root: `wegert.c`, the supporting `.h` and complex-math `.c` files, `wegert.frag.in`, `wegert_color.glsl`, and `CMakeLists.txt`. The checked AArch64 ICK object, its checksum, and `ICK_BINARY.md` provenance live there too. Tests stay under `tests/`; Android packaging and resources stay under `app/`.
 
 ## First playable controls
 
