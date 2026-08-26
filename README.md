@@ -4,6 +4,10 @@ Interactive Wegert phase portraits of complex rational functions.
 
 This first Android slice is deliberately small: a C `NativeActivity` owns touch input and the EGL/OpenGL ES 3 context, and a fragment shader computes the portrait directly on the GPU. There is no JavaScript layer.
 
+## Source layout
+
+The code meant to be read and edited lives directly at repository root: `wegert.c`, the supporting `.h` and complex-math `.c` files, `wegert.frag.in`, `wegert_color.glsl`, and `CMakeLists.txt`. Tests stay under `tests/`; Android packaging and resources stay under `app/`. The only thing left under `app/src/main/cpp` is the checked binary-only ICK object and its provenance under `prebuilt/`.
+
 ## First playable controls
 
 - tap the ○ or × control, then tap the portrait to add that kind of factor (up to 64 each)
@@ -71,11 +75,11 @@ cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_factor_state.c -o /tmp/we
 /tmp/wegert-factor-test
 cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_factor_snap.c -lm -o /tmp/wegert-factor-snap-test
 /tmp/wegert-factor-snap-test
-cc -std=c11 -Wall -Wextra -Werror -pedantic -Iapp/src/main/cpp tests/factor_drag_test.c -lm -o /tmp/wegert-factor-drag-test
+cc -std=c11 -Wall -Wextra -Werror -pedantic tests/factor_drag_test.c -lm -o /tmp/wegert-factor-drag-test
 /tmp/wegert-factor-drag-test
-cc -std=c11 -Wall -Wextra -Werror -pedantic app/src/main/cpp/complex_math_fallback.c tests/complex_math_test.c -lm -o /tmp/wegert-complex-math-test
+cc -std=c11 -Wall -Wextra -Werror -pedantic complex_math_fallback.c tests/complex_math_test.c -lm -o /tmp/wegert-complex-math-test
 /tmp/wegert-complex-math-test
-cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_polynomial_text.c app/src/main/cpp/complex_math_fallback.c -lm -o /tmp/wegert-polynomial-text-test
+cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_polynomial_text.c complex_math_fallback.c -lm -o /tmp/wegert-polynomial-text-test
 /tmp/wegert-polynomial-text-test
 ```
 

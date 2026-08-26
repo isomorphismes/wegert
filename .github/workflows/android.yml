@@ -14,14 +14,14 @@ jobs:
       - name: Run factor-drag host tests
         run: |
           cc -std=c11 -Wall -Wextra -Wpedantic -Werror \
-            -Iapp/src/main/cpp tests/factor_drag_test.c -lm \
+            tests/factor_drag_test.c -lm \
             -o "$RUNNER_TEMP/wegert-factor-drag-test"
           "$RUNNER_TEMP/wegert-factor-drag-test"
 
       - name: Test non-arm64 Cartesian complex fallback
         run: |
           cc -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
-            app/src/main/cpp/complex_math_fallback.c \
+            complex_math_fallback.c \
             tests/complex_math_test.c \
             -lm -o /tmp/wegert-complex-math-test
           /tmp/wegert-complex-math-test
@@ -73,7 +73,7 @@ jobs:
           cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_factor_snap.c -lm -o /tmp/wegert-factor-snap-test
           /tmp/wegert-factor-snap-test
           cc -std=c11 -Wall -Wextra -Werror -pedantic \
-            tests/test_polynomial_text.c app/src/main/cpp/complex_math_fallback.c \
+            tests/test_polynomial_text.c complex_math_fallback.c \
             -lm -o /tmp/wegert-polynomial-text-test
           /tmp/wegert-polynomial-text-test
 

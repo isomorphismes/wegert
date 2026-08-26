@@ -2,7 +2,7 @@
 #include <math.h>
 #include <stdio.h>
 
-#include "../app/src/main/cpp/gesture_state.h"
+#include "../gesture_state.h"
 
 static bool nearly_equal(float left, float right) {
     return fabsf(left - right) < 0.0001f;

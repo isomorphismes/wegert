@@ -4,7 +4,7 @@
 
 #define MAX_FACTORS 64
 
-#include "../app/src/main/cpp/polynomial_text.h"
+#include "../polynomial_text.h"
 
 static void test_polynomial_without_poles(void) {
     const float zeros[MAX_FACTORS][2] = {{1.0f, 0.0f}};

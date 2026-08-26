@@ -17,7 +17,7 @@ option(
 set(WEGERT_SOURCES wegert.c)
 if(ANDROID_ABI STREQUAL "arm64-v8a" AND WEGERT_USE_ICK_PREBUILT)
     set(ICK_COMPLEX_MATH_OBJECT
-        "${CMAKE_CURRENT_SOURCE_DIR}/prebuilt/arm64-v8a/complex_math_ick.o"
+        "${CMAKE_CURRENT_SOURCE_DIR}/app/src/main/cpp/prebuilt/arm64-v8a/complex_math_ick.o"
     )
     if(NOT EXISTS "${ICK_COMPLEX_MATH_OBJECT}")
         message(FATAL_ERROR "missing ICK arm64 complex-math object")
@@ -32,6 +32,7 @@ else()
 endif()
 
 add_library(wegert SHARED ${WEGERT_SOURCES})
+target_include_directories(wegert PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_features(wegert PRIVATE c_std_11)
 target_compile_options(wegert PRIVATE -Wall -Wextra -Wpedantic)
 target_link_options(wegert PRIVATE -u ANativeActivity_onCreate)

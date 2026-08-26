@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 #define MAX_FACTORS 64
-#include "../app/src/main/cpp/continuation_path.h"
+#include "../continuation_path.h"
 
 static bool nearly_equal(float first, float second) {
     return fabsf(first - second) < 1.0e-5f;

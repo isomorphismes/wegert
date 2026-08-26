@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../app/src/main/cpp/complex_math.h"
+#include "../complex_math.h"
 
 static void require_close(double actual, double expected, const char *what) {
     if (fabs(actual - expected) > 1.0e-9) {
