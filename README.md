@@ -54,7 +54,7 @@ Hue is the phase of the rational function. Lightness repeats by base-10 log-modu
 
 ## Android build
 
-Requirements are Android SDK 36, NDK r29 (`29.0.14206865`), CMake 3.22.1, JDK 17, Gradle 9.5, and Android Gradle Plugin 9.3.1.
+Requirements are Android SDK 36, NDK r29 (`29.0.14206865`), CMake 3.22.1, JDK 17, Gradle 9.5.1, and Android Gradle Plugin 9.3.1.
 
 ```sh
 gradle :app:assembleDebug

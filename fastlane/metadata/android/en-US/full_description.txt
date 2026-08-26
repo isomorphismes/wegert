@@ -6,4 +6,4 @@ The continuation control reveals a path of overlapping Taylor discs. Tap inside 
 
 The phase portrait is rendered directly on the GPU using domain coloring: hue shows phase and repeating lightness bands show modulus. Android's system Back control leaves the app; no separate exit button occupies the portrait.
 
-The Android app is native C with EGL and OpenGL ES 3 and does not require a JavaScript layer or network service.
+The Android app is native C with EGL and OpenGL ES 3. It runs entirely on the device and requests no network permission.

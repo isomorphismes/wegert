@@ -6,8 +6,10 @@ on:
       - '.github/workflows/fdroid-build.yml'
       - 'app/**'
       - 'build.gradle.kts'
+      - 'gradle/**'
       - 'settings.gradle.kts'
       - 'fdroid/**'
+      - 'fastlane/**'
   push:
     branches:
       - main
@@ -17,44 +19,24 @@ on:
       - '.github/workflows/fdroid-build.yml'
       - 'app/**'
       - 'build.gradle.kts'
+      - 'gradle/**'
       - 'settings.gradle.kts'
       - 'fdroid/**'
+      - 'fastlane/**'
   workflow_dispatch:
 
 jobs:
   release-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Read and verify source-controlled release identity
-        id: release
-        shell: bash
-        run: |
-          set -euo pipefail
-          version="$(sed -n 's/^val releaseVersionName = "\([^"]*\)"$/\1/p' app/build.gradle.kts)"
-          code="$(sed -n 's/^val releaseVersionCode = \([0-9][0-9]*\)$/\1/p' app/build.gradle.kts)"
-          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          [[ "$code" =~ ^[0-9]+$ ]]
-
-          metadata=fdroid/org.isomorphisms.wegert.yml.template
-          grep -Fqx "  - versionName: $version" "$metadata"
-          grep -Fqx "    versionCode: $code" "$metadata"
-          grep -Fqx "    commit: v$version" "$metadata"
-          grep -Fqx "CurrentVersion: $version" "$metadata"
-          grep -Fqx "CurrentVersionCode: $code" "$metadata"
-
-          if test "$GITHUB_REF_TYPE" = tag; then
-            test "$GITHUB_REF_NAME" = "v$version"
-          fi
-
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "code=$code" >> "$GITHUB_OUTPUT"
-
-      - name: Remove non-F-Droid binary inputs
-        run: rm -rf app/src/main/cpp/prebuilt app/wegert-debug.keystore
+      - name: Verify release and Fastlane metadata
+        run: fdroid/verify-metadata.sh
 
       - uses: actions/setup-java@v4
         with:
@@ -68,30 +50,39 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '9.5.0'
+          gradle-version: '9.5.1'
 
-      - name: Build unsigned release APK from source-only inputs
-        run: gradle --no-daemon -PfdroidBuild=true :app:assembleRelease
-
-      - name: Verify F-Droid release output
-        env:
-          RELEASE_VERSION: ${{ steps.release.outputs.version }}
-          RELEASE_CODE: ${{ steps.release.outputs.code }}
-        run: |
-          set -euo pipefail
-          apk=app/build/outputs/apk/release/app-release-unsigned.apk
-          test -s "$apk"
-          unzip -t "$apk"
-          unzip -Z1 "$apk" > "$RUNNER_TEMP/wegert-release-files.txt"
-          grep -Fxq lib/arm64-v8a/libwegert.so "$RUNNER_TEMP/wegert-release-files.txt"
-          grep -Fxq lib/armeabi-v7a/libwegert.so "$RUNNER_TEMP/wegert-release-files.txt"
-          grep -Fxq lib/x86_64/libwegert.so "$RUNNER_TEMP/wegert-release-files.txt"
-          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" > "$RUNNER_TEMP/wegert-release-badging.txt"
-          grep -Fq "package: name='org.isomorphisms.wegert' versionCode='$RELEASE_CODE' versionName='$RELEASE_VERSION'" "$RUNNER_TEMP/wegert-release-badging.txt"
-          grep -Fq "application-label:'zero & infinity'" "$RUNNER_TEMP/wegert-release-badging.txt"
+      - name: Build twice and require byte-identical unsigned APKs
+        run: fdroid/reproducible-build.sh build/reproducible-fdroid
 
       - uses: actions/upload-artifact@v4
         with:
           name: wegert-fdroid-unsigned
-          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          path: |
+            build/reproducible-fdroid/wegert-*-fdroid-unsigned.apk
+            build/reproducible-fdroid/wegert-*-fdroid-unsigned.apk.sha256
+            build/reproducible-fdroid/diffoscope.txt
+          if-no-files-found: error
+
+  fdroiddata-recipe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify release and Fastlane metadata
+        run: fdroid/verify-metadata.sh
+
+      - name: Run fdroiddata metadata, scanner, and production build tests
+        run: fdroid/run-fdroiddata-tests.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wegert-fdroiddata-apk
+          path: build/fdroiddata/
           if-no-files-found: error
