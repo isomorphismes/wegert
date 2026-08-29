@@ -35,12 +35,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - lane: edric-main_glsl-main
-            idric_ref: main
+          - lane: edric-current_glsl-main
+            idric_ref: Idriç
             backend_ref: main
             float_precision: ''
-          - lane: edric-main_mali-mediump
-            idric_ref: main
+          - lane: edric-current_mali-mediump
+            idric_ref: Idriç
             backend_ref: opt/mali-g57-fp16-precision
             float_precision: mediump
           - lane: edric-no-wide-float_mali-mediump
