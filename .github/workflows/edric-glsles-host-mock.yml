@@ -47,8 +47,12 @@ jobs:
             idric_ref: Idriç
             backend_ref: opt/mali-g57-fp16-precision
             float_precision: mediump
-          - lane: edric-no-wide-float_mali-mediump
+          - lane: edric-float16-current_mali-mediump
             idric_ref: float32-primitive
+            backend_ref: opt/mali-g57-fp16-precision
+            float_precision: mediump
+          - lane: edric-float16-totality-fix_mali-mediump
+            idric_ref: fix/float16-bootstrap-totality
             backend_ref: opt/mali-g57-fp16-precision
             float_precision: mediump
 
