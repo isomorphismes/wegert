@@ -56,6 +56,11 @@ skip_stage() {
     printf 'SKIP %s: %s\n' "$stage" "$reason"
 }
 
+stage_status() {
+    local wanted=$1
+    awk -F '\t' -v wanted="$wanted" '$1 == wanted { print $2; exit }' "$receipt"
+}
+
 revision() {
     local label=$1
     local repository=$2
@@ -121,6 +126,25 @@ stage_glsles_backend() {
     test -x "$backend_root/build/exec/idris2-glsles"
 }
 
+stage_wegert_idr_compile() {
+    local compiler="$backend_root/build/exec/idris2-glsles"
+    local args=(
+        "$compiler"
+        --cg glsles
+        --source-dir src
+        --output-dir "$out/generated"
+    )
+    if [ -n "$float_precision" ]; then
+        args+=(--directive "float-precision=$float_precision")
+    fi
+    args+=(src/Example/SharedFactorPortrait.idr -o wegert-edric-idr)
+    (
+        cd "$backend_root"
+        PATH="$edric_root/.tools/bin:$PATH" LC_ALL=C "${args[@]}"
+    )
+    test -s "$out/generated/wegert-edric-idr.frag"
+}
+
 stage_wegert_idric_compile() {
     local compiler="$backend_root/build/exec/idris2-glsles"
     local source_root="$out/source"
@@ -139,17 +163,17 @@ stage_wegert_idric_compile() {
     if [ -n "$float_precision" ]; then
         args+=(--directive "float-precision=$float_precision")
     fi
-    args+=(WegertProbe.idric -o wegert-edric)
+    args+=(WegertProbe.idric -o wegert-edric-idric)
 
     (
         cd "$source_root"
         PATH="$edric_root/.tools/bin:$PATH" LC_ALL=C "${args[@]}"
     )
-    test -s "$out/generated/wegert-edric.frag"
+    test -s "$out/generated/wegert-edric-idric.frag"
 }
 
 stage_generated_glsl() {
-    local fragment="$out/generated/wegert-edric.frag"
+    local fragment=$1
     test -s "$fragment"
     glslangValidator -S frag "$fragment"
     glslangValidator -l "$backend_root/fixtures/wegert-fullscreen.vert" "$fragment"
@@ -175,29 +199,46 @@ run_stage host_c_fallback WEGERT_X86_C_FALLBACK stage_host_c || failures=$((fail
 if run_stage edric_bootstrap EDRIC_BOOTSTRAP stage_edric_bootstrap; then
     if run_stage edric_compiler_api EDRIC_COMPILER_API stage_edric_api; then
         if run_stage glsles_backend_build GLSLES_BACKEND_BUILD stage_glsles_backend; then
-            if run_stage wegert_idric_compile WEGERT_IDRIC_TO_GLSL stage_wegert_idric_compile; then
-                run_stage generated_glsl_validate GENERATED_GLSL_VALIDATE stage_generated_glsl || failures=$((failures + 1))
+            if run_stage wegert_idr_compile WEGERT_IDR_TO_GLSL stage_wegert_idr_compile; then
+                run_stage generated_idr_glsl_validate GENERATED_IDR_GLSL_VALIDATE \
+                    stage_generated_glsl "$out/generated/wegert-edric-idr.frag" || failures=$((failures + 1))
             else
                 failures=$((failures + 1))
-                skip_stage generated_glsl_validate GENERATED_GLSL_VALIDATE 'generated fragment unavailable because Wegert Idric compilation failed'
+                skip_stage generated_idr_glsl_validate GENERATED_IDR_GLSL_VALIDATE \
+                    'ordinary .idr Wegert fragment unavailable'
+            fi
+
+            if run_stage wegert_idric_compile WEGERT_IDRIC_TO_GLSL stage_wegert_idric_compile; then
+                run_stage generated_idric_glsl_validate GENERATED_IDRIC_GLSL_VALIDATE \
+                    stage_generated_glsl "$out/generated/wegert-edric-idric.frag" || failures=$((failures + 1))
+            else
+                failures=$((failures + 1))
+                skip_stage generated_idric_glsl_validate GENERATED_IDRIC_GLSL_VALIDATE \
+                    'Wegert .idric fragment unavailable'
             fi
         else
             failures=$((failures + 1))
+            skip_stage wegert_idr_compile WEGERT_IDR_TO_GLSL 'GLSL backend executable unavailable'
+            skip_stage generated_idr_glsl_validate GENERATED_IDR_GLSL_VALIDATE 'ordinary .idr fragment unavailable'
             skip_stage wegert_idric_compile WEGERT_IDRIC_TO_GLSL 'GLSL backend executable unavailable'
-            skip_stage generated_glsl_validate GENERATED_GLSL_VALIDATE 'generated fragment unavailable'
+            skip_stage generated_idric_glsl_validate GENERATED_IDRIC_GLSL_VALIDATE 'Wegert .idric fragment unavailable'
         fi
     else
         failures=$((failures + 1))
         skip_stage glsles_backend_build GLSLES_BACKEND_BUILD 'Edric compiler API installation failed'
+        skip_stage wegert_idr_compile WEGERT_IDR_TO_GLSL 'GLSL backend was not built'
+        skip_stage generated_idr_glsl_validate GENERATED_IDR_GLSL_VALIDATE 'ordinary .idr fragment unavailable'
         skip_stage wegert_idric_compile WEGERT_IDRIC_TO_GLSL 'GLSL backend was not built'
-        skip_stage generated_glsl_validate GENERATED_GLSL_VALIDATE 'generated fragment unavailable'
+        skip_stage generated_idric_glsl_validate GENERATED_IDRIC_GLSL_VALIDATE 'Wegert .idric fragment unavailable'
     fi
 else
     failures=$((failures + 1))
     skip_stage edric_compiler_api EDRIC_COMPILER_API 'Edric bootstrap failed'
     skip_stage glsles_backend_build GLSLES_BACKEND_BUILD 'Edric compiler unavailable'
+    skip_stage wegert_idr_compile WEGERT_IDR_TO_GLSL 'GLSL backend was not built'
+    skip_stage generated_idr_glsl_validate GENERATED_IDR_GLSL_VALIDATE 'ordinary .idr fragment unavailable'
     skip_stage wegert_idric_compile WEGERT_IDRIC_TO_GLSL 'GLSL backend was not built'
-    skip_stage generated_glsl_validate GENERATED_GLSL_VALIDATE 'generated fragment unavailable'
+    skip_stage generated_idric_glsl_validate GENERATED_IDRIC_GLSL_VALIDATE 'Wegert .idric fragment unavailable'
 fi
 
 {
@@ -208,9 +249,12 @@ fi
     printf 'first_failure=%s\n' "${first_fail:-none}"
 
     compile_log="$out/logs/wegert_idric_compile.log"
-    if [ -f "$compile_log" ] && grep -Eiq 'wider floating precision|does not provide Double|Double.*disabled|decimal floating literals.*disabled' "$compile_log"; then
+    if [ "$(stage_status wegert_idr_compile)" = PASS ] && \
+       [ "$(stage_status wegert_idric_compile)" = FAIL ] && \
+       [ -f "$compile_log" ] && \
+       grep -Eiq 'wider floating precision|does not provide Double|Double.*disabled|decimal floating literals.*disabled' "$compile_log"; then
         printf 'classification=SOURCE_FLOAT_PROFILE_BLOCKS_SHADER_API\n'
-        printf 'detail=Edric reached the shader compile boundary, but the .idric source profile rejects the scalar spelling used by Shader.Source.\n'
+        printf 'detail=Edric and the GLSL backend compiled the ordinary Idris Wegert path, but the .idric source profile rejected the scalar spelling used by the shader source API.\n'
     elif [ -n "${first_fail:-}" ]; then
         printf 'classification=FAILED_AT_%s\n' "$first_fail"
     else
