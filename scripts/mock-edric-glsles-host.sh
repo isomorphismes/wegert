@@ -252,9 +252,9 @@ fi
     if [ "$(stage_status wegert_idr_compile)" = PASS ] && \
        [ "$(stage_status wegert_idric_compile)" = FAIL ] && \
        [ -f "$compile_log" ] && \
-       grep -Eiq 'wider floating precision|does not provide Double|Double.*disabled|decimal floating literals.*disabled' "$compile_log"; then
+       grep -Eiq 'wider floating precision|does not provide Double|Double.*disabled|decimal floating literals.*disabled|Float16.*Double|Double.*Float16|unsupported shader entry type Float16' "$compile_log"; then
         printf 'classification=SOURCE_FLOAT_PROFILE_BLOCKS_SHADER_API\n'
-        printf 'detail=Edric and the GLSL backend compiled the ordinary Idris Wegert path, but the .idric source profile rejected the scalar spelling used by the shader source API.\n'
+        printf 'detail=Edric and the GLSL backend compiled the ordinary Idris Wegert path, but the .idric path reached a Float16/Double shader-source mismatch. Shader.Source and the GLSL signature/lowering boundary still need an explicit Float16 scalar contract.\n'
     elif [ -n "${first_fail:-}" ]; then
         printf 'classification=FAILED_AT_%s\n' "$first_fail"
     else
