@@ -55,6 +55,10 @@ jobs:
             idric_ref: fix/float16-bootstrap-totality
             backend_ref: opt/mali-g57-fp16-precision
             float_precision: mediump
+          - lane: edric-float16-primitive-carrier_mali-mediump
+            idric_ref: feature/float16-core-primitive
+            backend_ref: opt/mali-g57-fp16-precision
+            float_precision: mediump
 
     name: ${{ matrix.lane }}
 
