@@ -12,6 +12,7 @@ builder="$repo_root/fdroid/build-apk.sh"
 metadata_version_name="$(sed -n 's/^  - versionName: \(.*\)$/\1/p' "$metadata" | tail -n 1)"
 metadata_version_code="$(sed -n 's/^    versionCode: \([0-9][0-9]*\)$/\1/p' "$metadata" | tail -n 1)"
 metadata_commit="$(sed -n 's/^    commit: \(.*\)$/\1/p' "$metadata" | tail -n 1)"
+metadata_subdir="$(sed -n 's/^    subdir: \(.*\)$/\1/p' "$metadata" | tail -n 1)"
 metadata_output="$(sed -n 's/^    output: \(.*\)$/\1/p' "$metadata" | tail -n 1)"
 current_version_name="$(sed -n 's/^CurrentVersion: \(.*\)$/\1/p' "$metadata")"
 current_version_code="$(sed -n 's/^CurrentVersionCode: \([0-9][0-9]*\)$/\1/p' "$metadata")"
@@ -20,7 +21,8 @@ metadata_ndk="$(sed -n 's/^    ndk: \(.*\)$/\1/p' "$metadata" | tail -n 1)"
 test "$metadata_version_name" = "$WEGERT_VERSION_NAME"
 test "$metadata_version_code" = "$WEGERT_VERSION_CODE"
 test "$metadata_commit" = "v$WEGERT_VERSION_NAME"
-test "$metadata_output" = "_/build/build/fdroid/wegert-release-unsigned.apk"
+test "$metadata_subdir" = "_/build"
+test "$metadata_output" = "build/fdroid/wegert-release-unsigned.apk"
 test "$current_version_name" = "$WEGERT_VERSION_NAME"
 test "$current_version_code" = "$WEGERT_VERSION_CODE"
 test "$metadata_ndk" = "$WEGERT_NDK_VERSION"
@@ -30,7 +32,8 @@ grep -Fxq 'Repo: https://github.com/isomorphismes/wegert.git' "$metadata"
 grep -Fxq 'AutoUpdateMode: Version' "$metadata"
 grep -Fxq 'UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$' "$metadata"
 grep -Fxq 'UpdateCheckData: _/build/fdroid/release.properties|versionCode=([0-9]+)|.|versionName=([0-9.]+)' "$metadata"
-grep -Fxq '    build: SDK_ROOT="$$SDK$$" NDK_ROOT="$$NDK$$" bash _/build/fdroid/build-apk.sh' "$metadata"
+grep -Fxq '    subdir: _/build' "$metadata"
+grep -Fxq '    build: SDK_ROOT="$$SDK$$" NDK_ROOT="$$NDK$$" bash fdroid/build-apk.sh' "$metadata"
 
 if grep -Eq '^[[:space:]]+(gradle|gradleprops):' "$metadata"; then
     echo "F-Droid metadata must not invoke Gradle" >&2
@@ -101,5 +104,5 @@ fi
 
 printf 'metadata: %s (%s), tag auto-update enabled\n' "$WEGERT_VERSION_NAME" "$WEGERT_VERSION_CODE"
 printf 'F-Droid build: direct NDK/CMake + aapt2, no Gradle\n'
-printf 'fastlane: title, descriptions, icon, changelog, and %d phone screenshot(s)\n' "${#screenshots[@]}"
+printf 'fastlane: title, descriptions, icon, changelog, and %d phone screenshot(s) via subdir _/build\n' "${#screenshots[@]}"
 printf 'apk packaging: one universal APK with arm64-v8a, armeabi-v7a, and x86_64\n'
