@@ -12,7 +12,7 @@ Repo: https://github.com/isomorphisms/wegert.git
 Builds:
   - versionName: 0.2.0
     versionCode: 101
-    commit: v0.2.0
+    commit: __SOURCE_COMMIT__
     submodules: true
     sudo:
       - apt-get update
@@ -24,17 +24,7 @@ Builds:
     prebuild:
       - sdkmanager "platforms;android-36" "build-tools;36.0.0"
     build:
-      - _deps/Idric/_/edric bootstrap
-      - _deps/Idric/_/build/exec/idris2 --version
-      - make -C _deps/Idric/_/support/chez install IDRIS2_VERSION=0.8.0
-      - make -C _deps/Idric/_ install-bootstrap-libs IDRIS2="$PWD/_deps/Idric/_/build/exec/idris2"
-      - make -C _deps/Idric/_ install-api IDRIS2_BOOT="$PWD/_deps/Idric/_/build/exec/idris2"
-      - make -C _deps/idric-arm-thumb check IDRIC="$PWD/_deps/Idric/_/build/exec/idris2"
-        IDRIC_REPO="$PWD/_deps/Idric"
-        IDRIC_COMPILER_REF=be76b3d5c7a3f9300a7296dbb0efbb4e6f7c8d36
-      - IDRIC="$PWD/_deps/Idric/_/build/exec/idris2"
-        bash _deps/idric-arm-thumb/tests/dex/wegert-generate-direct.sh
-        "$PWD/build/direct/classes.dex"
+      - bash android-direct/generate-dex.sh build/direct/classes.dex
       - ANDROID_NDK_HOME=$$NDK$$ ANDROID_SDK_ROOT=$$SDK$$
         ANDROID_BUILD_TOOLS=$$SDK$$/build-tools/36.0.0
         bash android-direct/build.sh build/direct/classes.dex build/direct/wegert-direct-unsigned.apk
