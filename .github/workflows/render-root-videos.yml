@@ -1,9 +1,11 @@
-name: Render root videos
+name: Render Wegert palette dances
 
 on:
   push:
+    branches-ignore:
+      - main
     paths:
-      - '_/build/render_root_videos.py'
+      - 'code/wegert_gist_palette_dance.py'
       - '.github/workflows/render-root-videos.yml'
   workflow_dispatch:
 
@@ -19,25 +21,18 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-          python -m pip install --disable-pip-version-check numpy pillow
-      - name: Render Wegert MP4s at repository root
-        run: python _/build/render_root_videos.py .
-      - name: Commit rendered MP4s
+          python -m pip install --disable-pip-version-check numpy matplotlib
+      - name: Render actual Wegert gist palette dances
+        run: python code/wegert_gist_palette_dance.py rendered_images
+      - name: Commit rendered MP4s to this branch
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- '*.mp4'
+          git add rendered_images/wegert_gist_palette_dance_*.mp4
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m 'Render Wegert videos at repository root'
-          for attempt in 1 2 3 4; do
-            git fetch origin main
-            git rebase origin/main
-            if git push origin HEAD:main; then
-              exit 0
-            fi
-          done
-          exit 1
+          git commit -m 'Render Wegert gist palette dances'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
