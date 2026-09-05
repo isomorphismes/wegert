@@ -1,13 +1,15 @@
 Categories:
   - Science & Education
 License: GPL-3.0-or-later
-SourceCode: https://github.com/isomorphisms/wegert
-IssueTracker: https://github.com/isomorphisms/wegert/issues
+AuthorEmail: isomorphisms@sdf.org
+AuthorWebSite: https://x.com/isomorph_nix
+SourceCode: https://github.com/isomorphismes/wegert
+IssueTracker: https://github.com/isomorphismes/wegert/issues
 
 Name: zero & infinity
 
 RepoType: git
-Repo: https://github.com/isomorphisms/wegert.git
+Repo: https://github.com/isomorphismes/wegert.git
 
 Builds:
   - versionName: 0.2.0

@@ -90,8 +90,10 @@ cp "metadata/$appid.yml" "$work_root/before-redirect.yml"
 tools/rewrite-git-redirects.py "$appid"
 cmp "$work_root/before-redirect.yml" "metadata/$appid.yml"
 
-python3 tools/check-fastlane.py "$appid" > "$work_root/fastlane.json"
-python3 - "$work_root/fastlane.json" <<'PY'
+# F-Droid keeps this legacy command name for source metadata. With Wegert's
+# Fastlane tree removed, this check can only consume the canonical Triple-T tree.
+python3 tools/check-fastlane.py "$appid" > "$work_root/source-metadata.json"
+python3 - "$work_root/source-metadata.json" <<'PY'
 import json
 import sys
 
@@ -100,7 +102,7 @@ bad = [report for report in reports if report.get("severity") in {"critical", "m
 for report in reports:
     print(f"{report.get('severity')}: {report.get('description')}")
 if bad:
-    raise SystemExit("F-Droid Fastlane checks reported critical or major problems")
+    raise SystemExit("F-Droid source-metadata checks reported critical or major problems")
 PY
 
 # The following setup and command mirror fdroiddata's production-like build job.
