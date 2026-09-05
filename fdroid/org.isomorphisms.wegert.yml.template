@@ -13,18 +13,32 @@ Builds:
   - versionName: 0.2.0
     versionCode: 101
     commit: v0.2.0
-    gradle:
-      - yes
-    output: app/build/outputs/apk/release/app-release-unsigned.apk
+    submodules: true
+    sudo:
+      - apt-get update
+      - apt-get install -y build-essential ca-certificates chezscheme cmake libgmp-dev python3 unzip zip
+    output: build/direct/wegert-direct-unsigned.apk
     rm:
       - app/wegert-debug.keystore
       - complex_math_ick.o
     prebuild:
       - sdkmanager "platforms;android-36" "build-tools;36.0.0"
-      - sdkmanager "cmake;3.22.1"
+    build:
+      - support_root="$PWD/_deps/Idric/_"
+      - compiler="$support_root/build/exec/idris2"
+      - "$support_root/edric" bootstrap
+      - "$compiler" --version
+      - make -C "$support_root/support/chez" install IDRIS2_VERSION=0.8.0
+      - make -C "$support_root" install-bootstrap-libs IDRIS2="$compiler"
+      - make -C "$support_root" install-api IDRIS2_BOOT="$compiler"
+      - make -C _deps/idric-arm-thumb check IDRIC="$compiler" IDRIC_REPO="$PWD/_deps/Idric"
+        IDRIC_COMPILER_REF=be76b3d5c7a3f9300a7296dbb0efbb4e6f7c8d36
+      - IDRIC="$compiler" bash _deps/idric-arm-thumb/tests/dex/wegert-generate-direct.sh
+        "$PWD/build/direct/classes.dex"
+      - ANDROID_NDK_HOME=$$NDK$$ ANDROID_SDK_ROOT=$$SDK$$
+        ANDROID_BUILD_TOOLS=$$SDK$$/build-tools/36.0.0
+        bash android-direct/build.sh build/direct/classes.dex build/direct/wegert-direct-unsigned.apk
     ndk: 29.0.14206865
-    gradleprops:
-      - fdroidBuild=true
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
