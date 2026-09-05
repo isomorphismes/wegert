@@ -1,0 +1,6 @@
+[submodule "_deps/idric-arm-thumb"]
+	path = _deps/idric-arm-thumb
+	url = https://github.com/isomorphisms/idric-arm-thumb.git
+[submodule "_deps/Idric"]
+	path = _deps/Idric
+	url = https://github.com/isomorphisms/Idric.git
