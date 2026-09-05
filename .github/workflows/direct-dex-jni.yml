@@ -20,7 +20,23 @@ on:
       - 'THIRD_PARTY.md'
   push:
     branches:
-      - main
+      - '**'
+    paths:
+      - '.github/workflows/direct-dex-jni.yml'
+      - '.gitmodules'
+      - '_deps/**'
+      - 'android-direct/**'
+      - 'fdroid/release-values.sh'
+      - '*.c'
+      - '*.h'
+      - '*.glsl'
+      - '*.frag.in'
+      - 'CMakeLists.txt'
+      - 'app/src/main/res/**'
+      - 'app/wegert-debug.keystore'
+      - 'LICENSE'
+      - 'NOTICE'
+      - 'THIRD_PARTY.md'
   workflow_dispatch:
 
 concurrency:
