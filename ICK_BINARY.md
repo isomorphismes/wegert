@@ -6,13 +6,15 @@ Source: repository-root `complex_math_ick.c`.
 
 Compiler provenance:
 
-- ICK repository: `isomorphisms/the-equality-sign-means-equality`
+- ICK repository: `isomorphisms/rhs` (the earlier `isomorphisms/the-equality-sign-means-equality` repository URL redirects here)
 - ICK source commit: `7458b3c29fe535eb7dda3b1c756b362cee5c889d`
 - merged by PR #1 into `circles-are-balanced` as `5fe6f6d1259b0b4ae9adf99d354e49e2a01afbf9`
 - successful qualification run: `32538975306`
 - compiler Actions artifact id: `9466706242`
 - artifact digest: `sha256:d4299db53e415f2f6da519fd08fe10415f65755b7024a60cc23a4fede83d36fb`
 - compiler archive SHA-256 inside the artifact: `8c19eed5aeda0035afe9852cb1e65cde5325f4c031b2f0b39377dc53cb028051`
+
+The ICK tree carries the GCC-family license files, including GPLv3 in `COPYING3` and the GCC Runtime Library Exception 3.1 in `COPYING.RUNTIME`. The exception applies only to runtime-library files that bear the required notice; this provenance record does not claim that every compiler file has one uniform license. Wegert's own source and generated application object remain distributed under Wegert's `GPL-3.0-or-later` terms.
 
 The source was compiled by that ICK compiler at `-O2 -fPIC -fvisibility=hidden` to AArch64 assembly. The checked object was assembled from the ICK output with Clang's AArch64 integrated assembler because the local generation environment did not contain `aarch64-linux-gnu-as`; the C lowering and `_Complex` code generation are ICK's. The upstream qualification run uses GNU AArch64 binutils for the same isolated-object boundary.
 
