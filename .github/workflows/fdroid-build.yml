@@ -22,9 +22,27 @@ on:
       - 'THIRD_PARTY.md'
   push:
     branches:
-      - main
+      - '**'
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+    paths:
+      - '.github/workflows/fdroid-build.yml'
+      - '.gitmodules'
+      - '_deps/**'
+      - 'android-direct/**'
+      - '*.c'
+      - '*.h'
+      - '*.glsl'
+      - '*.frag.in'
+      - '*.o'
+      - '*.sha256'
+      - 'CMakeLists.txt'
+      - 'app/src/main/res/**'
+      - 'fastlane/**'
+      - 'fdroid/**'
+      - 'LICENSE'
+      - 'NOTICE'
+      - 'THIRD_PARTY.md'
   workflow_dispatch:
 
 concurrency:
