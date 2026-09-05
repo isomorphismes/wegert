@@ -11,10 +11,7 @@ on:
       - '*.o'
       - '*.sha256'
       - 'CMakeLists.txt'
-      - 'app/**'
-      - 'build.gradle.kts'
-      - 'gradle/**'
-      - 'settings.gradle.kts'
+      - 'app/src/**'
       - 'fdroid/**'
       - 'fastlane/**'
   push:
@@ -31,10 +28,7 @@ on:
       - '*.o'
       - '*.sha256'
       - 'CMakeLists.txt'
-      - 'app/**'
-      - 'build.gradle.kts'
-      - 'gradle/**'
-      - 'settings.gradle.kts'
+      - 'app/src/**'
       - 'fdroid/**'
       - 'fastlane/**'
   workflow_dispatch:
@@ -61,10 +55,6 @@ jobs:
 
       - name: Install Android build inputs
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865" "cmake;3.22.1"
-
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '9.5.1'
 
       - name: Build twice and require byte-identical unsigned APKs
         run: fdroid/reproducible-build.sh build/reproducible-fdroid
