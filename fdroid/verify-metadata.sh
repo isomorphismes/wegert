@@ -30,7 +30,7 @@ grep -Fxq 'Repo: https://github.com/isomorphismes/wegert.git' "$metadata"
 grep -Fxq 'AutoUpdateMode: Version' "$metadata"
 grep -Fxq 'UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$' "$metadata"
 grep -Fxq 'UpdateCheckData: fdroid/release.properties|versionCode=([0-9]+)|.|versionName=([0-9.]+)' "$metadata"
-grep -Fxq '      - SDK_ROOT="$$SDK$$" NDK_ROOT="$$NDK$$" bash fdroid/build-apk.sh' "$metadata"
+grep -Fxq '    build: SDK_ROOT="$$SDK$$" NDK_ROOT="$$NDK$$" bash fdroid/build-apk.sh' "$metadata"
 
 if grep -Eq '^[[:space:]]+(gradle|gradleprops):' "$metadata"; then
     echo "F-Droid metadata must not invoke Gradle" >&2
