@@ -20,7 +20,7 @@ metadata_ndk="$(sed -n 's/^    ndk: \(.*\)$/\1/p' "$metadata" | tail -n 1)"
 test "$metadata_version_name" = "$WEGERT_VERSION_NAME"
 test "$metadata_version_code" = "$WEGERT_VERSION_CODE"
 test "$metadata_commit" = "v$WEGERT_VERSION_NAME"
-test "$metadata_output" = "build/fdroid/wegert-release-unsigned.apk"
+test "$metadata_output" = "_/build/build/fdroid/wegert-release-unsigned.apk"
 test "$current_version_name" = "$WEGERT_VERSION_NAME"
 test "$current_version_code" = "$WEGERT_VERSION_CODE"
 test "$metadata_ndk" = "$WEGERT_NDK_VERSION"
@@ -29,8 +29,8 @@ grep -Fxq 'SourceCode: https://github.com/isomorphismes/wegert' "$metadata"
 grep -Fxq 'Repo: https://github.com/isomorphismes/wegert.git' "$metadata"
 grep -Fxq 'AutoUpdateMode: Version' "$metadata"
 grep -Fxq 'UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$' "$metadata"
-grep -Fxq 'UpdateCheckData: fdroid/release.properties|versionCode=([0-9]+)|.|versionName=([0-9.]+)' "$metadata"
-grep -Fxq '    build: SDK_ROOT="$$SDK$$" NDK_ROOT="$$NDK$$" bash fdroid/build-apk.sh' "$metadata"
+grep -Fxq 'UpdateCheckData: _/build/fdroid/release.properties|versionCode=([0-9]+)|.|versionName=([0-9.]+)' "$metadata"
+grep -Fxq '    build: SDK_ROOT="$$SDK$$" NDK_ROOT="$$NDK$$" bash _/build/fdroid/build-apk.sh' "$metadata"
 
 if grep -Eq '^[[:space:]]+(gradle|gradleprops):' "$metadata"; then
     echo "F-Droid metadata must not invoke Gradle" >&2
@@ -38,10 +38,10 @@ if grep -Eq '^[[:space:]]+(gradle|gradleprops):' "$metadata"; then
 fi
 
 for removed in \
-    app/build.gradle.kts \
-    build.gradle.kts \
-    gradle \
-    settings.gradle.kts; do
+    _/build/app/build.gradle.kts \
+    _/build/build.gradle.kts \
+    _/build/gradle \
+    _/build/settings.gradle.kts; do
     grep -Fxq "      - $removed" "$metadata"
 done
 

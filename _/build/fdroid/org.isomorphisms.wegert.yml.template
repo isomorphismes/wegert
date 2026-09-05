@@ -13,22 +13,22 @@ Builds:
   - versionName: 0.2.0
     versionCode: 101
     commit: v0.2.0
-    output: build/fdroid/wegert-release-unsigned.apk
+    output: _/build/build/fdroid/wegert-release-unsigned.apk
     rm:
-      - app/build.gradle.kts
-      - app/wegert-debug.keystore
-      - build.gradle.kts
-      - complex_math_ick.o
-      - gradle
-      - settings.gradle.kts
+      - _/build/app/build.gradle.kts
+      - _/build/app/wegert-debug.keystore
+      - _/build/build.gradle.kts
+      - _/build/complex_math_ick.o
+      - _/build/gradle
+      - _/build/settings.gradle.kts
     prebuild:
       - sdkmanager "platforms;android-36" "build-tools;36.0.0"
       - sdkmanager "cmake;3.22.1"
-    build: SDK_ROOT="$$SDK$$" NDK_ROOT="$$NDK$$" bash fdroid/build-apk.sh
+    build: SDK_ROOT="$$SDK$$" NDK_ROOT="$$NDK$$" bash _/build/fdroid/build-apk.sh
     ndk: 29.0.14206865
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
-UpdateCheckData: fdroid/release.properties|versionCode=([0-9]+)|.|versionName=([0-9.]+)
+UpdateCheckData: _/build/fdroid/release.properties|versionCode=([0-9]+)|.|versionName=([0-9.]+)
 CurrentVersion: 0.2.0
 CurrentVersionCode: 101

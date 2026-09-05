@@ -2,11 +2,27 @@
 
 Interactive Wegert phase portraits of complex rational functions.
 
-This first Android slice is deliberately small: a C `NativeActivity` owns touch input and the EGL/OpenGL ES 3 context, and a fragment shader computes the portrait directly on the GPU. There is no JavaScript layer.
+## Videos
+
+Useful MP4s are kept directly at repository root so they are easy to preview, download, or reuse on a site.
+
+- [Meromorphic phase portrait — 15 s](wegert_meromorphic_15s.mp4)
+- [Three moving simple roots](three_moving_simple_roots.mp4)
+- [Two moving simple poles](two_moving_simple_poles.mp4)
+- [Moving repeated zeros and poles](moving_repeated_zeros_and_poles.mp4)
+- [Moving simple and repeated roots](moving_simple_and_repeated_roots.mp4)
+- [Moving simple and double poles](moving_simple_and_double_poles.mp4)
+- [Two simple zeros and two simple poles](moving_two_simple_zeros_and_two_simple_poles.mp4)
+- [Android: place and drag one zero and one pole](add-and-drag-zero-and-pole.mp4)
+- [Android: place and drag two zeros and two poles](add-and-drag-two-zeros-and-two-poles.mp4)
+
+The 512×512 app icon is also exposed at root as [`wegert-icon-512.png`](wegert-icon-512.png).
 
 ## Source layout
 
-The code meant to be read and edited lives directly at repository root: `wegert.c`, the supporting `.h` and complex-math `.c` files, `wegert.frag.in`, `wegert_color.glsl`, and `CMakeLists.txt`. The checked AArch64 ICK object, its checksum, and `ICK_BINARY.md` provenance live there too. Tests stay under `tests/`; Android packaging and resources stay under `app/`.
+Readable source is intentionally at repository root: `wegert.c`, supporting `.h` and complex-math `.c` files, `wegert.frag.in`, and `wegert_color.glsl`.
+
+Build/release machinery is hidden under `_/build/`: Android packaging, Gradle, CMake, tests, F-Droid/Fastlane metadata, the checked AArch64 object and provenance, artwork sources, and the video renderer. The build tree uses symlinks back to the canonical root source, so the readable source is not duplicated.
 
 ## First playable controls
 
@@ -38,13 +54,6 @@ A newly tapped center is accepted only inside the immediately preceding open dis
 
 In the whole portrait, dragging from an existing marker moves only that factor; dragging empty space pans. Factor dragging does not snap or retarget after finger-down. In the continuation view, marker touches remain continuation-center input so a touch near a pole can snap to the exact pole and be rejected.
 
-## Touch demonstrations
-
-Both recordings use the tested [v0.1.50 APK](https://github.com/isomorphisms/wegert/releases/tag/v0.1.50).
-
-- [Place and drag one zero and one pole](docs/demos/add-and-drag-zero-and-pole.mp4)
-- [Place and drag two zeros and two poles](docs/demos/add-and-drag-two-zeros-and-two-poles.mp4)
-
 ## Colouring
 
 The shader preserves the established Wegert palette constants from the earlier R version:
@@ -61,12 +70,14 @@ Hue is the phase of the rational function. Lightness repeats by base-10 log-modu
 Requirements are Android SDK 36, NDK r29 (`29.0.14206865`), CMake 3.22.1, JDK 17, Gradle 9.5.1, and Android Gradle Plugin 9.3.1.
 
 ```sh
+cd _/build
 gradle :app:assembleDebug
 ```
 
-The host-side continuation, gesture, pinch-zoom, factor-drag, canonical-factor, touch-snap, complex-arithmetic, and formula-formatting rules can be checked without an Android toolchain:
+The host-side continuation, gesture, pinch-zoom, factor-drag, canonical-factor, touch-snap, complex-arithmetic, and formula-formatting rules can be checked from the same build directory without an Android toolchain:
 
 ```sh
+cd _/build
 cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_continuation_path.c -lm -o /tmp/wegert-continuation-test
 /tmp/wegert-continuation-test
 cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_gesture_state.c -lm -o /tmp/wegert-gesture-test
@@ -83,15 +94,13 @@ cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_polynomial_text.c complex
 /tmp/wegert-polynomial-text-test
 ```
 
-The APK is written to:
+The APK is written to repository path:
 
 ```text
-app/build/outputs/apk/debug/app-debug.apk
+_/build/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Debug APKs use the repository's public test-only signing key and the source-controlled `0.2.0` version identity. Builds from before this key was added used disposable runner keys and must be uninstalled once before the first stable-signed APK will install.
-
-The checked-in debug key is deliberately public and must never sign a production release.
+Debug APKs use the repository's public test-only signing key and the source-controlled `0.2.0` version identity. The checked-in debug key is deliberately public and must never sign a production release.
 
 The debug APK contains `arm64-v8a` and `armeabi-v7a` for phone/tablet targets and `x86_64` solely for CI emulation.
 
@@ -106,7 +115,7 @@ GitHub Actions smoke-tests the APK against two constrained virtual-device profil
 
 Each emulator installs and launches Wegert, drags an existing zero in the whole portrait, places a finite pole away from the camera, and enters continuation view. The smoke test requires positive finite radii for both the camera seed and an accepted center inside that disc, then requires rejection of a tap outside the new disc. It pans after those geometry checks, returns to the whole portrait, activates clear, leaves through Android Back, fails on EGL/shader/link/fatal errors, and saves a screenshot plus application log.
 
-These are compatibility profiles, not cycle-accurate hardware emulations. In particular the CI tablet cannot reproduce the Allwinner A333/Mali-G57 driver. Real-device testing still covers ARM64 code generation, vendor GLES behavior, multi-touch, and device-specific Android quirks. The MIRO profile similarly constrains Android 14 to 2 GiB but is not an Android Go system image.
+These are compatibility profiles, not cycle-accurate hardware emulations. Real-device testing still covers ARM64 code generation, vendor GLES behavior, multi-touch, and device-specific Android quirks.
 
 ## Shader/compiler boundary
 

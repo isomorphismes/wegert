@@ -3,7 +3,7 @@ name: Render root videos
 on:
   push:
     paths:
-      - '_/render_root_videos.py'
+      - '_/build/render_root_videos.py'
       - '.github/workflows/render-root-videos.yml'
   workflow_dispatch:
 
@@ -21,10 +21,7 @@ jobs:
           sudo apt-get install -y ffmpeg
           python -m pip install --disable-pip-version-check numpy pillow
       - name: Render Wegert MP4s at repository root
-        run: |
-          python _/render_root_videos.py .
-          cp docs/demos/add-and-drag-zero-and-pole.mp4 .
-          cp docs/demos/add-and-drag-two-zeros-and-two-poles.mp4 .
+        run: python _/build/render_root_videos.py .
       - name: Commit rendered MP4s
         shell: bash
         run: |

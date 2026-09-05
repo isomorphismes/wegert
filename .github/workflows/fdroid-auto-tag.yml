@@ -86,7 +86,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          source fdroid/release-values.sh
+          source _/build/fdroid/release-values.sh
           echo "tag=v$WEGERT_VERSION_NAME" >> "$GITHUB_OUTPUT"
           echo "version=$WEGERT_VERSION_NAME" >> "$GITHUB_OUTPUT"
           echo "code=$WEGERT_VERSION_CODE" >> "$GITHUB_OUTPUT"

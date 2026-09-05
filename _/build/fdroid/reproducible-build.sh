@@ -1,44 +1,46 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source "$repo_root/fdroid/release-values.sh"
+build_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+git_root="$(git -C "$build_root" rev-parse --show-toplevel)"
+source "$build_root/fdroid/release-values.sh"
 
-output_dir="${1:-$repo_root/build/reproducible-fdroid}"
+output_dir="${1:-$build_root/build/reproducible-fdroid}"
 source_revision="${SOURCE_REVISION:-HEAD}"
 work_root="$(mktemp -d "${TMPDIR:-/tmp}/wegert-reproducible.XXXXXX")"
 trap 'rm -rf "$work_root"' EXIT
 
 mkdir -p "$output_dir"
 output_dir="$(cd "$output_dir" && pwd)"
-source_date_epoch="$(git -C "$repo_root" show -s --format=%ct "$source_revision")"
+source_date_epoch="$(git -C "$git_root" show -s --format=%ct "$source_revision")"
 
 build_once() {
     local run="$1"
     local source_dir="$work_root/source"
+    local source_build="$source_dir/_/build"
     local result="$output_dir/run-$run.apk"
 
     rm -rf "$source_dir"
     mkdir -p "$source_dir"
-    git -C "$repo_root" archive "$source_revision" | tar -x -C "$source_dir"
+    git -C "$git_root" archive "$source_revision" | tar -x -C "$source_dir"
     rm -rf \
-        "$source_dir/gradle" \
-        "$source_dir/gradlew" \
-        "$source_dir/gradlew.bat" \
-        "$source_dir/build.gradle.kts" \
-        "$source_dir/settings.gradle.kts" \
-        "$source_dir/app/build.gradle.kts"
-    rm -f "$source_dir/complex_math_ick.o" "$source_dir/app/wegert-debug.keystore"
+        "$source_build/gradle" \
+        "$source_build/gradlew" \
+        "$source_build/gradlew.bat" \
+        "$source_build/build.gradle.kts" \
+        "$source_build/settings.gradle.kts" \
+        "$source_build/app/build.gradle.kts"
+    rm -f "$source_build/complex_math_ick.o" "$source_build/app/wegert-debug.keystore"
 
     (
-        cd "$source_dir"
+        cd "$source_build"
         SOURCE_DATE_EPOCH="$source_date_epoch" \
         SDK_ROOT="${SDK_ROOT:-${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}}" \
         NDK_ROOT="${NDK_ROOT:-}" \
         bash fdroid/build-apk.sh "$result"
     )
 
-    "$repo_root/fdroid/verify-apk.sh" "$result"
+    "$build_root/fdroid/verify-apk.sh" "$result"
 }
 
 build_once 1

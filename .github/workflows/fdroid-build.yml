@@ -8,12 +8,7 @@ on:
       - '*.h'
       - '*.glsl'
       - '*.frag.in'
-      - '*.o'
-      - '*.sha256'
-      - 'CMakeLists.txt'
-      - 'app/src/**'
-      - 'fdroid/**'
-      - 'fastlane/**'
+      - '_/build/**'
   push:
     branches:
       - main
@@ -25,12 +20,7 @@ on:
       - '*.h'
       - '*.glsl'
       - '*.frag.in'
-      - '*.o'
-      - '*.sha256'
-      - 'CMakeLists.txt'
-      - 'app/src/**'
-      - 'fdroid/**'
-      - 'fastlane/**'
+      - '_/build/**'
   workflow_dispatch:
 
 concurrency:
@@ -41,6 +31,9 @@ jobs:
   release-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: _/build
 
     steps:
       - uses: actions/checkout@v4
@@ -67,9 +60,9 @@ jobs:
         with:
           name: wegert-fdroid-unsigned
           path: |
-            build/reproducible-fdroid/wegert-*-fdroid-unsigned.apk
-            build/reproducible-fdroid/wegert-*-fdroid-unsigned.apk.sha256
-            build/reproducible-fdroid/diffoscope.txt
+            _/build/build/reproducible-fdroid/wegert-*-fdroid-unsigned.apk
+            _/build/build/reproducible-fdroid/wegert-*-fdroid-unsigned.apk.sha256
+            _/build/build/reproducible-fdroid/diffoscope.txt
           if-no-files-found: error
 
   fdroiddata-recipe:
@@ -77,6 +70,9 @@ jobs:
     timeout-minutes: 60
     env:
       SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+    defaults:
+      run:
+        working-directory: _/build
 
     steps:
       - uses: actions/checkout@v4
@@ -92,5 +88,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: wegert-fdroiddata-apk
-          path: build/fdroiddata/
+          path: _/build/build/fdroiddata/
           if-no-files-found: error
