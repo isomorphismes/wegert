@@ -16,7 +16,8 @@ Builds:
     submodules: true
     sudo:
       - apt-get update
-      - apt-get install -y build-essential ca-certificates chezscheme cmake libgmp-dev python3 unzip zip
+      - apt-get install -y build-essential ca-certificates chezscheme cmake libgmp-dev
+      - apt-get install -y python3 unzip zip
     output: build/direct/wegert-direct-unsigned.apk
     rm:
       - app/wegert-debug.keystore
