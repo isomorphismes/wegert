@@ -7,6 +7,11 @@ on:
     paths:
       - 'code/wegert_gist_palette_dance.py'
       - '.github/workflows/render-root-videos.yml'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'code/wegert_gist_palette_dance.py'
+      - '.github/workflows/render-root-videos.yml'
   workflow_dispatch:
 
 permissions:
@@ -14,9 +19,12 @@ permissions:
 
 jobs:
   render:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
       - name: Install renderer dependencies
         run: |
           sudo apt-get update
@@ -35,4 +43,5 @@ jobs:
             exit 0
           fi
           git commit -m 'Render Wegert gist palette dances'
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          git push origin "HEAD:${branch}"
