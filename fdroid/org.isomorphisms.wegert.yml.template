@@ -1,32 +1,37 @@
 Categories:
   - Science & Education
 License: GPL-3.0-or-later
-SourceCode: https://github.com/isomorphisms/wegert
-IssueTracker: https://github.com/isomorphisms/wegert/issues
+SourceCode: https://github.com/isomorphismes/wegert
+IssueTracker: https://github.com/isomorphismes/wegert/issues
 
 Name: zero & infinity
 
 RepoType: git
-Repo: https://github.com/isomorphisms/wegert.git
+Repo: https://github.com/isomorphismes/wegert.git
 
 Builds:
   - versionName: 0.2.0
     versionCode: 101
     commit: v0.2.0
-    gradle:
-      - yes
-    output: app/build/outputs/apk/release/app-release-unsigned.apk
+    output: build/fdroid/wegert-release-unsigned.apk
     rm:
+      - app/build.gradle.kts
       - app/wegert-debug.keystore
+      - build.gradle.kts
       - complex_math_ick.o
+      - gradle
+      - gradlew
+      - gradlew.bat
+      - settings.gradle.kts
     prebuild:
       - sdkmanager "platforms;android-36" "build-tools;36.0.0"
       - sdkmanager "cmake;3.22.1"
+    build:
+      - SDK_ROOT="$$SDK$$" NDK_ROOT="$$NDK$$" bash fdroid/build-apk.sh
     ndk: 29.0.14206865
-    gradleprops:
-      - fdroidBuild=true
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
+UpdateCheckData: fdroid/release.properties|versionCode=([0-9]+)|.|versionName=([0-9.]+)
 CurrentVersion: 0.2.0
 CurrentVersionCode: 101
