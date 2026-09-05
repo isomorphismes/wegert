@@ -16,24 +16,28 @@ source_date_epoch="$(git -C "$repo_root" show -s --format=%ct "$source_revision"
 build_once() {
     local run="$1"
     local source_dir="$work_root/source"
-    local gradle_home="$work_root/gradle-home-$run"
     local result="$output_dir/run-$run.apk"
 
     rm -rf "$source_dir"
-    mkdir -p "$source_dir" "$gradle_home"
+    mkdir -p "$source_dir"
     git -C "$repo_root" archive "$source_revision" | tar -x -C "$source_dir"
-    rm -f "$source_dir/complex_math_ick.o"
-    rm -f "$source_dir/app/wegert-debug.keystore"
+    rm -rf \
+        "$source_dir/gradle" \
+        "$source_dir/gradlew" \
+        "$source_dir/gradlew.bat" \
+        "$source_dir/build.gradle.kts" \
+        "$source_dir/settings.gradle.kts" \
+        "$source_dir/app/build.gradle.kts"
+    rm -f "$source_dir/complex_math_ick.o" "$source_dir/app/wegert-debug.keystore"
 
     (
         cd "$source_dir"
         SOURCE_DATE_EPOCH="$source_date_epoch" \
-        GRADLE_USER_HOME="$gradle_home" \
-        gradle --no-daemon --no-build-cache --rerun-tasks \
-            -PfdroidBuild=true :app:assembleRelease
+        SDK_ROOT="${SDK_ROOT:-${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}}" \
+        NDK_ROOT="${NDK_ROOT:-}" \
+        bash fdroid/build-apk.sh "$result"
     )
 
-    cp "$source_dir/app/build/outputs/apk/release/app-release-unsigned.apk" "$result"
     "$repo_root/fdroid/verify-apk.sh" "$result"
 }
 
@@ -55,4 +59,4 @@ fi
 cp "$output_dir/run-1.apk" "$output_dir/wegert-$WEGERT_VERSION_NAME-fdroid-unsigned.apk"
 sha256sum "$output_dir/wegert-$WEGERT_VERSION_NAME-fdroid-unsigned.apk" \
     > "$output_dir/wegert-$WEGERT_VERSION_NAME-fdroid-unsigned.apk.sha256"
-printf 'byte-identical clean builds: %s\n' "$output_dir/wegert-$WEGERT_VERSION_NAME-fdroid-unsigned.apk"
+printf 'byte-identical clean manual builds: %s\n' "$output_dir/wegert-$WEGERT_VERSION_NAME-fdroid-unsigned.apk"
