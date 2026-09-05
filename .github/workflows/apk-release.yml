@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       source_run_id:
-        description: Successful main-branch Android run containing wegert-debug-apk
+        description: Successful main-branch direct DEX/JNI run containing wegert-direct-dex-jni
         required: true
         type: string
       source_sha:
@@ -18,14 +18,14 @@ permissions:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       SOURCE_RUN_ID: ${{ inputs.source_run_id }}
       SOURCE_SHA: ${{ inputs.source_sha }}
 
     steps:
-      - name: Validate the requested Android run
+      - name: Validate the requested direct DEX/JNI run
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -41,8 +41,8 @@ jobs:
              .head_sha == $sha and
              .head_branch == "main" and
              .event == "push" and
-             .name == "Android native build and device emulation" and
-             .path == ".github/workflows/android.yml"' \
+             .name == "Direct DEX and JNI Android build" and
+             .path == ".github/workflows/direct-dex-jni.yml"' \
             <<<"$run_json" >/dev/null
 
       - uses: actions/checkout@v4
@@ -56,20 +56,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version="$(sed -n 's/^val releaseVersionName = "\([^"]*\)"$/\1/p' app/build.gradle.kts)"
-          code="$(sed -n 's/^val releaseVersionCode = \([0-9][0-9]*\)$/\1/p' app/build.gradle.kts)"
-          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          [[ "$code" =~ ^[0-9]+$ ]]
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "code=$code" >> "$GITHUB_OUTPUT"
-          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          source fdroid/release-values.sh
+          echo "version=$WEGERT_VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "code=$WEGERT_VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "tag=v$WEGERT_VERSION_NAME" >> "$GITHUB_OUTPUT"
 
       - uses: android-actions/setup-android@v3
 
       - name: Install APK inspection tool
         run: sdkmanager "build-tools;36.0.0"
 
-      - name: Download and verify the exact tested APK
+      - name: Download and verify the exact tested direct APK
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
@@ -80,20 +77,30 @@ jobs:
           mkdir release
           gh run download "$SOURCE_RUN_ID" \
             --repo "$GITHUB_REPOSITORY" \
-            --name wegert-debug-apk \
+            --name wegert-direct-dex-jni \
             --dir release
 
-          source_apk=release/app-debug.apk
+          source_apk=release/wegert-direct-debug.apk
           test -s "$source_apk"
-          unzip -t "$source_apk"
+          test -s release/classes.dex
+          unzip -t "$source_apk" >/dev/null
           unzip -Z1 "$source_apk" | grep -Fxq AndroidManifest.xml
+          unzip -Z1 "$source_apk" | grep -Fxq classes.dex
+          unzip -Z1 "$source_apk" | grep -Fxq assets/licenses/WEGERT_LICENSE.txt
+          unzip -Z1 "$source_apk" | grep -Fxq assets/licenses/NOTICE.txt
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            unzip -Z1 "$source_apk" | grep -Fxq "lib/$abi/libwegert.so"
+          done
 
           sdk_root="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
           "$sdk_root/build-tools/36.0.0/aapt" dump badging "$source_apk" \
-            > "$RUNNER_TEMP/wegert-debug-badging.txt"
+            > "$RUNNER_TEMP/wegert-direct-badging.txt"
           grep -Fq \
             "package: name='org.isomorphisms.wegert' versionCode='$RELEASE_CODE' versionName='$RELEASE_VERSION'" \
-            "$RUNNER_TEMP/wegert-debug-badging.txt"
+            "$RUNNER_TEMP/wegert-direct-badging.txt"
+          grep -Fq \
+            "launchable-activity: name='org.isomorphisms.wegert.WegertActivity'" \
+            "$RUNNER_TEMP/wegert-direct-badging.txt"
 
           release_apk="release/wegert-$RELEASE_VERSION.apk"
           mv "$source_apk" "$release_apk"
@@ -125,9 +132,11 @@ jobs:
         run: |
           set -euo pipefail
           release_title="Wegert Android test $RELEASE_VERSION"
-          release_notes="Installable test APK produced by Android CI run $SOURCE_RUN_ID from commit $SOURCE_SHA.
+          release_notes="Installable test APK produced by direct DEX/JNI CI run $SOURCE_RUN_ID from commit $SOURCE_SHA.
 
-          The build and its phone/tablet emulator checks passed before publication. This APK is signed with the repository's public test-only debug key; it is not a Google Play production build."
+          classes.dex was generated directly from the pinned Idriç backend; the application native library was rebuilt for arm64-v8a, armeabi-v7a, and x86_64; ART/JNI launch qualification passed before publication. The production build path does not use javac, Kotlin, d8, smali assembly, or the checked ICK object.
+
+          This APK is signed with the repository's public test-only debug key; it is not a Google Play or F-Droid production-signed build."
 
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release edit "$RELEASE_TAG" \
