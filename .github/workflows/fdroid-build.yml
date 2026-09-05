@@ -71,10 +71,12 @@ jobs:
             "ndk;${NDK_VERSION}"
 
       - name: Build twice and require byte-identical direct APKs
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/${{ env.NDK_VERSION }}
-          ANDROID_BUILD_TOOLS: ${{ env.ANDROID_HOME }}/build-tools/${{ env.BUILD_TOOLS_VERSION }}
-        run: bash fdroid/reproducible-build.sh build/reproducible-fdroid
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION"
+          export ANDROID_BUILD_TOOLS="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION"
+          bash fdroid/reproducible-build.sh build/reproducible-fdroid
 
       - uses: actions/upload-artifact@v4
         with:
