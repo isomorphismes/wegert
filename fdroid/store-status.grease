@@ -5,7 +5,7 @@ shopt --set ysh:upgrade
 # Check the public F-Droid main-repository API. A 404 is a normal "not published
 # yet" state, not an infrastructure failure.
 var package_name = ARGV[0] if len(ARGV) > 0 else ${FDROID_PACKAGE:-org.isomorphisms.wegert}
-var gradle_file = ${FDROID_GRADLE_FILE:-app/build.gradle.kts}
+var version_file = ${FDROID_VERSION_FILE:-fdroid/release.properties}
 var expected_code = ${FDROID_EXPECTED_VERSION_CODE:-}
 var expected_name = ${FDROID_EXPECTED_VERSION_NAME:-}
 var need_version_source = 'yes' if expected_code === '' else 'no'
@@ -14,26 +14,26 @@ if (expected_name === '') {
 }
 
 if (need_version_source === 'yes') {
-  if ! test -f $gradle_file {
-    echo "F-Droid version source not found: $gradle_file" >&2
+  if ! test -f $version_file {
+    echo "F-Droid version source not found: $version_file" >&2
     echo 'Set FDROID_EXPECTED_VERSION_CODE and FDROID_EXPECTED_VERSION_NAME to override.' >&2
     exit 1
   }
 
   if (expected_code === '') {
-    setvar expected_code = $(sed -n 's/.*releaseVersionCode = \([0-9][0-9]*\).*/\1/p' $gradle_file | head -n 1)
+    setvar expected_code = $(sed -n 's/^versionCode=\([0-9][0-9]*\)$/\1/p' $version_file | head -n 1)
   }
   if (expected_name === '') {
-    setvar expected_name = $(sed -n 's/.*releaseVersionName = "\([^"]*\)".*/\1/p' $gradle_file | head -n 1)
+    setvar expected_name = $(sed -n 's/^versionName=\([^[:space:]]*\)$/\1/p' $version_file | head -n 1)
   }
 }
 
 if (expected_code === '') {
-  echo "Could not read the expected F-Droid version code from $gradle_file" >&2
+  echo "Could not read the expected F-Droid version code from $version_file" >&2
   exit 1
 }
 if (expected_name === '') {
-  echo "Could not read the expected F-Droid version name from $gradle_file" >&2
+  echo "Could not read the expected F-Droid version name from $version_file" >&2
   exit 1
 }
 
