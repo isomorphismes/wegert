@@ -3,6 +3,9 @@
 set -Eeuo pipefail
 
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+# shellcheck disable=SC1091
+source "$repo_root/fdroid/release-values.sh"
+
 classes_dex=${1:-"$repo_root/build/direct/classes.dex"}
 native_root=${2:-"$repo_root/build/direct/native"}
 output=${3:-"$repo_root/build/direct/wegert-direct-unsigned.apk"}
@@ -24,11 +27,6 @@ for required in "$aapt2" "$zipalign" "$android_jar"; do
 done
 command -v zip >/dev/null 2>&1 || { echo "zip not found" >&2; exit 1; }
 
-# Keep release identity source-controlled. These values must match app/build.gradle.kts
-# until the old Gradle compatibility path is removed.
-version_name=${WEGERT_VERSION_NAME:-0.2.0}
-version_code=${WEGERT_VERSION_CODE:-101}
-
 work="$repo_root/build/direct/apk-work"
 rm -rf "$work"
 mkdir -p "$work/stage/assets/licenses" "$(dirname -- "$output")"
@@ -43,8 +41,8 @@ cp "$repo_root/NOTICE" "$work/stage/assets/licenses/NOTICE.txt"
   --manifest "$repo_root/android-direct/AndroidManifest.xml" \
   --min-sdk-version 26 \
   --target-sdk-version 36 \
-  --version-code "$version_code" \
-  --version-name "$version_name" \
+  --version-code "$WEGERT_VERSION_CODE" \
+  --version-name "$WEGERT_VERSION_NAME" \
   -R "$work/resources.zip" \
   -o "$work/base.apk"
 
