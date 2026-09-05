@@ -25,7 +25,6 @@ build_once() {
 
     rm -rf "$repo_root/build/direct"
     rm -rf "$repo_root/_deps/idric-arm-thumb/build"
-    rm -f "$repo_root/complex_math_ick.o" "$repo_root/app/wegert-debug.keystore"
 
     (
         cd "$repo_root"
