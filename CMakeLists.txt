@@ -14,7 +14,7 @@ option(
     ON
 )
 
-set(WEGERT_SOURCES wegert.c)
+set(WEGERT_SOURCES wegert.c wegert_jni.c)
 if(ANDROID_ABI STREQUAL "arm64-v8a" AND WEGERT_USE_ICK_PREBUILT)
     set(ICK_COMPLEX_MATH_OBJECT
         "${CMAKE_CURRENT_SOURCE_DIR}/complex_math_ick.o"
