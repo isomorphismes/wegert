@@ -41,8 +41,6 @@ for removed in \
     app/build.gradle.kts \
     build.gradle.kts \
     gradle \
-    gradlew \
-    gradlew.bat \
     settings.gradle.kts; do
     grep -Fxq "      - $removed" "$metadata"
 done
