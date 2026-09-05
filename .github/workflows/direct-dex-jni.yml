@@ -1,0 +1,179 @@
+name: Direct DEX and JNI Android build
+
+on:
+  push:
+    branches:
+      - feature/direct-dex-jni-release
+  pull_request:
+    paths:
+      - '.github/workflows/direct-dex-jni.yml'
+      - 'android-direct/**'
+      - '*.c'
+      - '*.h'
+      - '*.glsl'
+      - '*.frag.in'
+      - 'CMakeLists.txt'
+      - 'app/src/main/res/**'
+      - 'app/wegert-debug.keystore'
+      - 'LICENSE'
+      - 'THIRD_PARTY.md'
+
+jobs:
+  direct-build:
+    runs-on: ubuntu-24.04
+    env:
+      IDRIC_ARM_THUMB_REF: 5a935e06e76b0269f735679c21d3f782bf92ecec
+      IDRIC_COMPILER_REF: Idriç
+      NDK_VERSION: 29.0.14206865
+      BUILD_TOOLS_VERSION: 36.0.0
+
+    steps:
+      - name: Check out Wegert
+        uses: actions/checkout@v4
+
+      - name: Check out direct DEX backend
+        uses: actions/checkout@v4
+        with:
+          repository: isomorphisms/idric-arm-thumb
+          ref: ${{ env.IDRIC_ARM_THUMB_REF }}
+          path: _deps/idric-arm-thumb
+
+      - name: Check out current Idriç compiler
+        uses: actions/checkout@v4
+        with:
+          repository: isomorphisms/Idric
+          ref: ${{ env.IDRIC_COMPILER_REF }}
+          path: _deps/Idric
+
+      - name: Install source-build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential ca-certificates chezscheme libgmp-dev python3 unzip zip
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform, packaging tools, NDK and CMake
+        run: |
+          yes | sdkmanager \
+            "platforms;android-36" \
+            "build-tools;${BUILD_TOOLS_VERSION}" \
+            "ndk;${NDK_VERSION}" \
+            "cmake;3.22.1"
+
+      - name: Build current Idriç compiler API
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          support_root="$GITHUB_WORKSPACE/_deps/Idric/_"
+          compiler="$support_root/build/exec/idris2"
+          if [[ ! -x $compiler ]]; then
+            "$support_root/edric" bootstrap
+          fi
+          "$compiler" --version
+          make -C "$support_root/support/chez" install IDRIS2_VERSION=0.8.0
+          make -C "$support_root" install-bootstrap-libs IDRIS2="$compiler"
+          make -C "$support_root" install-api IDRIS2_BOOT="$compiler"
+
+      - name: Generate Wegert classes.dex directly from source
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          backend="$GITHUB_WORKSPACE/_deps/idric-arm-thumb"
+          idric_repo="$GITHUB_WORKSPACE/_deps/Idric"
+          compiler="$idric_repo/_/build/exec/idris2"
+          make -C "$backend" check \
+            IDRIC="$compiler" \
+            IDRIC_REPO="$idric_repo" \
+            IDRIC_COMPILER_REF="$IDRIC_COMPILER_REF"
+          IDRIC="$compiler" \
+            bash "$backend/tests/dex/wegert-generate-direct.sh" \
+            "$GITHUB_WORKSPACE/build/direct/classes.dex"
+
+      - name: Build all native ABIs and package direct DEX APK
+        shell: bash
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/${{ env.NDK_VERSION }}
+          ANDROID_BUILD_TOOLS: ${{ env.ANDROID_HOME }}/build-tools/${{ env.BUILD_TOOLS_VERSION }}
+        run: |
+          set -Eeuo pipefail
+          bash android-direct/build.sh build/direct/classes.dex build/direct/wegert-direct-unsigned.apk
+          bash android-direct/sign-debug.sh \
+            build/direct/wegert-direct-unsigned.apk \
+            build/direct/wegert-direct-debug.apk
+
+      - name: Verify JNI and NativeActivity symbols for every ABI
+        shell: bash
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/${{ env.NDK_VERSION }}
+        run: |
+          set -Eeuo pipefail
+          readelf="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+          for library in build/direct/native/*/libwegert.so; do
+            "$readelf" -Ws "$library" > "$library.symbols"
+            grep -q 'Java_org_isomorphisms_wegert_WegertActivity_jniProbe' "$library.symbols"
+            grep -q 'ANativeActivity_onCreate' "$library.symbols"
+          done
+
+      - name: Retain direct-build evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: wegert-direct-dex-jni
+          path: |
+            build/direct/classes.dex
+            build/direct/wegert-direct-unsigned.apk
+            build/direct/wegert-direct-debug.apk
+            build/direct/native/*/libwegert.so
+            build/direct/native/*/libwegert.so.symbols
+          if-no-files-found: error
+
+  direct-art:
+    needs: direct-build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out Wegert
+        uses: actions/checkout@v4
+
+      - name: Download direct APK
+        uses: actions/download-artifact@v4
+        with:
+          name: wegert-direct-dex-jni
+          path: build/direct
+
+      - name: Execute direct DEX/JNI Wegert on ART
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: default
+          arch: x86_64
+          profile: medium_phone
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save -no-metrics
+          script: |
+            set -Eeuo pipefail
+            adb install -r build/direct/wegert-direct-debug.apk
+            adb logcat -c
+            adb shell am start -W \
+              -n org.isomorphisms.wegert/.WegertActivity \
+              | tee build/direct/start.txt
+            grep -q 'Status: ok' build/direct/start.txt
+            for attempt in 1 2 3 4 5; do
+              adb logcat -d > build/direct/logcat.txt
+              if grep -q 'Wegert.*jniProbe=47047' build/direct/logcat.txt; then
+                break
+              fi
+              sleep 1
+            done
+            grep -q 'Wegert.*jniProbe=47047' build/direct/logcat.txt
+            adb shell pidof -s org.isomorphisms.wegert | tr -d '\r' | grep -Eq '^[0-9]+$'
+            ! grep -Eiq 'VerifyError|UnsatisfiedLinkError|ClassNotFoundException' build/direct/logcat.txt
+
+      - name: Retain ART receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wegert-direct-art
+          path: |
+            build/direct/start.txt
+            build/direct/logcat.txt
+          if-no-files-found: warn
