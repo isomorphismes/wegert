@@ -7,6 +7,8 @@ on:
   pull_request:
     paths:
       - '.github/workflows/direct-dex-jni.yml'
+      - '.gitmodules'
+      - '_deps/**'
       - 'android-direct/**'
       - '*.c'
       - '*.h'
@@ -27,28 +29,22 @@ jobs:
   direct-build:
     runs-on: ubuntu-24.04
     env:
-      IDRIC_ARM_THUMB_REF: 2f60f0cb995cfc1e2effe09ec1afe93a2d541da2
-      IDRIC_COMPILER_REF: Idriç
+      IDRIC_COMPILER_REF: be76b3d5c7a3f9300a7296dbb0efbb4e6f7c8d36
       NDK_VERSION: 29.0.14206865
       BUILD_TOOLS_VERSION: 36.0.0
 
     steps:
-      - name: Check out Wegert
-        uses: actions/checkout@v4
-
-      - name: Check out direct DEX backend
+      - name: Check out Wegert and pinned compiler sources
         uses: actions/checkout@v4
         with:
-          repository: isomorphisms/idric-arm-thumb
-          ref: ${{ env.IDRIC_ARM_THUMB_REF }}
-          path: _deps/idric-arm-thumb
+          submodules: recursive
 
-      - name: Check out current Idriç compiler
-        uses: actions/checkout@v4
-        with:
-          repository: isomorphisms/Idric
-          ref: ${{ env.IDRIC_COMPILER_REF }}
-          path: _deps/Idric
+      - name: Verify pinned source revisions
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git -C _deps/idric-arm-thumb rev-parse HEAD)" = "2f60f0cb995cfc1e2effe09ec1afe93a2d541da2"
+          test "$(git -C _deps/Idric rev-parse HEAD)" = "$IDRIC_COMPILER_REF"
 
       - name: Install source-build tools
         run: |
@@ -67,7 +63,7 @@ jobs:
             "cmake;3.22.1"
           echo "$ANDROID_HOME/cmake/3.22.1/bin" >> "$GITHUB_PATH"
 
-      - name: Build current Idriç compiler API
+      - name: Build pinned Idriç compiler API
         shell: bash
         run: |
           set -Eeuo pipefail
