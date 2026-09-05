@@ -2,27 +2,40 @@
 
 Interactive Wegert phase portraits of complex rational functions.
 
-## Videos
+## Featured Wegert gist palette dances
 
-Useful MP4s are kept directly at repository root so they are easy to preview, download, or reuse on a site.
+These are the actual Wegert-gist palette-dance renders: the complex expression stays fixed in the domain while the codomain is multiplied by `exp(i theta)`, so the Wegert phase palette moves through a full turn.
 
-- [Meromorphic phase portrait — 15 s](wegert_meromorphic_15s.mp4)
-- [Three moving simple roots](three_moving_simple_roots.mp4)
-- [Two moving simple poles](two_moving_simple_poles.mp4)
-- [Moving repeated zeros and poles](moving_repeated_zeros_and_poles.mp4)
-- [Moving simple and repeated roots](moving_simple_and_repeated_roots.mp4)
-- [Moving simple and double poles](moving_simple_and_double_poles.mp4)
-- [Two simple zeros and two simple poles](moving_two_simple_zeros_and_two_simple_poles.mp4)
-- [Android: place and drag one zero and one pole](add-and-drag-zero-and-pole.mp4)
-- [Android: place and drag two zeros and two poles](add-and-drag-two-zeros-and-two-poles.mp4)
+- [Cubic spread: `(z+2.6)(z-0.7)(z-2.9)`](rendered_images/wegert_gist_palette_dance_cubic_spread.mp4)
+- [Two zeros / two poles](rendered_images/wegert_gist_palette_dance_zero_pole_cross.mp4)
+- [Five roots: `z^5 - 1`](rendered_images/wegert_gist_palette_dance_fifth_roots.mp4)
 
-The 512×512 app icon is also exposed at root as [`wegert-icon-512.png`](wegert-icon-512.png).
+Generator: [`wegert_gist_palette_dance.py`](wegert_gist_palette_dance.py). The canonical copy is in [`code/`](code/wegert_gist_palette_dance.py); the root entry is a symlink for convenience.
 
-## Source layout
+## Other videos
 
-Readable source is intentionally at repository root: `wegert.c`, supporting `.h` and complex-math `.c` files, `wegert.frag.in`, and `wegert_color.glsl`.
+Rendered media is canonical under [`rendered_images/`](rendered_images/). Useful files are also exposed at repository root as symlinks so they are immediately visible after cloning.
 
-Build/release machinery is hidden under `_/build/`: Android packaging, Gradle, CMake, tests, F-Droid/Fastlane metadata, the checked AArch64 object and provenance, artwork sources, and the video renderer. The build tree uses symlinks back to the canonical root source, so the readable source is not duplicated.
+- [Three moving simple roots](rendered_images/three_moving_simple_roots.mp4)
+- [Two moving simple poles](rendered_images/two_moving_simple_poles.mp4)
+- [Moving repeated zeros and poles](rendered_images/moving_repeated_zeros_and_poles.mp4)
+- [Moving simple and repeated roots](rendered_images/moving_simple_and_repeated_roots.mp4)
+- [Moving simple and double poles](rendered_images/moving_simple_and_double_poles.mp4)
+- [Two simple zeros and two simple poles](rendered_images/moving_two_simple_zeros_and_two_simple_poles.mp4)
+- [Android: place and drag one zero and one pole](rendered_images/add-and-drag-zero-and-pole.mp4)
+- [Android: place and drag two zeros and two poles](rendered_images/add-and-drag-two-zeros-and-two-poles.mp4)
+
+The 512x512 app icon is canonical at [`rendered_images/wegert-icon-512.png`](rendered_images/wegert-icon-512.png) and exposed at root as [`wegert-icon-512.png`](wegert-icon-512.png).
+
+## Repository layout
+
+- `code/` — canonical readable C, headers, GLSL, and render-source code.
+- `rendered_images/` — canonical rendered PNG/MP4 output.
+- repository root — README/license plus symlinks to useful source entrypoints and rendered output.
+- `_/build/` — Android packaging, Gradle, CMake, tests, F-Droid/Fastlane metadata, checked build objects/provenance, and other build/release machinery.
+- `.github/` — workflow files remain at the required GitHub path.
+
+The build tree already uses symlinks for the readable source. Root source names remain valid as symlinks into `code/`, so existing `_ /build` references keep working without duplicating the source.
 
 ## First playable controls
 
@@ -56,14 +69,16 @@ In the whole portrait, dragging from an existing marker moves only that factor; 
 
 ## Colouring
 
-The shader preserves the established Wegert palette constants from the earlier R version:
+The Android shader preserves the established Wegert palette constants from the current repository renderer:
 
 - HCL chroma: `45`
 - lightness base: `66`
 - log-modulus contribution: `4`
 - hue-band contribution: `3`
 
-Hue is the phase of the rational function. Lightness repeats by base-10 log-modulus decades. HCL is converted to display sRGB in the fragment shader.
+Hue is the phase of the rational function. The Android renderer's lightness repeats by base-10 log-modulus decades. HCL is converted to display sRGB in the fragment shader.
+
+The featured `wegert_gist_palette_dance_*` movies intentionally use the older R gist rule instead: hue is `Arg(f(z))`, and lightness is `66 + 4*fract(|f(z)|/100) + 3*fract(hue/100)` with HCL chroma `45`. That distinction is deliberate; these movies are meant to reproduce the gist look rather than silently substituting a generic HSV domain-colouring scheme.
 
 ## Android build
 
