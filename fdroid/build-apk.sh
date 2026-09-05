@@ -29,7 +29,6 @@ done
 test -s "$android_jar"
 test -s "$toolchain"
 command -v python3 >/dev/null
-command -v zip >/dev/null
 
 source_date_epoch="${SOURCE_DATE_EPOCH:-$(git -C "$repo_root" show -s --format=%ct HEAD)}"
 [[ "$source_date_epoch" =~ ^[0-9]+$ ]]
@@ -109,13 +108,39 @@ find "$work/package" -type f -exec touch -d "@$source_date_epoch" {} +
     -o "$work/base.apk" \
     "$work/resources.zip"
 
-(
-    cd "$work/package"
-    zip -q -X -0 "$work/base.apk" \
-        lib/arm64-v8a/libwegert.so \
-        lib/armeabi-v7a/libwegert.so \
-        lib/x86_64/libwegert.so
-)
+# F-Droid's production build image intentionally has a small userspace and
+# does not guarantee the external `zip` command. Append the native libraries
+# with Python's standard library, stored (not deflated), with one deterministic
+# timestamp so zipalign can page-align them afterwards.
+python3 - "$work/base.apk" "$work/package" "$source_date_epoch" <<'PY'
+from datetime import datetime, timezone
+from pathlib import Path
+import sys
+import zipfile
+
+apk = Path(sys.argv[1])
+package = Path(sys.argv[2])
+epoch = int(sys.argv[3])
+minimum = int(datetime(1980, 1, 1, tzinfo=timezone.utc).timestamp())
+stamp = datetime.fromtimestamp(max(epoch, minimum), tz=timezone.utc)
+zip_stamp = (stamp.year, stamp.month, stamp.day, stamp.hour, stamp.minute, stamp.second)
+
+entries = [
+    "lib/arm64-v8a/libwegert.so",
+    "lib/armeabi-v7a/libwegert.so",
+    "lib/x86_64/libwegert.so",
+]
+with zipfile.ZipFile(apk, mode="a", allowZip64=True) as archive:
+    for name in entries:
+        source = package / name
+        if not source.is_file():
+            raise SystemExit(f"missing native library: {source}")
+        info = zipfile.ZipInfo(name, date_time=zip_stamp)
+        info.compress_type = zipfile.ZIP_STORED
+        info.create_system = 3
+        info.external_attr = 0o100644 << 16
+        archive.writestr(info, source.read_bytes())
+PY
 
 rm -f "$output"
 "$zipalign" -P 16 -f 4 "$work/base.apk" "$output"
