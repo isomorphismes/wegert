@@ -7,7 +7,7 @@ source "$repo_root/fdroid/release-values.sh"
 appid=org.isomorphisms.wegert
 metadata="$repo_root/fdroid/$appid.yml.template"
 locale="$repo_root/fastlane/metadata/android/en-US"
-wrapper="$repo_root/gradle/wrapper/gradle-wrapper.properties"
+builder="$repo_root/fdroid/build-apk.sh"
 
 metadata_version_name="$(sed -n 's/^  - versionName: \(.*\)$/\1/p' "$metadata" | tail -n 1)"
 metadata_version_code="$(sed -n 's/^    versionCode: \([0-9][0-9]*\)$/\1/p' "$metadata" | tail -n 1)"
@@ -15,19 +15,44 @@ metadata_commit="$(sed -n 's/^    commit: \(.*\)$/\1/p' "$metadata" | tail -n 1)
 metadata_output="$(sed -n 's/^    output: \(.*\)$/\1/p' "$metadata" | tail -n 1)"
 current_version_name="$(sed -n 's/^CurrentVersion: \(.*\)$/\1/p' "$metadata")"
 current_version_code="$(sed -n 's/^CurrentVersionCode: \([0-9][0-9]*\)$/\1/p' "$metadata")"
+metadata_ndk="$(sed -n 's/^    ndk: \(.*\)$/\1/p' "$metadata" | tail -n 1)"
 
 test "$metadata_version_name" = "$WEGERT_VERSION_NAME"
 test "$metadata_version_code" = "$WEGERT_VERSION_CODE"
 test "$metadata_commit" = "v$WEGERT_VERSION_NAME"
-test "$metadata_output" = "app/build/outputs/apk/release/app-release-unsigned.apk"
+test "$metadata_output" = "build/fdroid/wegert-release-unsigned.apk"
 test "$current_version_name" = "$WEGERT_VERSION_NAME"
 test "$current_version_code" = "$WEGERT_VERSION_CODE"
+test "$metadata_ndk" = "$WEGERT_NDK_VERSION"
 
-# gradlew-fdroid cannot infer Gradle from the plugins DSL, so the wrapper
-# properties are part of the F-Droid build contract even though CI invokes the
-# verified system Gradle executable directly.
-grep -Fxq 'distributionUrl=https\://services.gradle.org/distributions/gradle-9.5.1-bin.zip' "$wrapper"
-grep -Fxq 'distributionSha256Sum=bafc141b619ad6350fd975fc903156dd5c151998cc8b058e8c1044ab5f7b031f' "$wrapper"
+grep -Fxq 'SourceCode: https://github.com/isomorphismes/wegert' "$metadata"
+grep -Fxq 'Repo: https://github.com/isomorphismes/wegert.git' "$metadata"
+grep -Fxq 'AutoUpdateMode: Version' "$metadata"
+grep -Fxq 'UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$' "$metadata"
+grep -Fxq 'UpdateCheckData: fdroid/release.properties|versionCode=([0-9]+)|.|versionName=([0-9.]+)' "$metadata"
+grep -Fxq '      - SDK_ROOT="$$SDK$$" NDK_ROOT="$$NDK$$" bash fdroid/build-apk.sh' "$metadata"
+
+if grep -Eq '^[[:space:]]+(gradle|gradleprops):' "$metadata"; then
+    echo "F-Droid metadata must not invoke Gradle" >&2
+    exit 1
+fi
+
+for removed in \
+    app/build.gradle.kts \
+    build.gradle.kts \
+    gradle \
+    gradlew \
+    gradlew.bat \
+    settings.gradle.kts; do
+    grep -Fxq "      - $removed" "$metadata"
+done
+
+for abi in arm64-v8a armeabi-v7a x86_64; do
+    grep -Fq "$abi" "$builder"
+done
+grep -Fq -- '-DWEGERT_USE_ICK_PREBUILT=OFF' "$builder"
+grep -Fq 'aapt2' "$builder"
+grep -Fq 'zipalign' "$builder"
 
 for required in \
     title.txt \
@@ -71,23 +96,12 @@ for raw_path in sys.argv[2:]:
         raise SystemExit(f"empty screenshot: {path} ({width}x{height})")
 PY
 
-# One assembleRelease output carries all three ABIs. No Android APK splits are
-# configured, so this is deliberately not a multiple-APK native-code release.
-if grep -R -E -n --include='*.gradle' --include='*.gradle.kts' \
-    '(^|[^A-Za-z])splits[[:space:]]*\{' \
-    "$repo_root/app" "$repo_root/build.gradle.kts" >/dev/null; then
-    echo "unexpected APK split configuration" >&2
-    exit 1
-fi
-for abi in arm64-v8a armeabi-v7a x86_64; do
-    grep -Fq "\"$abi\"" "$repo_root/app/build.gradle.kts"
-done
-
 if grep -Eq '<uses-permission[^>]+android.permission.INTERNET' "$repo_root/app/src/main/AndroidManifest.xml"; then
     echo "Fastlane description says there is no network permission, but the manifest requests it" >&2
     exit 1
 fi
 
-printf 'metadata: %s (%s)\n' "$WEGERT_VERSION_NAME" "$WEGERT_VERSION_CODE"
+printf 'metadata: %s (%s), tag auto-update enabled\n' "$WEGERT_VERSION_NAME" "$WEGERT_VERSION_CODE"
+printf 'F-Droid build: direct NDK/CMake + aapt2, no Gradle\n'
 printf 'fastlane: title, descriptions, icon, changelog, and %d phone screenshot(s)\n' "${#screenshots[@]}"
 printf 'apk packaging: one universal APK with arm64-v8a, armeabi-v7a, and x86_64\n'
