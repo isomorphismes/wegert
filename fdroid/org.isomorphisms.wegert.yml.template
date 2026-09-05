@@ -26,8 +26,7 @@ Builds:
     prebuild:
       - sdkmanager "platforms;android-36" "build-tools;36.0.0"
       - sdkmanager "cmake;3.22.1"
-    build:
-      - SDK_ROOT="$$SDK$$" NDK_ROOT="$$NDK$$" bash fdroid/build-apk.sh
+    build: SDK_ROOT="$$SDK$$" NDK_ROOT="$$NDK$$" bash fdroid/build-apk.sh
     ndk: 29.0.14206865
 
 AutoUpdateMode: Version
