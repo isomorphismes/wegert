@@ -1,44 +1,50 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck disable=SC1091
 source "$repo_root/fdroid/release-values.sh"
 
 output_dir="${1:-$repo_root/build/reproducible-fdroid}"
 source_revision="${SOURCE_REVISION:-HEAD}"
-work_root="$(mktemp -d "${TMPDIR:-/tmp}/wegert-reproducible.XXXXXX")"
-trap 'rm -rf "$work_root"' EXIT
+source_date_epoch="$(git -C "$repo_root" show -s --format=%ct "$source_revision")"
 
 mkdir -p "$output_dir"
 output_dir="$(cd "$output_dir" && pwd)"
-source_date_epoch="$(git -C "$repo_root" show -s --format=%ct "$source_revision")"
+
+for checkout in "$repo_root/_deps/Idric" "$repo_root/_deps/idric-arm-thumb"; do
+    git -C "$checkout" rev-parse --verify HEAD >/dev/null
+    test -n "$(git -C "$checkout" rev-parse HEAD)"
+done
 
 build_once() {
     local run="$1"
-    local source_dir="$work_root/source"
-    local gradle_home="$work_root/gradle-home-$run"
     local result="$output_dir/run-$run.apk"
+    local dex_receipt="$output_dir/run-$run.classes.dex.sha256"
 
-    rm -rf "$source_dir"
-    mkdir -p "$source_dir" "$gradle_home"
-    git -C "$repo_root" archive "$source_revision" | tar -x -C "$source_dir"
-    rm -f "$source_dir/complex_math_ick.o"
-    rm -f "$source_dir/app/wegert-debug.keystore"
+    rm -rf "$repo_root/build/direct"
+    rm -rf "$repo_root/_deps/idric-arm-thumb/build"
+    rm -f "$repo_root/complex_math_ick.o" "$repo_root/app/wegert-debug.keystore"
 
     (
-        cd "$source_dir"
-        SOURCE_DATE_EPOCH="$source_date_epoch" \
-        GRADLE_USER_HOME="$gradle_home" \
-        gradle --no-daemon --no-build-cache --rerun-tasks \
-            -PfdroidBuild=true :app:assembleRelease
+        cd "$repo_root"
+        export SOURCE_DATE_EPOCH="$source_date_epoch"
+        bash android-direct/generate-dex.sh build/direct/classes.dex
+        sha256sum build/direct/classes.dex > "$dex_receipt"
+        bash android-direct/build.sh \
+            build/direct/classes.dex \
+            build/direct/wegert-direct-unsigned.apk
+        cp build/direct/wegert-direct-unsigned.apk "$result"
     )
 
-    cp "$source_dir/app/build/outputs/apk/release/app-release-unsigned.apk" "$result"
     "$repo_root/fdroid/verify-apk.sh" "$result"
 }
 
 build_once 1
 build_once 2
+
+cmp "$output_dir/run-1.classes.dex.sha256" "$output_dir/run-2.classes.dex.sha256"
 
 if ! cmp -s "$output_dir/run-1.apk" "$output_dir/run-2.apk"; then
     sha256sum "$output_dir/run-1.apk" "$output_dir/run-2.apk" >&2
@@ -55,4 +61,4 @@ fi
 cp "$output_dir/run-1.apk" "$output_dir/wegert-$WEGERT_VERSION_NAME-fdroid-unsigned.apk"
 sha256sum "$output_dir/wegert-$WEGERT_VERSION_NAME-fdroid-unsigned.apk" \
     > "$output_dir/wegert-$WEGERT_VERSION_NAME-fdroid-unsigned.apk.sha256"
-printf 'byte-identical clean builds: %s\n' "$output_dir/wegert-$WEGERT_VERSION_NAME-fdroid-unsigned.apk"
+printf 'byte-identical direct DEX/JNI builds: %s\n' "$output_dir/wegert-$WEGERT_VERSION_NAME-fdroid-unsigned.apk"
