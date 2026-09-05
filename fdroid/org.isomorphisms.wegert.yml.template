@@ -24,16 +24,16 @@ Builds:
     prebuild:
       - sdkmanager "platforms;android-36" "build-tools;36.0.0"
     build:
-      - support_root="$PWD/_deps/Idric/_"
-      - compiler="$support_root/build/exec/idris2"
-      - "$support_root/edric" bootstrap
-      - "$compiler" --version
-      - make -C "$support_root/support/chez" install IDRIS2_VERSION=0.8.0
-      - make -C "$support_root" install-bootstrap-libs IDRIS2="$compiler"
-      - make -C "$support_root" install-api IDRIS2_BOOT="$compiler"
-      - make -C _deps/idric-arm-thumb check IDRIC="$compiler" IDRIC_REPO="$PWD/_deps/Idric"
+      - _deps/Idric/_/edric bootstrap
+      - _deps/Idric/_/build/exec/idris2 --version
+      - make -C _deps/Idric/_/support/chez install IDRIS2_VERSION=0.8.0
+      - make -C _deps/Idric/_ install-bootstrap-libs IDRIS2="$PWD/_deps/Idric/_/build/exec/idris2"
+      - make -C _deps/Idric/_ install-api IDRIS2_BOOT="$PWD/_deps/Idric/_/build/exec/idris2"
+      - make -C _deps/idric-arm-thumb check IDRIC="$PWD/_deps/Idric/_/build/exec/idris2"
+        IDRIC_REPO="$PWD/_deps/Idric"
         IDRIC_COMPILER_REF=be76b3d5c7a3f9300a7296dbb0efbb4e6f7c8d36
-      - IDRIC="$compiler" bash _deps/idric-arm-thumb/tests/dex/wegert-generate-direct.sh
+      - IDRIC="$PWD/_deps/Idric/_/build/exec/idris2"
+        bash _deps/idric-arm-thumb/tests/dex/wegert-generate-direct.sh
         "$PWD/build/direct/classes.dex"
       - ANDROID_NDK_HOME=$$NDK$$ ANDROID_SDK_ROOT=$$SDK$$
         ANDROID_BUILD_TOOLS=$$SDK$$/build-tools/36.0.0
