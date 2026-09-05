@@ -5,7 +5,6 @@ on:
     paths:
       - '.github/workflows/fdroid-status.yml'
       - 'fdroid/**'
-      - 'app/build.gradle.kts'
   workflow_run:
     workflows:
       - 'F-Droid release build'
