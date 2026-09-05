@@ -60,6 +60,7 @@ jobs:
             "build-tools;${BUILD_TOOLS_VERSION}" \
             "ndk;${NDK_VERSION}" \
             "cmake;3.22.1"
+          echo "$ANDROID_HOME/cmake/3.22.1/bin" >> "$GITHUB_PATH"
 
       - name: Build current Idriç compiler API
         shell: bash
@@ -92,11 +93,10 @@ jobs:
 
       - name: Build all native ABIs and package direct DEX APK
         shell: bash
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/${{ env.NDK_VERSION }}
-          ANDROID_BUILD_TOOLS: ${{ env.ANDROID_HOME }}/build-tools/${{ env.BUILD_TOOLS_VERSION }}
         run: |
           set -Eeuo pipefail
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION"
+          export ANDROID_BUILD_TOOLS="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION"
           bash android-direct/build.sh build/direct/classes.dex build/direct/wegert-direct-unsigned.apk
           bash android-direct/sign-debug.sh \
             build/direct/wegert-direct-unsigned.apk \
@@ -104,10 +104,9 @@ jobs:
 
       - name: Verify JNI and NativeActivity symbols for every ABI
         shell: bash
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/${{ env.NDK_VERSION }}
         run: |
           set -Eeuo pipefail
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION"
           readelf="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
           for library in build/direct/native/*/libwegert.so; do
             "$readelf" -Ws "$library" > "$library.symbols"
