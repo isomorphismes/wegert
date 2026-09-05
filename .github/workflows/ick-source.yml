@@ -1,0 +1,137 @@
+name: ICK source-built Wegert
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-built-ick-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Check out Wegert
+        uses: actions/checkout@v4
+
+      - name: Check out qualified ICK source
+        uses: actions/checkout@v4
+        with:
+          repository: isomorphisms/rhs
+          ref: 5fe6f6d1259b0b4ae9adf99d354e49e2a01afbf9
+          path: rhs
+
+      - name: Install ICK build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential file flex bison texinfo \
+            libgmp-dev libmpfr-dev libmpc-dev libisl-dev libzstd-dev zstd \
+            binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu \
+            libc6-dev-arm64-cross qemu-user
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android toolchain
+        run: |
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" \
+            "ndk;29.0.14206865" "cmake;3.22.1"
+
+      - name: Configure ICK AArch64 compiler
+        shell: bash
+        run: |
+          set -euxo pipefail
+          aarch64_as="$(command -v aarch64-linux-gnu-as)"
+          aarch64_ld="$(command -v aarch64-linux-gnu-ld)"
+          mkdir -p rhs/build rhs/stage
+          cd rhs/build
+          ../configure \
+            --target=aarch64-linux-gnu \
+            --prefix="$GITHUB_WORKSPACE/rhs/stage" \
+            --with-as="$aarch64_as" \
+            --with-ld="$aarch64_ld" \
+            --enable-languages=c \
+            --disable-bootstrap \
+            --disable-multilib \
+            --disable-nls \
+            --disable-shared \
+            --disable-threads \
+            --without-headers \
+            --disable-libatomic \
+            --disable-libgomp \
+            --disable-libquadmath \
+            --disable-libssp \
+            --disable-libvtv
+
+      - name: Build ICK from source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          make -C rhs/build -j2 all-gcc
+          make -C rhs/build install-gcc
+          rhs/stage/bin/aarch64-linux-gnu-gcc --version
+
+      - name: Rebuild Wegert complex object with ICK
+        shell: bash
+        run: |
+          set -euxo pipefail
+          expected_sha="$(awk '{print $1}' complex_math_ick.o.sha256)"
+          rm -f complex_math_ick.o
+          rhs/stage/bin/aarch64-linux-gnu-gcc \
+            -std=gnu11 -O2 -fPIC -fvisibility=hidden \
+            -c complex_math_ick.c -o complex_math_ick.o
+
+          actual_sha="$(sha256sum complex_math_ick.o | awk '{print $1}')"
+          printf 'expected_ick_object_sha256\t%s\n' "$expected_sha"
+          printf 'rebuilt_ick_object_sha256\t%s\n' "$actual_sha"
+          test "$actual_sha" = "$expected_sha"
+
+          aarch64-linux-gnu-readelf -h complex_math_ick.o \
+            | tee /tmp/ick-complex-math.elf
+          grep -q 'Machine:.*AArch64' /tmp/ick-complex-math.elf
+          aarch64-linux-gnu-nm -u complex_math_ick.o \
+            | tee /tmp/ick-complex-math.undefined
+          ! grep -Eq '__mul(sc|dc|xc)3|__div(sc|dc|xc)3' \
+            /tmp/ick-complex-math.undefined
+
+      - name: Execute rebuilt ICK math under AArch64
+        shell: bash
+        run: |
+          set -euxo pipefail
+          aarch64-linux-gnu-gcc -std=c11 -O2 -fPIE \
+            tests/complex_math_test.c complex_math_ick.o \
+            -lm -o /tmp/wegert-ick-complex-math-test
+          qemu-aarch64 -L /usr/aarch64-linux-gnu \
+            /tmp/wegert-ick-complex-math-test
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.1'
+
+      - name: Build APK with freshly rebuilt ICK object
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Verify packaged native libraries
+        shell: bash
+        run: |
+          set -euxo pipefail
+          unzip -l app/build/outputs/apk/debug/app-debug.apk > /tmp/apk-files
+          grep -q 'lib/arm64-v8a/libwegert.so' /tmp/apk-files
+          grep -q 'lib/armeabi-v7a/libwegert.so' /tmp/apk-files
+          grep -q 'lib/x86_64/libwegert.so' /tmp/apk-files
+
+      - name: Retain source-built ICK evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: wegert-source-built-ick
+          path: |
+            complex_math_ick.o
+            app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
