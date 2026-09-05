@@ -7,4 +7,6 @@ Wegert is distributed in the hope that it will be useful, but WITHOUT ANY WARRAN
 The complete GNU General Public License version 3 is published by the Free Software Foundation at:
 https://www.gnu.org/licenses/gpl-3.0.html
 
-This grant applies only to copyrightable material for which this repository's contributors have authority to grant this license. It does not relicense third-party code, data, artwork, dependencies, or referenced material; see THIRD_PARTY.md and any file-specific notices.
+Unless a file or section says otherwise, this grant covers original material created for this repository by its contributors, including source code, shaders, build scripts, documentation, the Wegert application icon and its launcher derivatives, Fastlane/F-Droid metadata, and screenshots generated from the Wegert application.
+
+This grant applies only where this repository's contributors have authority to grant it. It does not relicense third-party code, platform components, dependencies, referenced material, or material carrying a file-specific notice. See THIRD_PARTY.md and NOTICE for those terms and attributions.

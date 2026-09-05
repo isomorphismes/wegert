@@ -1,16 +1,12 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
 
-# Source this file from F-Droid scripts. It reads the release identity from the
-# same source-controlled declarations that Gradle uses.
+# Canonical release identity for direct DEX/JNI builds and F-Droid metadata.
+# The legacy Gradle compatibility path must match these values, but it is no
+# longer the source of truth for releases.
+WEGERT_VERSION_NAME=0.2.0
+WEGERT_VERSION_CODE=101
 
-release_values_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-release_values_gradle="$release_values_root/app/build.gradle.kts"
-
-WEGERT_VERSION_NAME="$(sed -n 's/^val releaseVersionName = "\([^"]*\)"$/\1/p' "$release_values_gradle")"
-WEGERT_VERSION_CODE="$(sed -n 's/^val releaseVersionCode = \([0-9][0-9]*\)$/\1/p' "$release_values_gradle")"
-
-test -n "$WEGERT_VERSION_NAME"
-test -n "$WEGERT_VERSION_CODE"
 [[ "$WEGERT_VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
 [[ "$WEGERT_VERSION_CODE" =~ ^[0-9]+$ ]]
 

@@ -1,33 +1,41 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck disable=SC1091
 source "$repo_root/fdroid/release-values.sh"
 
 appid=org.isomorphisms.wegert
 metadata="$repo_root/fdroid/$appid.yml.template"
 locale="$repo_root/fastlane/metadata/android/en-US"
-wrapper="$repo_root/gradle/wrapper/gradle-wrapper.properties"
+direct_native="$repo_root/android-direct/build-native.sh"
+direct_manifest="$repo_root/android-direct/AndroidManifest.xml"
+legacy_gradle="$repo_root/app/build.gradle.kts"
 
+metadata_license="$(sed -n 's/^License: \(.*\)$/\1/p' "$metadata")"
 metadata_version_name="$(sed -n 's/^  - versionName: \(.*\)$/\1/p' "$metadata" | tail -n 1)"
 metadata_version_code="$(sed -n 's/^    versionCode: \([0-9][0-9]*\)$/\1/p' "$metadata" | tail -n 1)"
 metadata_commit="$(sed -n 's/^    commit: \(.*\)$/\1/p' "$metadata" | tail -n 1)"
 metadata_output="$(sed -n 's/^    output: \(.*\)$/\1/p' "$metadata" | tail -n 1)"
 current_version_name="$(sed -n 's/^CurrentVersion: \(.*\)$/\1/p' "$metadata")"
 current_version_code="$(sed -n 's/^CurrentVersionCode: \([0-9][0-9]*\)$/\1/p' "$metadata")"
+legacy_version_name="$(sed -n 's/^val releaseVersionName = "\([^"]*\)"$/\1/p' "$legacy_gradle")"
+legacy_version_code="$(sed -n 's/^val releaseVersionCode = \([0-9][0-9]*\)$/\1/p' "$legacy_gradle")"
 
+test "$metadata_license" = GPL-3.0-or-later
 test "$metadata_version_name" = "$WEGERT_VERSION_NAME"
 test "$metadata_version_code" = "$WEGERT_VERSION_CODE"
-test "$metadata_commit" = "v$WEGERT_VERSION_NAME"
-test "$metadata_output" = "app/build/outputs/apk/release/app-release-unsigned.apk"
+test "$metadata_commit" = __SOURCE_COMMIT__
+test "$metadata_output" = build/direct/wegert-direct-unsigned.apk
 test "$current_version_name" = "$WEGERT_VERSION_NAME"
 test "$current_version_code" = "$WEGERT_VERSION_CODE"
-
-# gradlew-fdroid cannot infer Gradle from the plugins DSL, so the wrapper
-# properties are part of the F-Droid build contract even though CI invokes the
-# verified system Gradle executable directly.
-grep -Fxq 'distributionUrl=https\://services.gradle.org/distributions/gradle-9.5.1-bin.zip' "$wrapper"
-grep -Fxq 'distributionSha256Sum=bafc141b619ad6350fd975fc903156dd5c151998cc8b058e8c1044ab5f7b031f' "$wrapper"
+test "$legacy_version_name" = "$WEGERT_VERSION_NAME"
+test "$legacy_version_code" = "$WEGERT_VERSION_CODE"
+grep -Fxq '    submodules: true' "$metadata"
+grep -Fq 'bash android-direct/generate-dex.sh build/direct/classes.dex' "$metadata"
+grep -Fq 'bash android-direct/build.sh build/direct/classes.dex build/direct/wegert-direct-unsigned.apk' "$metadata"
+! grep -Eq 'gradle|assembleRelease|javac|kotlinc|d8|smali' "$metadata"
 
 for required in \
     title.txt \
@@ -71,23 +79,24 @@ for raw_path in sys.argv[2:]:
         raise SystemExit(f"empty screenshot: {path} ({width}x{height})")
 PY
 
-# One assembleRelease output carries all three ABIs. No Android APK splits are
-# configured, so this is deliberately not a multiple-APK native-code release.
-if grep -R -E -n --include='*.gradle' --include='*.gradle.kts' \
-    '(^|[^A-Za-z])splits[[:space:]]*\{' \
-    "$repo_root/app" "$repo_root/build.gradle.kts" >/dev/null; then
-    echo "unexpected APK split configuration" >&2
-    exit 1
-fi
+# The direct source build produces one universal APK with these three native
+# ABIs. The checked ICK object is deliberately forbidden from this route.
 for abi in arm64-v8a armeabi-v7a x86_64; do
-    grep -Fq "\"$abi\"" "$repo_root/app/build.gradle.kts"
+    grep -Fq "$abi" "$direct_native"
 done
+grep -Fq -- '-DWEGERT_USE_ICK_PREBUILT=OFF' "$direct_native"
+grep -Fq 'complex_math_ick.o' "$metadata"
+grep -Fq 'app/wegert-debug.keystore' "$metadata"
 
-if grep -Eq '<uses-permission[^>]+android.permission.INTERNET' "$repo_root/app/src/main/AndroidManifest.xml"; then
-    echo "Fastlane description says there is no network permission, but the manifest requests it" >&2
+if grep -Eq '<uses-permission[^>]+android.permission.INTERNET' "$direct_manifest"; then
+    echo "Fastlane description says there is no network permission, but the direct manifest requests it" >&2
     exit 1
 fi
 
-printf 'metadata: %s (%s)\n' "$WEGERT_VERSION_NAME" "$WEGERT_VERSION_CODE"
+grep -Fq 'org.isomorphisms.wegert' "$direct_manifest"
+grep -Fq '.WegertActivity' "$direct_manifest"
+grep -Fq 'android:hasCode="true"' "$direct_manifest"
+
+printf 'metadata: %s (%s), %s\n' "$WEGERT_VERSION_NAME" "$WEGERT_VERSION_CODE" "$metadata_license"
 printf 'fastlane: title, descriptions, icon, changelog, and %d phone screenshot(s)\n' "${#screenshots[@]}"
-printf 'apk packaging: one universal APK with arm64-v8a, armeabi-v7a, and x86_64\n'
+printf 'apk packaging: direct DEX/JNI, one APK with arm64-v8a, armeabi-v7a, and x86_64\n'
