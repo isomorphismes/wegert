@@ -9,7 +9,7 @@ readonly appid=org.isomorphisms.wegert
 readonly repo_root=/workspace/wegert
 readonly fdroiddata_revision=4498e27635a1c3b737510342c1f2355c25ce0211
 readonly fdroidserver_revision=6af4c4216e43d0fcb29e33919cd0fe8fef7e7400
-readonly source_repo="${SOURCE_REPO:-https://github.com/isomorphisms/wegert.git}"
+readonly source_repo="${SOURCE_REPO:-https://github.com/isomorphismes/wegert.git}"
 readonly source_revision="${SOURCE_REVISION:?SOURCE_REVISION is required}"
 
 # shellcheck disable=SC1091
