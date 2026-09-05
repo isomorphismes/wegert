@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
 set -Eeuo pipefail
 
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
@@ -21,6 +22,8 @@ unzip -l "$apk" > "$listing"
 for required in \
   classes.dex \
   assets/wegert.frag \
+  assets/licenses/WEGERT_LICENSE.txt \
+  assets/licenses/NOTICE.txt \
   lib/arm64-v8a/libwegert.so \
   lib/armeabi-v7a/libwegert.so \
   lib/x86_64/libwegert.so; do
@@ -31,6 +34,10 @@ done
   exit 1
 }
 ! grep -Eq '[.]class$' "$listing"
+
+unzip -p "$apk" assets/licenses/WEGERT_LICENSE.txt | grep -Fq 'SPDX-License-Identifier: GPL-3.0-or-later'
+unzip -p "$apk" assets/licenses/NOTICE.txt | grep -Fq 'Android native_app_glue'
+unzip -p "$apk" assets/licenses/NOTICE.txt | grep -Fq 'Apache License, Version 2.0'
 
 badging=$("$aapt2" dump badging "$apk")
 printf '%s\n' "$badging" | grep -Fq "package: name='org.isomorphisms.wegert'"
