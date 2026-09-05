@@ -14,7 +14,9 @@ Wegert stays the internal project and package name. F-Droid publishes it as **ze
 
 The normal build remains named Wegert; only the F-Droid build uses the public label **zero & infinity**. Neither tagging nor APK publication is automatic: real-hardware acceptance is the release gate.
 
-The same workflow also runs the submitted recipe in F-Droid's production-like `registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie` image. `fdroid/run-fdroiddata-tests.sh` copies the relevant current fdroiddata checks: metadata lint and canonical rewriting, schema validation, redirected-Git checks, upstream Fastlane extraction, `fdroid build --on-server`, the binary scanner, and the Gradle audit. The script replaces the recipe's release tag with the exact public CI commit while testing a branch; the release recipe itself remains pinned to the immutable `v<versionName>` tag.
+The canonical upstream store metadata is Triple-T under `app/src/main/play`. `fdroid/verify-metadata.sh` rejects the old `fastlane/metadata/android` tree if it reappears, so CI cannot silently fall back to a second metadata source.
+
+The same workflow also runs the submitted recipe in F-Droid's production-like `registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie` image. `fdroid/run-fdroiddata-tests.sh` copies the relevant current fdroiddata checks: metadata lint and canonical rewriting, schema validation, redirected-Git checks, upstream Triple-T extraction through F-Droid's legacy-named `tools/check-fastlane.py`, `fdroid build --on-server`, the binary scanner, and the Gradle audit. The script replaces the recipe's release tag with the exact public CI commit while testing a branch; the release recipe itself remains pinned to the immutable `v<versionName>` tag.
 
 `gradle/wrapper/gradle-wrapper.properties` pins Gradle 9.5.1 and its SHA-256 checksum. F-Droid's `gradlew-fdroid` reads that file because it cannot infer the Gradle version from this project's modern plugins DSL.
 
@@ -26,7 +28,7 @@ Wegert publishes one universal APK. That APK contains `arm64-v8a`, `armeabi-v7a`
 
 ## Local F-Droid checks
 
-The cheap metadata and packaging-contract check does not require the Android SDK:
+The cheap Triple-T metadata and packaging-contract check does not require the Android SDK:
 
 ```sh
 fdroid/verify-metadata.sh
