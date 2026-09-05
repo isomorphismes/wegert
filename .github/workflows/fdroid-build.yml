@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - '.github/workflows/fdroid-build.yml'
+      - '.gitmodules'
+      - '_deps/**'
+      - 'android-direct/**'
       - '*.c'
       - '*.h'
       - '*.glsl'
@@ -11,63 +14,67 @@ on:
       - '*.o'
       - '*.sha256'
       - 'CMakeLists.txt'
-      - 'app/**'
-      - 'build.gradle.kts'
-      - 'gradle/**'
-      - 'settings.gradle.kts'
-      - 'fdroid/**'
+      - 'app/src/main/res/**'
       - 'fastlane/**'
+      - 'fdroid/**'
+      - 'LICENSE'
+      - 'NOTICE'
+      - 'THIRD_PARTY.md'
   push:
     branches:
       - main
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
-    paths:
-      - '.github/workflows/fdroid-build.yml'
-      - '*.c'
-      - '*.h'
-      - '*.glsl'
-      - '*.frag.in'
-      - '*.o'
-      - '*.sha256'
-      - 'CMakeLists.txt'
-      - 'app/**'
-      - 'build.gradle.kts'
-      - 'gradle/**'
-      - 'settings.gradle.kts'
-      - 'fdroid/**'
-      - 'fastlane/**'
   workflow_dispatch:
+
+concurrency:
+  group: wegert-fdroid-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   release-apk:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      NDK_VERSION: 29.0.14206865
+      BUILD_TOOLS_VERSION: 36.0.0
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: recursive
 
-      - name: Verify release and Fastlane metadata
-        run: fdroid/verify-metadata.sh
+      - name: Verify release, licensing, and Fastlane metadata
+        run: bash fdroid/verify-metadata.sh
 
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
+      - name: Install source-build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            ca-certificates \
+            chezscheme \
+            cmake \
+            libgmp-dev \
+            python3 \
+            unzip \
+            zip
 
       - uses: android-actions/setup-android@v3
 
       - name: Install Android build inputs
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865" "cmake;3.22.1"
+        run: |
+          yes | sdkmanager \
+            "platforms;android-36" \
+            "build-tools;${BUILD_TOOLS_VERSION}" \
+            "ndk;${NDK_VERSION}"
 
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '9.5.1'
-
-      - name: Build twice and require byte-identical unsigned APKs
-        run: fdroid/reproducible-build.sh build/reproducible-fdroid
+      - name: Build twice and require byte-identical direct APKs
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/${{ env.NDK_VERSION }}
+          ANDROID_BUILD_TOOLS: ${{ env.ANDROID_HOME }}/build-tools/${{ env.BUILD_TOOLS_VERSION }}
+        run: bash fdroid/reproducible-build.sh build/reproducible-fdroid
 
       - uses: actions/upload-artifact@v4
         with:
@@ -75,12 +82,13 @@ jobs:
           path: |
             build/reproducible-fdroid/wegert-*-fdroid-unsigned.apk
             build/reproducible-fdroid/wegert-*-fdroid-unsigned.apk.sha256
+            build/reproducible-fdroid/run-*.classes.dex.sha256
             build/reproducible-fdroid/diffoscope.txt
           if-no-files-found: error
 
   fdroiddata-recipe:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
     env:
       SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
 
@@ -89,11 +97,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify release and Fastlane metadata
-        run: fdroid/verify-metadata.sh
+      - name: Verify release, licensing, and Fastlane metadata
+        run: bash fdroid/verify-metadata.sh
 
       - name: Run fdroiddata metadata, scanner, and production build tests
-        run: fdroid/run-fdroiddata-tests.sh
+        run: bash fdroid/run-fdroiddata-tests.sh
 
       - uses: actions/upload-artifact@v4
         with:
