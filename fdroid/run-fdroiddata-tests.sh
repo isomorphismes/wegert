@@ -1,17 +1,15 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
 set -euo pipefail
 
 # Run the relevant fdroiddata merge-request checks in the same production-like
-# buildserver image used by fdroid/fdroiddata. This wrapper intentionally uses
-# the image instead of embedding fdroidserver as a submodule: the repository
-# alone does not include F-Droid's Android SDK, NDK, Gradle, scanner, or Debian
-# build environment.
+# buildserver image used by fdroid/fdroiddata.
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 output_dir="${FDROID_OUTPUT_DIR:-$repo_root/build/fdroiddata}"
 image="${FDROID_BUILDSERVER_IMAGE:-registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie}"
 source_revision="${SOURCE_REVISION:-$(git -C "$repo_root" rev-parse HEAD)}"
-source_repo="${SOURCE_REPO:-https://github.com/isomorphisms/wegert.git}"
+source_repo="${SOURCE_REPO:-https://github.com/isomorphismes/wegert.git}"
 
 command -v docker >/dev/null 2>&1 || {
     echo "docker is required to run F-Droid's production buildserver image" >&2
