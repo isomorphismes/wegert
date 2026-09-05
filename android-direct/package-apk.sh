@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
 set -Eeuo pipefail
 
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
@@ -30,9 +31,12 @@ version_code=${WEGERT_VERSION_CODE:-101}
 
 work="$repo_root/build/direct/apk-work"
 rm -rf "$work"
-mkdir -p "$work/stage/assets" "$(dirname -- "$output")"
+mkdir -p "$work/stage/assets/licenses" "$(dirname -- "$output")"
 
 bash "$repo_root/android-direct/assemble-shader.sh" "$work/stage/assets/wegert.frag"
+cp "$repo_root/LICENSE" "$work/stage/assets/licenses/WEGERT_LICENSE.txt"
+cp "$repo_root/NOTICE" "$work/stage/assets/licenses/NOTICE.txt"
+
 "$aapt2" compile --dir "$repo_root/app/src/main/res" -o "$work/resources.zip"
 "$aapt2" link \
   -I "$android_jar" \
@@ -54,7 +58,11 @@ for abi in arm64-v8a armeabi-v7a x86_64; do
 done
 (
   cd "$work/stage"
-  zip -q -u "$work/unaligned.apk" classes.dex assets/wegert.frag \
+  zip -q -u "$work/unaligned.apk" \
+    classes.dex \
+    assets/wegert.frag \
+    assets/licenses/WEGERT_LICENSE.txt \
+    assets/licenses/NOTICE.txt \
     lib/arm64-v8a/libwegert.so \
     lib/armeabi-v7a/libwegert.so \
     lib/x86_64/libwegert.so
