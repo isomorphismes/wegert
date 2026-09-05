@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
 set -euo pipefail
 
 # This script runs inside registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie.
-# Its build command and environment setup track fdroiddata's `fdroid build` job.
+# Its build command and environment setup track fdroiddata's production build job.
 
 readonly appid=org.isomorphisms.wegert
 readonly repo_root=/workspace/wegert
@@ -11,12 +12,15 @@ readonly fdroidserver_revision=6af4c4216e43d0fcb29e33919cd0fe8fef7e7400
 readonly source_repo="${SOURCE_REPO:-https://github.com/isomorphisms/wegert.git}"
 readonly source_revision="${SOURCE_REVISION:?SOURCE_REVISION is required}"
 
+# shellcheck disable=SC1091
 source "$repo_root/fdroid/release-values.sh"
 readonly build_id="$appid:$WEGERT_VERSION_CODE"
 readonly work_root="$(mktemp -d /tmp/wegert-fdroiddata.XXXXXX)"
 readonly data="$work_root/fdroiddata"
 readonly server="$work_root/fdroidserver"
 readonly original_metadata="$work_root/original-metadata.yml"
+
+[[ "$source_revision" =~ ^[0-9a-f]{40}$ ]]
 
 # fdroid's production build runs as the unprivileged vagrant user. mktemp
 # creates its directory as 0700, so make only this disposable parent traversable.
@@ -39,14 +43,12 @@ git -C "$server" checkout --detach "$fdroidserver_revision"
 
 cp "$repo_root/fdroid/$appid.yml.template" "$data/metadata/$appid.yml"
 sed -i "s|^Repo: .*|Repo: $source_repo|" "$data/metadata/$appid.yml"
-release_tag_revision="$(git ls-remote "$source_repo" "refs/tags/v$WEGERT_VERSION_NAME" | awk 'NR == 1 { print $1 }')"
-if [[ "$release_tag_revision" != "$source_revision" ]]; then
-    version_pattern="${WEGERT_VERSION_NAME//./\\.}"
-    sed -i \
-        "/^  - versionName: $version_pattern$/,/^    commit: / s|^    commit: .*|    commit: $source_revision|" \
-        "$data/metadata/$appid.yml"
-fi
+sed -i "s|^    commit: __SOURCE_COMMIT__$|    commit: $source_revision|" "$data/metadata/$appid.yml"
+grep -Fq "    commit: $source_revision" "$data/metadata/$appid.yml"
+! grep -Fq '__SOURCE_COMMIT__' "$data/metadata/$appid.yml"
 cp "$data/metadata/$appid.yml" "$original_metadata"
+
+release_tag_revision="$(git ls-remote "$source_repo" "refs/tags/v$WEGERT_VERSION_NAME" | awk 'NR == 1 { print $1 }')"
 
 export PATH="$server:$PATH"
 export PYTHONPATH="$server:$server/examples"
@@ -60,15 +62,23 @@ cd "$data"
 chmod 0600 config.yml
 find config -type f -name '*.yml' -exec chmod 0600 {} +
 
-# The production image is intentionally minimal. Install the same helper tools
-# that fdroiddata's jobs add before running metadata and build checks.
+# The production image is intentionally minimal. fdroiddata normally prepares
+# its build server before --on-server runs, so install the source-build tools
+# required by Wegert's metadata here as part of the simulation.
 apt-get update
 apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    chezscheme \
+    cmake \
     jq \
+    libgmp-dev \
     openjdk-21-jdk-headless \
     python3-markdown-it \
     python3-pip \
-    sudo
+    sudo \
+    unzip \
+    zip
 
 # Metadata checks copied from the fdroiddata merge-request pipeline.
 fdroid lint "$appid"
@@ -80,7 +90,7 @@ if [[ "$release_tag_revision" = "$source_revision" ]]; then
     fdroid checkupdates --auto -v "$appid"
     cmp "$work_root/before-checkupdates.yml" "metadata/$appid.yml"
 else
-    echo "checkupdates deferred until public tag v$WEGERT_VERSION_NAME exists"
+    echo "checkupdates deferred until public tag v$WEGERT_VERSION_NAME identifies $source_revision"
 fi
 
 python3 -m pip install --quiet --break-system-packages check-jsonschema
@@ -105,7 +115,11 @@ PY
 
 # The following setup and command mirror fdroiddata's production-like build job.
 update-alternatives --set java /usr/lib/jvm/java-21-openjdk-amd64/bin/java
-sdkmanager "platform-tools" "build-tools;31.0.0"
+sdkmanager \
+    "platform-tools" \
+    "platforms;android-36" \
+    "build-tools;36.0.0" \
+    "ndk;29.0.14206865"
 
 if [[ -f /etc/profile.d/bsenv.sh ]]; then
     # shellcheck disable=SC1091
