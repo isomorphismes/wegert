@@ -1,0 +1,39 @@
+name: Render root videos
+
+on:
+  push:
+    paths:
+      - '_/render_root_videos.py'
+      - '.github/workflows/render-root-videos.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install renderer dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --disable-pip-version-check numpy pillow
+      - name: Render Wegert MP4s at repository root
+        run: |
+          python _/render_root_videos.py .
+          cp docs/demos/add-and-drag-zero-and-pole.mp4 .
+          cp docs/demos/add-and-drag-two-zeros-and-two-poles.mp4 .
+      - name: Commit rendered MP4s
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- '*.mp4'
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'Render Wegert videos at repository root'
+          git push origin HEAD:main
