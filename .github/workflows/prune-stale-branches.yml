@@ -1,0 +1,65 @@
+name: Prune stale branches
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/prune-stale-branches.yml
+
+permissions:
+  contents: write
+
+jobs:
+  prune:
+    if: github.repository == 'isomorphismes/wegert'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Delete merged, superseded, and obsolete branches
+        shell: bash
+        run: |
+          set -euo pipefail
+          branches=(
+            'agent/initial-native-android'
+            'analytic-continuation-view'
+            'android_launcher_icon'
+            'apk-release'
+            'divide-sign-factored-denominators'
+            'drag_existing_factors'
+            'expanded-polynomial-display'
+            'fdroid-release'
+            'fdroid-reproducible-ci'
+            'fdroid-status-grease'
+            'fdroid-store-assets'
+            'feature/coloring-core'
+            'flatten-source-layout'
+            'ick_complex_arm64'
+            'initial-phone-build'
+            'integrate_ick_drag_icon'
+            'native-c-touch-prototype'
+            'release/0.2.0-hardening'
+            'shared-icon-candidates'
+            'tablet-touch-game'
+            'tmp/inspect-pr10-videos-20260822'
+            'touch-demo-videos'
+          )
+
+          for branch in "${branches[@]}"; do
+            if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+              git push origin --delete "$branch"
+            fi
+          done
+
+      - name: Remove one-shot cleanup workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/prune-stale-branches.yml
+          git commit -m 'Remove one-shot branch cleanup'
+          git push origin HEAD:main
