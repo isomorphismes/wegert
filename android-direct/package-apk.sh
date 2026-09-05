@@ -11,8 +11,10 @@ native_root=${2:-"$repo_root/build/direct/native"}
 output=${3:-"$repo_root/build/direct/wegert-direct-unsigned.apk"}
 android_home=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}
 build_tools=${ANDROID_BUILD_TOOLS:-}
+source_date_epoch=${SOURCE_DATE_EPOCH:-$(git -C "$repo_root" show -s --format=%ct HEAD)}
 
 [[ -f $classes_dex ]] || { echo "missing direct classes.dex: $classes_dex" >&2; exit 1; }
+[[ $source_date_epoch =~ ^[0-9]+$ ]] || { echo "invalid SOURCE_DATE_EPOCH: $source_date_epoch" >&2; exit 1; }
 [[ -n $android_home ]] || { echo "ANDROID_HOME/ANDROID_SDK_ROOT is required" >&2; exit 1; }
 if [[ -z $build_tools ]]; then
   build_tools=$(find "$android_home/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
@@ -54,9 +56,22 @@ for abi in arm64-v8a armeabi-v7a x86_64; do
   mkdir -p "$work/stage/lib/$abi"
   cp "$library" "$work/stage/lib/$abi/libwegert.so"
 done
+
+python3 - "$source_date_epoch" "$work/stage" <<'PY'
+import os
+import sys
+from pathlib import Path
+
+epoch = int(sys.argv[1])
+root = Path(sys.argv[2])
+for path in root.rglob("*"):
+    if path.is_file():
+        os.utime(path, (epoch, epoch))
+PY
+
 (
   cd "$work/stage"
-  zip -q -u "$work/unaligned.apk" \
+  zip -q -X -u "$work/unaligned.apk" \
     classes.dex \
     assets/wegert.frag \
     assets/licenses/WEGERT_LICENSE.txt \
