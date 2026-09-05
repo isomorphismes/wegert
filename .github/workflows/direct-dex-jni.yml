@@ -16,13 +16,18 @@ on:
       - 'app/src/main/res/**'
       - 'app/wegert-debug.keystore'
       - 'LICENSE'
+      - 'NOTICE'
       - 'THIRD_PARTY.md'
+
+concurrency:
+  group: wegert-direct-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   direct-build:
     runs-on: ubuntu-24.04
     env:
-      IDRIC_ARM_THUMB_REF: 5a935e06e76b0269f735679c21d3f782bf92ecec
+      IDRIC_ARM_THUMB_REF: 2f60f0cb995cfc1e2effe09ec1afe93a2d541da2
       IDRIC_COMPILER_REF: Idriç
       NDK_VERSION: 29.0.14206865
       BUILD_TOOLS_VERSION: 36.0.0
