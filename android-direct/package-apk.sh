@@ -32,7 +32,7 @@ work="$repo_root/build/direct/apk-work"
 rm -rf "$work"
 mkdir -p "$work/stage/assets" "$(dirname -- "$output")"
 
-"$repo_root/android-direct/assemble-shader.sh" "$work/stage/assets/wegert.frag"
+bash "$repo_root/android-direct/assemble-shader.sh" "$work/stage/assets/wegert.frag"
 "$aapt2" compile --dir "$repo_root/app/src/main/res" -o "$work/resources.zip"
 "$aapt2" link \
   -I "$android_jar" \
