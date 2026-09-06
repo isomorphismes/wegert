@@ -45,7 +45,7 @@ jobs:
             rm -f "$name"
             cp "$mp4" "$name"
           done
-      - name: Put previews in README
+      - name: Put HTML5 players in README
         shell: bash
         run: |
           set -euo pipefail
@@ -54,37 +54,34 @@ jobs:
 
           path = Path('README.md')
           text = path.read_text()
-          old = '''- [Cubic spread: `(z+2.6)(z-0.7)(z-2.9)`](rendered_images/wegert_gist_palette_dance_cubic_spread.mp4)
-          - [Two zeros / two poles](rendered_images/wegert_gist_palette_dance_zero_pole_cross.mp4)
-          - [Five roots: `z^5 - 1`](rendered_images/wegert_gist_palette_dance_fifth_roots.mp4)'''
-          new = '''### Cubic spread: `(z+2.6)(z-0.7)(z-2.9)`
+          start = text.index('### Cubic spread:')
+          end = text.index('Generator:', start)
+          block = '''### Cubic spread: `(z+2.6)(z-0.7)(z-2.9)`
 
-          [![Cubic-spread Wegert palette dance](rendered_images/wegert_gist_palette_dance_cubic_spread_preview.gif)](wegert_gist_palette_dance_cubic_spread.mp4?raw=1)
+          <video controls preload="metadata" width="360" poster="rendered_images/wegert_gist_palette_dance_cubic_spread_preview.gif">
+            <source src="wegert_gist_palette_dance_cubic_spread.mp4" type="video/mp4">
+          </video>
 
           [MP4](wegert_gist_palette_dance_cubic_spread.mp4?raw=1)
 
           ### Two zeros / two poles
 
-          [![Zero/pole Wegert palette dance](rendered_images/wegert_gist_palette_dance_zero_pole_cross_preview.gif)](wegert_gist_palette_dance_zero_pole_cross.mp4?raw=1)
+          <video controls preload="metadata" width="360" poster="rendered_images/wegert_gist_palette_dance_zero_pole_cross_preview.gif">
+            <source src="wegert_gist_palette_dance_zero_pole_cross.mp4" type="video/mp4">
+          </video>
 
           [MP4](wegert_gist_palette_dance_zero_pole_cross.mp4?raw=1)
 
           ### Five roots: `z^5 - 1`
 
-          [![Fifth-roots Wegert palette dance](rendered_images/wegert_gist_palette_dance_fifth_roots_preview.gif)](wegert_gist_palette_dance_fifth_roots.mp4?raw=1)
+          <video controls preload="metadata" width="360" poster="rendered_images/wegert_gist_palette_dance_fifth_roots_preview.gif">
+            <source src="wegert_gist_palette_dance_fifth_roots.mp4" type="video/mp4">
+          </video>
 
-          [MP4](wegert_gist_palette_dance_fifth_roots.mp4?raw=1)'''
-          if old not in text:
-              raise SystemExit('README featured-video block not found')
-          text = text.replace(old, new, 1)
-          text = text.replace(
-              'Rendered media is canonical under [`rendered_images/`](rendered_images/). Useful files are also exposed at repository root as symlinks so they are immediately visible after cloning.',
-              'Rendered media is canonical under [`rendered_images/`](rendered_images/). Useful files are also exposed at repository root. The featured palette-dance MP4s are ordinary files at root so GitHub raw download returns video bytes rather than a symlink blob.'
-          )
-          text = text.replace(
-              '- repository root — README/license plus symlinks to useful source entrypoints and rendered output.',
-              '- repository root — README/license, source-entrypoint symlinks, and ordinary copies of the featured MP4s for reliable GitHub downloads.'
-          )
+          [MP4](wegert_gist_palette_dance_fifth_roots.mp4?raw=1)
+
+          '''
+          text = text[:start] + block + text[end:]
           path.write_text(text)
           PY
       - name: Commit previews and MP4s to this branch
