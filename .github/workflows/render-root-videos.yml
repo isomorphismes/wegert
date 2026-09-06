@@ -1,16 +1,16 @@
-name: Render Wegert palette dances
+name: Render Wegert reference video
 
 on:
   push:
     branches-ignore:
       - main
     paths:
-      - 'code/wegert_gist_palette_dance.py'
+      - 'code/Wegert_g_codomain_phase.R'
       - '.github/workflows/render-root-videos.yml'
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - 'code/wegert_gist_palette_dance.py'
+      - 'code/Wegert_g_codomain_phase.R'
       - '.github/workflows/render-root-videos.yml'
   workflow_dispatch:
 
@@ -21,85 +21,53 @@ jobs:
   render:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
-      - name: Install renderer dependencies
+      - name: Install R and ffmpeg
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          python -m pip install --disable-pip-version-check numpy matplotlib
-      - name: Render actual Wegert gist palette dances
-        run: python code/wegert_gist_palette_dance.py rendered_images
-      - name: Make GitHub-renderable previews and real root MP4s
+          sudo apt-get install -y r-base-core ffmpeg
+      - name: Render the original Wegert reference
         shell: bash
         run: |
           set -euo pipefail
-          for mp4 in rendered_images/wegert_gist_palette_dance_*.mp4; do
-            gif="${mp4%.mp4}_preview.gif"
-            ffmpeg -y -loglevel error -i "$mp4" \
-              -filter_complex 'fps=8,scale=360:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=64[p];[b][p]paletteuse=dither=bayer:bayer_scale=5' \
-              "$gif"
-            name="$(basename "$mp4")"
-            rm -f "$name"
-            cp "$mp4" "$name"
-          done
-      - name: Put previews in README
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('README.md')
-          text = path.read_text()
-          old = '''- [Cubic spread: `(z+2.6)(z-0.7)(z-2.9)`](rendered_images/wegert_gist_palette_dance_cubic_spread.mp4)
-          - [Two zeros / two poles](rendered_images/wegert_gist_palette_dance_zero_pole_cross.mp4)
-          - [Five roots: `z^5 - 1`](rendered_images/wegert_gist_palette_dance_fifth_roots.mp4)'''
-          new = '''### Cubic spread: `(z+2.6)(z-0.7)(z-2.9)`
-
-          [![Cubic-spread Wegert palette dance](rendered_images/wegert_gist_palette_dance_cubic_spread_preview.gif)](wegert_gist_palette_dance_cubic_spread.mp4?raw=1)
-
-          [MP4](wegert_gist_palette_dance_cubic_spread.mp4?raw=1)
-
-          ### Two zeros / two poles
-
-          [![Zero/pole Wegert palette dance](rendered_images/wegert_gist_palette_dance_zero_pole_cross_preview.gif)](wegert_gist_palette_dance_zero_pole_cross.mp4?raw=1)
-
-          [MP4](wegert_gist_palette_dance_zero_pole_cross.mp4?raw=1)
-
-          ### Five roots: `z^5 - 1`
-
-          [![Fifth-roots Wegert palette dance](rendered_images/wegert_gist_palette_dance_fifth_roots_preview.gif)](wegert_gist_palette_dance_fifth_roots.mp4?raw=1)
-
-          [MP4](wegert_gist_palette_dance_fifth_roots.mp4?raw=1)'''
-          if old not in text:
-              raise SystemExit('README featured-video block not found')
-          text = text.replace(old, new, 1)
-          text = text.replace(
-              'Rendered media is canonical under [`rendered_images/`](rendered_images/). Useful files are also exposed at repository root as symlinks so they are immediately visible after cloning.',
-              'Rendered media is canonical under [`rendered_images/`](rendered_images/). Useful files are also exposed at repository root. The featured palette-dance MP4s are ordinary files at root so GitHub raw download returns video bytes rather than a symlink blob.'
-          )
-          text = text.replace(
-              '- repository root — README/license plus symlinks to useful source entrypoints and rendered output.',
-              '- repository root — README/license, source-entrypoint symlinks, and ordinary copies of the featured MP4s for reliable GitHub downloads.'
-          )
-          path.write_text(text)
-          PY
-      - name: Commit previews and MP4s to this branch
+          work='_/build/wegert_reference_render'
+          rm -rf "$work"
+          mkdir -p "$work"
+          cd "$work"
+          Rscript ../../../code/Wegert_g_codomain_phase.R
+          cd ../../..
+          cp "$work/wegert_g.png" rendered_images/wegert_g.png
+          cp "$work/wegert_g_codomain_phase.mp4" rendered_images/wegert_g_codomain_phase.mp4
+          cp "$work/wegert_g_codomain_phase.mp4" wegert_g_codomain_phase.mp4
+          ffmpeg -y -loglevel error \
+            -i rendered_images/wegert_g_codomain_phase.mp4 \
+            -filter_complex 'fps=8,scale=360:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=64[p];[b][p]paletteuse=dither=bayer:bayer_scale=5' \
+            rendered_images/wegert_g_codomain_phase_preview.gif
+      - name: Commit rendered reference output
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add README.md \
-            rendered_images/wegert_gist_palette_dance_*.mp4 \
-            rendered_images/wegert_gist_palette_dance_*_preview.gif \
-            wegert_gist_palette_dance_*.mp4
+          git add \
+            rendered_images/wegert_g.png \
+            rendered_images/wegert_g_codomain_phase.mp4 \
+            rendered_images/wegert_g_codomain_phase_preview.gif \
+            wegert_g_codomain_phase.mp4
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m 'Render GitHub-visible Wegert previews'
+          git commit -m 'Render original Wegert codomain-phase reference'
           branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
-          git push origin "HEAD:${branch}"
+          for attempt in 1 2 3 4; do
+            git fetch origin "$branch"
+            git rebase "origin/$branch"
+            if git push origin "HEAD:${branch}"; then
+              exit 0
+            fi
+          done
+          exit 1
