@@ -8,19 +8,25 @@ These are the actual Wegert-gist palette-dance renders: the complex expression s
 
 ### Cubic spread: `(z+2.6)(z-0.7)(z-2.9)`
 
-[![Cubic-spread Wegert palette dance](rendered_images/wegert_gist_palette_dance_cubic_spread_preview.gif)](wegert_gist_palette_dance_cubic_spread.mp4?raw=1)
+<video controls preload="metadata" width="360" poster="rendered_images/wegert_gist_palette_dance_cubic_spread_preview.gif">
+  <source src="wegert_gist_palette_dance_cubic_spread.mp4" type="video/mp4">
+</video>
 
 [MP4](wegert_gist_palette_dance_cubic_spread.mp4?raw=1)
 
 ### Two zeros / two poles
 
-[![Zero/pole Wegert palette dance](rendered_images/wegert_gist_palette_dance_zero_pole_cross_preview.gif)](wegert_gist_palette_dance_zero_pole_cross.mp4?raw=1)
+<video controls preload="metadata" width="360" poster="rendered_images/wegert_gist_palette_dance_zero_pole_cross_preview.gif">
+  <source src="wegert_gist_palette_dance_zero_pole_cross.mp4" type="video/mp4">
+</video>
 
 [MP4](wegert_gist_palette_dance_zero_pole_cross.mp4?raw=1)
 
 ### Five roots: `z^5 - 1`
 
-[![Fifth-roots Wegert palette dance](rendered_images/wegert_gist_palette_dance_fifth_roots_preview.gif)](wegert_gist_palette_dance_fifth_roots.mp4?raw=1)
+<video controls preload="metadata" width="360" poster="rendered_images/wegert_gist_palette_dance_fifth_roots_preview.gif">
+  <source src="wegert_gist_palette_dance_fifth_roots.mp4" type="video/mp4">
+</video>
 
 [MP4](wegert_gist_palette_dance_fifth_roots.mp4?raw=1)
 
