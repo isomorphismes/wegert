@@ -63,4 +63,11 @@ jobs:
           fi
           git commit -m 'Render original Wegert codomain-phase reference'
           branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
-          git push origin "HEAD:${branch}"
+          for attempt in 1 2 3 4; do
+            git fetch origin "$branch"
+            git rebase "origin/$branch"
+            if git push origin "HEAD:${branch}"; then
+              exit 0
+            fi
+          done
+          exit 1
