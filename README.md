@@ -6,15 +6,29 @@ Interactive Wegert phase portraits of complex rational functions.
 
 These are the actual Wegert-gist palette-dance renders: the complex expression stays fixed in the domain while the codomain is multiplied by `exp(i theta)`, so the Wegert phase palette moves through a full turn.
 
-- [Cubic spread: `(z+2.6)(z-0.7)(z-2.9)`](rendered_images/wegert_gist_palette_dance_cubic_spread.mp4)
-- [Two zeros / two poles](rendered_images/wegert_gist_palette_dance_zero_pole_cross.mp4)
-- [Five roots: `z^5 - 1`](rendered_images/wegert_gist_palette_dance_fifth_roots.mp4)
+### Cubic spread: `(z+2.6)(z-0.7)(z-2.9)`
+
+[![Cubic-spread Wegert palette dance](rendered_images/wegert_gist_palette_dance_cubic_spread_preview.gif)](wegert_gist_palette_dance_cubic_spread.mp4?raw=1)
+
+[MP4](wegert_gist_palette_dance_cubic_spread.mp4?raw=1)
+
+### Two zeros / two poles
+
+[![Zero/pole Wegert palette dance](rendered_images/wegert_gist_palette_dance_zero_pole_cross_preview.gif)](wegert_gist_palette_dance_zero_pole_cross.mp4?raw=1)
+
+[MP4](wegert_gist_palette_dance_zero_pole_cross.mp4?raw=1)
+
+### Five roots: `z^5 - 1`
+
+[![Fifth-roots Wegert palette dance](rendered_images/wegert_gist_palette_dance_fifth_roots_preview.gif)](wegert_gist_palette_dance_fifth_roots.mp4?raw=1)
+
+[MP4](wegert_gist_palette_dance_fifth_roots.mp4?raw=1)
 
 Generator: [`wegert_gist_palette_dance.py`](wegert_gist_palette_dance.py). The canonical copy is in [`code/`](code/wegert_gist_palette_dance.py); the root entry is a symlink for convenience.
 
 ## Other videos
 
-Rendered media is canonical under [`rendered_images/`](rendered_images/). Useful files are also exposed at repository root as symlinks so they are immediately visible after cloning.
+Rendered media is canonical under [`rendered_images/`](rendered_images/). Useful files are also exposed at repository root. The featured palette-dance MP4s are ordinary files at root so GitHub raw download returns video bytes rather than a symlink blob.
 
 - [Three moving simple roots](rendered_images/three_moving_simple_roots.mp4)
 - [Two moving simple poles](rendered_images/two_moving_simple_poles.mp4)
@@ -31,7 +45,7 @@ The 512x512 app icon is canonical at [`rendered_images/wegert-icon-512.png`](ren
 
 - `code/` — canonical readable C, headers, GLSL, and render-source code.
 - `rendered_images/` — canonical rendered PNG/MP4 output.
-- repository root — README/license plus symlinks to useful source entrypoints and rendered output.
+- repository root — README/license, source-entrypoint symlinks, and ordinary copies of the featured MP4s for reliable GitHub downloads.
 - `_/build/` — Android packaging, Gradle, CMake, tests, F-Droid/Fastlane metadata, checked build objects/provenance, and other build/release machinery.
 - `.github/` — workflow files remain at the required GitHub path.
 
