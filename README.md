@@ -2,33 +2,19 @@
 
 Interactive Wegert phase portraits of complex rational functions.
 
-## Featured Wegert gist palette dances
+## Featured Wegert reference
 
-These are the actual Wegert-gist palette-dance renders: the complex expression stays fixed in the domain while the codomain is multiplied by `exp(i theta)`, so the Wegert phase palette moves through a full turn.
+This is the original Wegert-gist codomain-phase animation for `g(z) = (z - 1)(z - 2)(z - 5)`. The roots stay fixed at 1, 2, and 5 while only the codomain is multiplied by `exp(i theta)`.
 
-### Cubic spread: `(z+2.6)(z-0.7)(z-2.9)`
+[![Original Wegert codomain-phase rotation](rendered_images/wegert_g_codomain_phase_preview.gif)](wegert_g_codomain_phase.mp4?raw=1)
 
-[![Cubic-spread Wegert palette dance](rendered_images/wegert_gist_palette_dance_cubic_spread_preview.gif)](wegert_gist_palette_dance_cubic_spread.mp4?raw=1)
+[MP4](wegert_g_codomain_phase.mp4?raw=1) · [static PNG](rendered_images/wegert_g.png)
 
-[MP4](wegert_gist_palette_dance_cubic_spread.mp4?raw=1)
-
-### Two zeros / two poles
-
-[![Zero/pole Wegert palette dance](rendered_images/wegert_gist_palette_dance_zero_pole_cross_preview.gif)](wegert_gist_palette_dance_zero_pole_cross.mp4?raw=1)
-
-[MP4](wegert_gist_palette_dance_zero_pole_cross.mp4?raw=1)
-
-### Five roots: `z^5 - 1`
-
-[![Fifth-roots Wegert palette dance](rendered_images/wegert_gist_palette_dance_fifth_roots_preview.gif)](wegert_gist_palette_dance_fifth_roots.mp4?raw=1)
-
-[MP4](wegert_gist_palette_dance_fifth_roots.mp4?raw=1)
-
-Generator: [`wegert_gist_palette_dance.py`](wegert_gist_palette_dance.py). The canonical copy is in [`code/`](code/wegert_gist_palette_dance.py); the root entry is a symlink for convenience.
+Reference renderer: [`code/Wegert_g_codomain_phase.R`](code/Wegert_g_codomain_phase.R). It preserves the original R gist colour calculation and composition rather than substituting a different function or generic domain-colouring style.
 
 ## Other videos
 
-Rendered media is canonical under [`rendered_images/`](rendered_images/). Useful files are also exposed at repository root. The featured palette-dance MP4s are ordinary files at root so GitHub raw download returns video bytes rather than a symlink blob.
+Rendered media is canonical under [`rendered_images/`](rendered_images/). Useful files are also exposed at repository root. The featured reference MP4 is an ordinary file at root so GitHub raw download returns video bytes rather than a symlink blob.
 
 - [Three moving simple roots](rendered_images/three_moving_simple_roots.mp4)
 - [Two moving simple poles](rendered_images/two_moving_simple_poles.mp4)
@@ -45,11 +31,11 @@ The 512x512 app icon is canonical at [`rendered_images/wegert-icon-512.png`](ren
 
 - `code/` — canonical readable C, headers, GLSL, and render-source code.
 - `rendered_images/` — canonical rendered PNG/MP4 output.
-- repository root — README/license, source-entrypoint symlinks, and ordinary copies of the featured MP4s for reliable GitHub downloads.
+- repository root — README/license, source-entrypoint symlinks, and an ordinary copy of the featured MP4 for reliable GitHub downloads.
 - `_/build/` — Android packaging, Gradle, CMake, tests, F-Droid/Fastlane metadata, checked build objects/provenance, and other build/release machinery.
 - `.github/` — workflow files remain at the required GitHub path.
 
-The build tree already uses symlinks for the readable source. Root source names remain valid as symlinks into `code/`, so existing `_ /build` references keep working without duplicating the source.
+The build tree already uses symlinks for the readable source. Root source names remain valid as symlinks into `code/`, so existing `_/build` references keep working without duplicating the source.
 
 ## First playable controls
 
@@ -92,7 +78,7 @@ The Android shader preserves the established Wegert palette constants from the c
 
 Hue is the phase of the rational function. The Android renderer's lightness repeats by base-10 log-modulus decades. HCL is converted to display sRGB in the fragment shader.
 
-The featured `wegert_gist_palette_dance_*` movies intentionally use the older R gist rule instead: hue is `Arg(f(z))`, and lightness is `66 + 4*fract(|f(z)|/100) + 3*fract(hue/100)` with HCL chroma `45`. That distinction is deliberate; these movies are meant to reproduce the gist look rather than silently substituting a generic HSV domain-colouring scheme.
+The featured `wegert_g_codomain_phase.mp4` intentionally uses the older R gist rule instead: hue is `Arg(f(z))`, and lightness is `66 + 4*fract(|f(z)|/100) + 3*fract(hue/100)` with HCL chroma `45`. Its viewport, fixed roots, labels, cream frame, and codomain-only phase rotation come directly from the preserved R reference renderer.
 
 ## Android build
 
