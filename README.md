@@ -37,6 +37,14 @@ The 512x512 app icon is canonical at [`rendered_images/wegert-icon-512.png`](ren
 
 The build tree already uses symlinks for the readable source. Root source names remain valid as symlinks into `code/`, so existing `_/build` references keep working without duplicating the source.
 
+## Mathematical ownership boundary
+
+Wegert owns how an already-defined complex function is presented: the reusable complex-value or phase/log-modulus to colour behavior, ordinary factored zero/pole interaction, coordinate mapping, and rendering preferences. [`code/wegert_color.glsl`](code/wegert_color.glsl) is the canonical shader colour core.
+
+[Analytic Continuation](https://github.com/isomorphismes/analytic-continuation) owns the live whole-plane evolution `f = R exp(q)`, the requirement that `q` be entire, and the choice of admissible holomorphic descriptors. It supplies the completed phase and log modulus to the Wegert boundary; this repository does not choose Bergman, Bargmann-Fock, or other perturbation spaces.
+
+[Lacunary](https://github.com/isomorphismes/lacunary) owns bounded/local-domain continuation, overlapping charts, branches, sheets, and monodromy experiments. Those are distinct from both Wegert's rendering contract and Analytic Continuation's ordinary whole-plane explorer.
+
 ## First playable controls
 
 - tap the ○ or × control, then tap the portrait to add that kind of factor (up to 64 each)
@@ -60,6 +68,8 @@ Clear and the view switch activate only when the first finger is released inside
 ## Continuation view
 
 Wegert uses the normalized model $g(z)=\prod_j(z-a_j)/\prod_k(z-b_k)$, with complex gain fixed to 1. Within that normalization, the stored zeros and poles determine the rational function exactly. Its direct rational evaluation continues to supply the phase-portrait colours; the continuation view does not invent a function by interpolating tapped values.
+
+This view is a bounded Taylor-disc reveal and path-geometry aid for that already-known rational function. It is not a germ-transport implementation and does not make Wegert the owner of general analytic-continuation, branch, or Riemann-surface semantics; deeper experiments of that kind belong in Lacunary.
 
 The first Taylor-disc center is the camera center when it is a regular point. Only a center exactly equal to an uncancelled pole is mathematically rejected. For usable touch input, a continuation-center tap within a pole's screen-space touch target first snaps to that exact pole and is therefore rejected; the planner itself retains exact Taylor geometry with no epsilon. Each disc radius is the distance from its center to the nearest uncancelled pole. A function with no uncancelled finite poles has an unbounded Taylor disc. Interactive factor insertion keeps the stored arrays reduced as described above; the continuation planner also defensively cancels exact opposite pairs with multiplicity if a future imported or raw state contains them.
 
@@ -134,4 +144,4 @@ These are compatibility profiles, not cycle-accurate hardware emulations. Real-d
 
 ## Shader/compiler boundary
 
-The repository already has an Idris2 -> GLSL ES backend at `isomorphisms/idris-shader-backend`. The working portrait shader is kept as direct GLSL for this first slice because the current backend does not yet expose the `atan`, `log`, uniform-array, and bounded-loop operations used by this renderer. Those are a narrow next step; the Android host does not need to change when the shader source becomes Idris-generated.
+The repository already has an Idris2 -> GLSL ES backend at [`isomorphisms/idris-shader-backend`](https://github.com/isomorphisms/idris-shader-backend). That backend now exercises two-argument `atan`, `log`, fixed uniform arrays, bounded computation, and a full 64-zero/64-pole Wegert portrait. This Android app still uses the direct canonical GLSL core; changing the source-generation path is a separate integration decision and must preserve the same value-to-colour behavior.
