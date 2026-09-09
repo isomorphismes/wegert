@@ -34,10 +34,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save -no-metrics
           script: |
-            set -eu
-            curl -L --fail --retry 3 \
-              -o "$RUNNER_TEMP/wegert-0.1.50.apk" \
-              https://github.com/isomorphismes/wegert/releases/download/v0.1.50/wegert-0.1.50.apk
+            curl -L --fail --retry 3 -o "$RUNNER_TEMP/wegert-0.1.50.apk" https://github.com/isomorphismes/wegert/releases/download/v0.1.50/wegert-0.1.50.apk
             echo '897490843da536259c3701c1f6e7f1c43e1c7411a91ce5a2c82b6ff2490ef28b  '"$RUNNER_TEMP/wegert-0.1.50.apk" | sha256sum -c -
             adb shell wm size 720x1280
             adb shell wm density 320
@@ -50,9 +47,7 @@ jobs:
             adb pull /sdcard/wegert-runtime.mp4 wegert-v0.1.50-runtime.mp4
             adb logcat -d > wegert-v0.1.50-runtime.log
             test -s wegert-v0.1.50-runtime.mp4
-            if grep -Eiq 'shader compilation failed|program link failed|eglInitialize failed|could not choose GLES3 EGL config|could not create EGL surface/context|eglMakeCurrent failed' wegert-v0.1.50-runtime.log; then
-              exit 1
-            fi
+            ! grep -Eiq 'shader compilation failed|program link failed|eglInitialize failed|could not choose GLES3 EGL config|could not create EGL surface/context|eglMakeCurrent failed' wegert-v0.1.50-runtime.log
 
       - uses: actions/upload-artifact@v4
         if: always()
