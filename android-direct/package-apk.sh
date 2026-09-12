@@ -40,6 +40,7 @@ cp "$repo_root/NOTICE" "$work/stage/assets/licenses/NOTICE.txt"
 "$aapt2" compile --dir "$repo_root/app/src/main/res" -o "$work/resources.zip"
 "$aapt2" link \
   -I "$android_jar" \
+  --auto-add-overlay \
   --manifest "$repo_root/android-direct/AndroidManifest.xml" \
   --min-sdk-version 26 \
   --target-sdk-version 36 \
