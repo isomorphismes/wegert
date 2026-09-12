@@ -5,56 +5,80 @@ on:
     paths:
       - '.github/workflows/direct-dex-jni.yml'
       - '.gitmodules'
-      - '_deps/**'
-      - 'android-direct/**'
-      - 'fdroid/release-values.sh'
-      - '*.c'
-      - '*.h'
-      - '*.glsl'
-      - '*.frag.in'
-      - 'CMakeLists.txt'
-      - 'app/src/main/res/**'
-      - 'app/wegert-debug.keystore'
+      - '_/build/_deps/**'
+      - '_/build/android-direct/**'
+      - '_/build/CMakeLists.txt'
+      - '_/build/fdroid/release.properties'
+      - '_/build/fdroid/release-values.sh'
+      - '_/build/app/src/main/res/**'
+      - '_/build/app/wegert-debug.keystore'
+      - 'code/**'
       - 'LICENSE'
       - 'NOTICE'
       - 'THIRD_PARTY.md'
   push:
     branches:
-      - '**'
+      - main
     paths:
       - '.github/workflows/direct-dex-jni.yml'
       - '.gitmodules'
-      - '_deps/**'
-      - 'android-direct/**'
-      - 'fdroid/release-values.sh'
-      - '*.c'
-      - '*.h'
-      - '*.glsl'
-      - '*.frag.in'
-      - 'CMakeLists.txt'
-      - 'app/src/main/res/**'
-      - 'app/wegert-debug.keystore'
+      - '_/build/_deps/**'
+      - '_/build/android-direct/**'
+      - '_/build/CMakeLists.txt'
+      - '_/build/fdroid/release.properties'
+      - '_/build/fdroid/release-values.sh'
+      - '_/build/app/src/main/res/**'
+      - '_/build/app/wegert-debug.keystore'
+      - 'code/**'
       - 'LICENSE'
       - 'NOTICE'
       - 'THIRD_PARTY.md'
   workflow_dispatch:
 
 concurrency:
-  group: wegert-direct-${{ github.workflow }}-${{ github.ref }}
+  group: wegert-direct-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   direct-build:
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    outputs:
+      source_sha: ${{ steps.provenance.outputs.source_sha }}
     env:
       NDK_VERSION: 29.0.14206865
       BUILD_TOOLS_VERSION: 36.0.0
 
     steps:
-      - name: Check out Wegert and pinned compiler sources
+      - name: Check out the exact Wegert head and pinned compiler sources
         uses: actions/checkout@v4
         with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
           submodules: recursive
+
+      - name: Record exact-head provenance
+        id: provenance
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$SOURCE_SHA"
+          mkdir -p _/build/build/direct
+          compiler="$(git -C _/build/_deps/Idric rev-parse HEAD)"
+          backend="$(git -C _/build/_deps/idric-arm-thumb rev-parse HEAD)"
+          test "$compiler" = "$(git ls-tree HEAD _/build/_deps/Idric | awk '{print $3}')"
+          test "$backend" = "$(git ls-tree HEAD _/build/_deps/idric-arm-thumb | awk '{print $3}')"
+          {
+            printf 'wegert=%s\n' "$actual"
+            printf 'Idric=%s\n' "$compiler"
+            printf 'idric-arm-thumb=%s\n' "$backend"
+          } | tee _/build/build/direct/revisions.txt
+          git submodule status --recursive | tee _/build/build/direct/submodules.txt
+          echo "source_sha=$actual" >> "$GITHUB_OUTPUT"
 
       - name: Install source-build tools
         run: |
@@ -73,20 +97,18 @@ jobs:
             "cmake;3.22.1"
           echo "$ANDROID_HOME/cmake/3.22.1/bin" >> "$GITHUB_PATH"
 
-      - name: Generate Wegert classes.dex from pinned source
+      - name: Generate Wegert classes.dex from the pinned source backend
         shell: bash
-        run: bash android-direct/generate-dex.sh build/direct/classes.dex
+        run: bash _/build/android-direct/generate-dex.sh
 
-      - name: Build all native ABIs and package direct DEX APK
+      - name: Build all native ABIs and package the direct DEX APK
         shell: bash
         run: |
           set -Eeuo pipefail
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION"
           export ANDROID_BUILD_TOOLS="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION"
-          bash android-direct/build.sh build/direct/classes.dex build/direct/wegert-direct-unsigned.apk
-          bash android-direct/sign-debug.sh \
-            build/direct/wegert-direct-unsigned.apk \
-            build/direct/wegert-direct-debug.apk
+          bash _/build/android-direct/build.sh
+          bash _/build/android-direct/sign-debug.sh
 
       - name: Verify JNI and NativeActivity symbols for every ABI
         shell: bash
@@ -94,38 +116,56 @@ jobs:
           set -Eeuo pipefail
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION"
           readelf="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
-          for library in build/direct/native/*/libwegert.so; do
+          for library in _/build/build/direct/native/*/libwegert.so; do
             "$readelf" -Ws "$library" > "$library.symbols"
             grep -q 'Java_org_isomorphisms_wegert_WegertActivity_jniProbe' "$library.symbols"
             grep -q 'ANativeActivity_onCreate' "$library.symbols"
           done
+          sha256sum \
+            _/build/build/direct/classes.dex \
+            _/build/build/direct/wegert-direct-unsigned.apk \
+            _/build/build/direct/wegert-direct-debug.apk \
+            _/build/build/direct/native/*/libwegert.so \
+            | tee _/build/build/direct/sha256sums.txt
 
-      - name: Retain direct-build evidence
+      - name: Retain exact-head direct-build evidence
         uses: actions/upload-artifact@v4
         with:
           name: wegert-direct-dex-jni
           path: |
-            build/direct/classes.dex
-            build/direct/wegert-direct-unsigned.apk
-            build/direct/wegert-direct-debug.apk
-            build/direct/native/*/libwegert.so
-            build/direct/native/*/libwegert.so.symbols
+            _/build/build/direct/revisions.txt
+            _/build/build/direct/submodules.txt
+            _/build/build/direct/sha256sums.txt
+            _/build/build/direct/classes.dex
+            _/build/build/direct/wegert-direct-unsigned.apk
+            _/build/build/direct/wegert-direct-debug.apk
+            _/build/build/direct/native/*/libwegert.so
+            _/build/build/direct/native/*/libwegert.so.symbols
           if-no-files-found: error
 
   direct-art:
     needs: direct-build
     runs-on: ubuntu-24.04
-    steps:
-      - name: Check out Wegert
-        uses: actions/checkout@v4
+    timeout-minutes: 30
+    env:
+      QUALIFIED_SHA: ${{ needs.direct-build.outputs.source_sha }}
 
-      - name: Download direct APK
+    steps:
+      - name: Download the exact direct-build artifact
         uses: actions/download-artifact@v4
         with:
           name: wegert-direct-dex-jni
-          path: build/direct
+          path: _/build/build/direct
 
-      - name: Execute direct DEX/JNI Wegert on ART
+      - name: Require artifact provenance to match the exact head
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$QUALIFIED_SHA" = "$SOURCE_SHA"
+          grep -Fxq "wegert=$QUALIFIED_SHA" _/build/build/direct/revisions.txt
+          sha256sum -c _/build/build/direct/sha256sums.txt
+
+      - name: Execute the exact direct DEX/JNI APK on ART
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -136,22 +176,24 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save -no-metrics
           script: |
             set -eu
-            adb install -r build/direct/wegert-direct-debug.apk
+            adb install -r _/build/build/direct/wegert-direct-debug.apk
             adb logcat -c
-            adb shell am start -W -n org.isomorphisms.wegert/.WegertActivity | tee build/direct/start.txt
-            grep -q 'Status: ok' build/direct/start.txt
+            adb shell am start -W -n org.isomorphisms.wegert/.WegertActivity | tee _/build/build/direct/start.txt
+            grep -q 'Status: ok' _/build/build/direct/start.txt
             sleep 5
-            adb logcat -d > build/direct/logcat.txt
-            grep -q 'Wegert.*jniProbe=47047' build/direct/logcat.txt
+            adb logcat -d > _/build/build/direct/logcat.txt
+            grep -q 'Wegert.*jniProbe=47047' _/build/build/direct/logcat.txt
             adb shell pidof -s org.isomorphisms.wegert | tr -d '\r' | grep -Eq '^[0-9]+$'
-            ! grep -Eiq 'VerifyError|UnsatisfiedLinkError|ClassNotFoundException' build/direct/logcat.txt
+            ! grep -Eiq 'VerifyError|UnsatisfiedLinkError|ClassNotFoundException' _/build/build/direct/logcat.txt
 
-      - name: Retain ART receipt
+      - name: Retain ART/JNI receipt
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: wegert-direct-art
           path: |
-            build/direct/start.txt
-            build/direct/logcat.txt
+            _/build/build/direct/revisions.txt
+            _/build/build/direct/sha256sums.txt
+            _/build/build/direct/start.txt
+            _/build/build/direct/logcat.txt
           if-no-files-found: warn

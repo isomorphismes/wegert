@@ -7,6 +7,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: _/build
 
     steps:
       - uses: actions/checkout@v4
@@ -86,7 +89,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: wegert-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: _/build/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
   emulate:

@@ -2,11 +2,40 @@
 
 Interactive Wegert phase portraits of complex rational functions.
 
-This Android slice is deliberately small: a C `NativeActivity` owns touch input and the EGL/OpenGL ES 3 context, and a fragment shader computes the portrait directly on the GPU. There is no JavaScript layer.
+## Featured Wegert reference
 
-## Source layout
+This is the original Wegert-gist codomain-phase animation for `g(z) = (z - 1)(z - 2)(z - 5)`. The roots stay fixed at 1, 2, and 5 while only the codomain is multiplied by `exp(i theta)`.
 
-The renderer code meant to be read and edited lives directly at repository root: `wegert.c`, the supporting `.h` and complex-math `.c` files, `wegert.frag.in`, `wegert_color.glsl`, and `CMakeLists.txt`. `android-direct/` contains the release DEX/JNI manifest, source-build, packaging, signing, and verification scripts. `_deps/` records exact git submodule commits for the direct DEX backend and Idriç compiler. `app/` remains as the older Gradle compatibility/reference packaging path. The checked AArch64 ICK object and its provenance remain in the repository for comparison, but the direct/F-Droid build forces `WEGERT_USE_ICK_PREBUILT=OFF` and does not consume that object.
+[![Original Wegert codomain-phase rotation](rendered_images/wegert_g_codomain_phase_preview.gif)](wegert_g_codomain_phase.mp4?raw=1)
+
+[MP4](wegert_g_codomain_phase.mp4?raw=1) · [static PNG](rendered_images/wegert_g.png)
+
+Reference renderer: [`code/Wegert_g_codomain_phase.R`](code/Wegert_g_codomain_phase.R). It preserves the original R gist colour calculation and composition rather than substituting a different function or generic domain-colouring style.
+
+## Other videos
+
+Rendered media is canonical under [`rendered_images/`](rendered_images/). Useful files are also exposed at repository root. The featured reference MP4 is an ordinary file at root so GitHub raw download returns video bytes rather than a symlink blob.
+
+- [Three moving simple roots](rendered_images/three_moving_simple_roots.mp4)
+- [Two moving simple poles](rendered_images/two_moving_simple_poles.mp4)
+- [Moving repeated zeros and poles](rendered_images/moving_repeated_zeros_and_poles.mp4)
+- [Moving simple and repeated roots](rendered_images/moving_simple_and_repeated_roots.mp4)
+- [Moving simple and double poles](rendered_images/moving_simple_and_double_poles.mp4)
+- [Two simple zeros and two simple poles](rendered_images/moving_two_simple_zeros_and_two_simple_poles.mp4)
+- [Android: place and drag one zero and one pole](rendered_images/add-and-drag-zero-and-pole.mp4)
+- [Android: place and drag two zeros and two poles](rendered_images/add-and-drag-two-zeros-and-two-poles.mp4)
+
+The 512x512 app icon is canonical at [`rendered_images/wegert-icon-512.png`](rendered_images/wegert-icon-512.png) and exposed at root as [`wegert-icon-512.png`](wegert-icon-512.png).
+
+## Repository layout
+
+- `code/` — canonical readable C, headers, GLSL, and render-source code.
+- `rendered_images/` — canonical rendered PNG/MP4 output.
+- repository root — README/license, source-entrypoint symlinks, and an ordinary copy of the featured MP4 for reliable GitHub downloads.
+- `_/build/` — Android packaging, Gradle, CMake, tests, F-Droid/Fastlane metadata, checked build objects/provenance, and other build/release machinery.
+- `.github/` — workflow files remain at the required GitHub path.
+
+The build tree already uses symlinks for the readable source. Root source names remain valid as symlinks into `code/`, so existing `_/build` references keep working without duplicating the source.
 
 ## First playable controls
 
@@ -38,60 +67,32 @@ A newly tapped center is accepted only inside the immediately preceding open dis
 
 In the whole portrait, dragging from an existing marker moves only that factor; dragging empty space pans. Factor dragging does not snap or retarget after finger-down. In the continuation view, marker touches remain continuation-center input so a touch near a pole can snap to the exact pole and be rejected.
 
-## Touch demonstrations
-
-Both recordings use the tested [v0.1.50 APK](https://github.com/isomorphismes/wegert/releases/tag/v0.1.50).
-
-- [Place and drag one zero and one pole](docs/demos/add-and-drag-zero-and-pole.mp4)
-- [Place and drag two zeros and two poles](docs/demos/add-and-drag-two-zeros-and-two-poles.mp4)
-
 ## Colouring
 
-The shader preserves the established Wegert palette constants from the earlier R version:
+The Android shader preserves the established Wegert palette constants from the current repository renderer:
 
 - HCL chroma: `45`
 - lightness base: `66`
 - log-modulus contribution: `4`
 - hue-band contribution: `3`
 
-Hue is the phase of the rational function. Lightness repeats by base-10 log-modulus decades. HCL is converted to display sRGB in the fragment shader.
+Hue is the phase of the rational function. The Android renderer's lightness repeats by base-10 log-modulus decades. HCL is converted to display sRGB in the fragment shader.
 
-## Android build: direct DEX/JNI
+The featured `wegert_g_codomain_phase.mp4` intentionally uses the older R gist rule instead: hue is `Arg(f(z))`, and lightness is `66 + 4*fract(|f(z)|/100) + 3*fract(hue/100)` with HCL chroma `45`. Its viewport, fixed roots, labels, cream frame, and codomain-only phase rotation come directly from the preserved R reference renderer.
 
-The release path generates `classes.dex` directly and rebuilds `libwegert.so` from source for `arm64-v8a`, `armeabi-v7a`, and `x86_64`. It does not use javac, Kotlin, d8, or smali assembly. Smali/baksmali are permitted only as backend oracle tools and are not APK production inputs.
+## Android build
 
-Required build inputs are Android SDK platform 36, build-tools 36.0.0, NDK r29 (`29.0.14206865`), CMake 3.22.1 or compatible, Chez Scheme, a host C toolchain, GMP development headers, Python 3, zip, and unzip.
-
-Initialize the source-pinned compiler inputs and build:
+Requirements are Android SDK 36, NDK r29 (`29.0.14206865`), CMake 3.22.1, JDK 17, Gradle 9.5.1, and Android Gradle Plugin 9.3.1.
 
 ```sh
-git submodule update --init --recursive
-bash android-direct/generate-dex.sh build/direct/classes.dex
-
-export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/29.0.14206865"
-export ANDROID_BUILD_TOOLS="$ANDROID_HOME/build-tools/36.0.0"
-bash android-direct/build.sh \
-  build/direct/classes.dex \
-  build/direct/wegert-direct-unsigned.apk
+cd _/build
+gradle :app:assembleDebug
 ```
 
-For a local installable test APK:
+The host-side continuation, gesture, pinch-zoom, factor-drag, canonical-factor, touch-snap, complex-arithmetic, and formula-formatting rules can be checked from the same build directory without an Android toolchain:
 
 ```sh
-bash android-direct/sign-debug.sh \
-  build/direct/wegert-direct-unsigned.apk \
-  build/direct/wegert-direct-debug.apk
-```
-
-The debug key is deliberately public and must never sign a production release. F-Droid consumes the unsigned direct APK and signs it independently.
-
-`classes.dex` defines `org.isomorphisms.wegert.WegertActivity`; its JNI probe is implemented in `wegert_jni.c`, and the manifest still loads the native renderer as `libwegert.so`. The current `armeabi-v7a` library is produced by the Android NDK toolchain. A future ARM Thumb-v7 backend can replace that native compilation stage while leaving the DEX/JNI Android bootstrap unchanged.
-
-The older Gradle project remains only as a compatibility/reference path. Release identity is canonical in `fdroid/release-values.sh`, and the Gradle declarations are checked for drift against it.
-
-The host-side continuation, gesture, pinch-zoom, factor-drag, canonical-factor, touch-snap, complex-arithmetic, and formula-formatting rules can be checked without an Android toolchain:
-
-```sh
+cd _/build
 cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_continuation_path.c -lm -o /tmp/wegert-continuation-test
 /tmp/wegert-continuation-test
 cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_gesture_state.c -lm -o /tmp/wegert-gesture-test
@@ -108,20 +109,29 @@ cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_polynomial_text.c complex
 /tmp/wegert-polynomial-text-test
 ```
 
-## Release qualification
+The APK is written to repository path:
 
-`Direct DEX and JNI Android build` rebuilds the DEX and all three native ABIs, verifies the JNI and `ANativeActivity_onCreate` symbols, installs the x86-64 APK on ART, starts `WegertActivity`, requires the JNI receipt, and rejects verifier/class/link failures.
+```text
+_/build/app/build/outputs/apk/debug/app-debug.apk
+```
 
-`F-Droid release build` performs a second release-oriented path: it checks the license/Fastlane metadata, generates the DEX twice, rebuilds the unsigned direct APK twice with normalized timestamps and requires byte identity, then runs the metadata/scanner/build recipe in F-Droid's buildserver image.
+Debug APKs use the repository's public test-only signing key and the source-controlled `0.2.0` version identity. The checked-in debug key is deliberately public and must never sign a production release.
 
-The existing broader Android workflow remains useful for renderer/gesture emulator coverage, but it is not the source of release APKs.
+The debug APK contains `arm64-v8a` and `armeabi-v7a` for phone/tablet targets and `x86_64` solely for CI emulation.
 
 ## Device emulation
 
-The broader Android smoke tests use constrained virtual-device profiles for the renderer and gestures. These are compatibility profiles, not cycle-accurate hardware emulations; real-device testing still covers ARM code generation, vendor GLES behavior, multi-touch, and device-specific Android quirks.
+GitHub Actions smoke-tests the APK against two constrained virtual-device profiles:
 
-The direct release qualification separately uses an x86-64 Android emulator as an ART/JNI receipt. That test establishes that the generated DEX loads the native library and launches the application; it does not substitute for physical ARM/GPU acceptance.
+| Target | Android | RAM | logical display | CI CPU/GPU |
+| --- | --- | ---: | --- | --- |
+| MIRO A1 approximation | 14 / API 34 | 2 GiB | 720x1280 @ 320 dpi | x86_64 / SwiftShader GLES |
+| TAB_P10 approximation | 15 / API 35 | 4 GiB | 1280x800 @ 160 dpi | x86_64 / SwiftShader GLES |
+
+Each emulator installs and launches Wegert, drags an existing zero in the whole portrait, places a finite pole away from the camera, and enters continuation view. The smoke test requires positive finite radii for both the camera seed and an accepted center inside that disc, then requires rejection of a tap outside the new disc. It pans after those geometry checks, returns to the whole portrait, activates clear, leaves through Android Back, fails on EGL/shader/link/fatal errors, and saves a screenshot plus application log.
+
+These are compatibility profiles, not cycle-accurate hardware emulations. Real-device testing still covers ARM64 code generation, vendor GLES behavior, multi-touch, and device-specific Android quirks.
 
 ## Shader/compiler boundary
 
-The repository already has an Idris2 -> GLSL ES backend at `isomorphisms/idris-shader-backend`. The working portrait shader is kept as direct GLSL for this slice because the current backend does not yet expose the `atan`, `log`, uniform-array, and bounded-loop operations used by this renderer. Those are a narrow next step; the Android host does not need to change when the shader source becomes Idris-generated.
+The repository already has an Idris2 -> GLSL ES backend at `isomorphisms/idris-shader-backend`. The working portrait shader is kept as direct GLSL for this first slice because the current backend does not yet expose the `atan`, `log`, uniform-array, and bounded-loop operations used by this renderer. Those are a narrow next step; the Android host does not need to change when the shader source becomes Idris-generated.

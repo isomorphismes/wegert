@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       source_run_id:
-        description: Successful main-branch direct DEX/JNI run containing wegert-direct-dex-jni
+        description: Successful main-branch direct DEX/JNI run containing the ART-qualified APK
         required: true
         type: string
       source_sha:
-        description: Exact main-branch commit tested by that run
+        description: Exact main-branch commit qualified by that run
         required: true
         type: string
 
@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   publish:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
       SOURCE_RUN_ID: ${{ inputs.source_run_id }}
@@ -56,7 +56,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          source fdroid/release-values.sh
+          source _/build/fdroid/release-values.sh
           echo "version=$WEGERT_VERSION_NAME" >> "$GITHUB_OUTPUT"
           echo "code=$WEGERT_VERSION_CODE" >> "$GITHUB_OUTPUT"
           echo "tag=v$WEGERT_VERSION_NAME" >> "$GITHUB_OUTPUT"
@@ -66,7 +66,7 @@ jobs:
       - name: Install APK inspection tool
         run: sdkmanager "build-tools;36.0.0"
 
-      - name: Download and verify the exact tested direct APK
+      - name: Download and verify the exact ART-qualified APK
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
@@ -74,22 +74,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir release
+          mkdir -p release/direct
           gh run download "$SOURCE_RUN_ID" \
             --repo "$GITHUB_REPOSITORY" \
             --name wegert-direct-dex-jni \
-            --dir release
+            --dir release/direct
 
-          source_apk=release/wegert-direct-debug.apk
+          source_apk=release/direct/wegert-direct-debug.apk
           test -s "$source_apk"
-          test -s release/classes.dex
-          unzip -t "$source_apk" >/dev/null
-          unzip -Z1 "$source_apk" | grep -Fxq AndroidManifest.xml
-          unzip -Z1 "$source_apk" | grep -Fxq classes.dex
-          unzip -Z1 "$source_apk" | grep -Fxq assets/licenses/WEGERT_LICENSE.txt
-          unzip -Z1 "$source_apk" | grep -Fxq assets/licenses/NOTICE.txt
-          for abi in arm64-v8a armeabi-v7a x86_64; do
-            unzip -Z1 "$source_apk" | grep -Fxq "lib/$abi/libwegert.so"
+          grep -Fxq "wegert=$SOURCE_SHA" release/direct/revisions.txt
+          expected_hash="$(awk '$2 ~ /wegert-direct-debug[.]apk$/ {print $1}' release/direct/sha256sums.txt)"
+          test -n "$expected_hash"
+          test "$(sha256sum "$source_apk" | awk '{print $1}')" = "$expected_hash"
+
+          unzip -t "$source_apk"
+          for required in \
+            AndroidManifest.xml \
+            classes.dex \
+            lib/arm64-v8a/libwegert.so \
+            lib/armeabi-v7a/libwegert.so \
+            lib/x86_64/libwegert.so; do
+            unzip -Z1 "$source_apk" | grep -Fxq "$required"
           done
 
           sdk_root="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
@@ -103,7 +108,7 @@ jobs:
             "$RUNNER_TEMP/wegert-direct-badging.txt"
 
           release_apk="release/wegert-$RELEASE_VERSION.apk"
-          mv "$source_apk" "$release_apk"
+          cp "$source_apk" "$release_apk"
           (
             cd release
             sha256sum "wegert-$RELEASE_VERSION.apk" \
@@ -132,11 +137,9 @@ jobs:
         run: |
           set -euo pipefail
           release_title="Wegert Android test $RELEASE_VERSION"
-          release_notes="Installable test APK produced by direct DEX/JNI CI run $SOURCE_RUN_ID from commit $SOURCE_SHA.
+          release_notes="Installable direct DEX/JNI test APK from run $SOURCE_RUN_ID at commit $SOURCE_SHA.
 
-          classes.dex was generated directly from the pinned Idriç backend; the application native library was rebuilt for arm64-v8a, armeabi-v7a, and x86_64; ART/JNI launch qualification passed before publication. The production build path does not use javac, Kotlin, d8, smali assembly, or the checked ICK object.
-
-          This APK is signed with the repository's public test-only debug key; it is not a Google Play or F-Droid production-signed build."
+          That exact artifact passed the direct source-pinned DEX build, native symbol checks, installation on ART, and the JNI sentinel check before publication. It is signed with the repository's public test-only debug key. F-Droid remains a separate source-build and signing boundary."
 
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release edit "$RELEASE_TAG" \
