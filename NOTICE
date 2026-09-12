@@ -1,0 +1,14 @@
+Wegert third-party notices
+==========================
+
+Android native_app_glue
+-----------------------
+
+Wegert compiles the Android NDK native_app_glue source into libwegert.so at build time.
+
+Copyright (C) 2010 The Android Open Source Project
+
+Licensed under the Apache License, Version 2.0. You may obtain a copy of the License at:
+https://www.apache.org/licenses/LICENSE-2.0
+
+The native_app_glue source and its NOTICE are supplied by the Android NDK; no prebuilt native_app_glue binary is stored in this repository.

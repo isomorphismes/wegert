@@ -13,8 +13,16 @@ option(
     "Use the separately compiled ICK complex-math object on arm64"
     ON
 )
+option(
+    WEGERT_ENABLE_DIRECT_JNI
+    "Include the direct DEX/JNI boundary in libwegert"
+    OFF
+)
 
 set(WEGERT_SOURCES wegert.c)
+if(WEGERT_ENABLE_DIRECT_JNI)
+    list(APPEND WEGERT_SOURCES wegert_jni.c)
+endif()
 if(ANDROID_ABI STREQUAL "arm64-v8a" AND WEGERT_USE_ICK_PREBUILT)
     set(ICK_COMPLEX_MATH_OBJECT
         "${CMAKE_CURRENT_SOURCE_DIR}/complex_math_ick.o"
