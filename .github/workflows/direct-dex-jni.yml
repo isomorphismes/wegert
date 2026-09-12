@@ -138,9 +138,7 @@ jobs:
             set -eu
             adb install -r build/direct/wegert-direct-debug.apk
             adb logcat -c
-            adb shell am start -W \
-              -n org.isomorphisms.wegert/.WegertActivity \
-              | tee build/direct/start.txt
+            adb shell am start -W -n org.isomorphisms.wegert/.WegertActivity | tee build/direct/start.txt
             grep -q 'Status: ok' build/direct/start.txt
             for attempt in 1 2 3 4 5; do
               adb logcat -d > build/direct/logcat.txt
