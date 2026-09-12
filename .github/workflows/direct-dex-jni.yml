@@ -140,13 +140,8 @@ jobs:
             adb logcat -c
             adb shell am start -W -n org.isomorphisms.wegert/.WegertActivity | tee build/direct/start.txt
             grep -q 'Status: ok' build/direct/start.txt
-            for attempt in 1 2 3 4 5; do
-              adb logcat -d > build/direct/logcat.txt
-              if grep -q 'Wegert.*jniProbe=47047' build/direct/logcat.txt; then
-                break
-              fi
-              sleep 1
-            done
+            sleep 5
+            adb logcat -d > build/direct/logcat.txt
             grep -q 'Wegert.*jniProbe=47047' build/direct/logcat.txt
             adb shell pidof -s org.isomorphisms.wegert | tr -d '\r' | grep -Eq '^[0-9]+$'
             ! grep -Eiq 'VerifyError|UnsatisfiedLinkError|ClassNotFoundException' build/direct/logcat.txt
