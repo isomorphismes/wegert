@@ -10,7 +10,7 @@
 <body>
   <header class="site_header">
     <a class="brand" href="#top" aria-label="Wegert home">
-      <img src="../rendered_images/wegert-icon-512.png" alt="" width="34" height="34">
+      <img src="rendered_images/wegert-icon-512.png" alt="" width="34" height="34">
       <span>Wegert</span>
     </a>
     <nav aria-label="Primary navigation">
@@ -22,11 +22,11 @@
   </header>
 
   <main id="top">
-    <section class="hero section">
-      <div class="hero_copy">
-        <p class="eyebrow">Complex analysis you can touch</p>
+    <section class="intro section">
+      <div class="intro_copy">
+        <p class="section_label">Complex analysis you can touch</p>
         <h1>Complex functions,<br>made visible.</h1>
-        <p class="lede">
+        <p class="intro_text">
           Interactive Wegert phase portraits of rational functions. Place zeros and poles,
           drag them through the complex plane, pan, zoom, and inspect continuation geometry.
         </p>
@@ -39,15 +39,15 @@
         <p class="release_note">v0.1.50 prerelease · test-only signing key</p>
       </div>
 
-      <figure class="hero_visual">
-        <div class="image_shell">
-          <img src="../rendered_images/wegert_g.png" alt="Wegert phase portrait of g(z) = (z − 1)(z − 2)(z − 5)">
+      <figure class="intro_visual">
+        <div class="image_frame">
+          <img src="rendered_images/wegert_g.png" alt="Wegert phase portrait of g(z) = (z − 1)(z − 2)(z − 5)">
         </div>
         <figcaption><code>g(z) = (z − 1)(z − 2)(z − 5)</code></figcaption>
       </figure>
     </section>
 
-    <section class="proof_strip" aria-label="Wegert capabilities">
+    <section class="capabilities" aria-label="Wegert capabilities">
       <span>Zeros &amp; poles</span>
       <span>Pan &amp; pinch</span>
       <span>Continuation view</span>
@@ -56,7 +56,7 @@
     </section>
 
     <section class="section centered" id="features">
-      <p class="eyebrow">Direct manipulation</p>
+      <p class="section_label">Direct manipulation</p>
       <h2>Work with the function itself.</h2>
       <p class="section_intro">
         Wegert keeps the interaction close to the mathematics: factors are visible objects,
@@ -65,31 +65,31 @@
 
       <div class="feature_grid">
         <article class="card">
-          <div class="card_mark">○ ×</div>
+          <div class="card_symbol" aria-hidden="true">○ ×</div>
           <h3>Place zeros and poles</h3>
           <p>Add factors directly to the portrait. Opposite factors cancel one-for-one at the same location.</p>
         </article>
         <article class="card">
-          <div class="card_mark">↔</div>
+          <div class="card_symbol" aria-hidden="true">↔</div>
           <h3>Drag the geometry</h3>
           <p>Move existing factors with one finger. Drag empty portrait space to move the visible complex domain.</p>
         </article>
         <article class="card">
-          <div class="card_mark">⌕</div>
+          <div class="card_symbol" aria-hidden="true">⌕</div>
           <h3>Pan and zoom</h3>
           <p>Use ordinary touch gestures to move through ℂ while the mathematical coordinates remain authoritative.</p>
         </article>
         <article class="card">
-          <div class="card_mark">Σ</div>
+          <div class="card_symbol" aria-hidden="true">Σ</div>
           <h3>Reveal Taylor discs</h3>
           <p>Continuation view shows bounded Taylor-disc geometry for the already-defined rational function.</p>
         </article>
       </div>
     </section>
 
-    <section class="section split" id="colour">
+    <section class="section colour_section" id="colour">
       <div>
-        <p class="eyebrow">Domain colouring</p>
+        <p class="section_label">Domain colouring</p>
         <h2>One image carries phase and magnitude.</h2>
         <p>
           Hue records the phase of the function. Lightness varies with log modulus,
@@ -106,10 +106,10 @@
 
     <section class="section app_section" id="android">
       <div class="app_icon_wrap">
-        <img src="../rendered_images/wegert-icon-512.png" alt="Wegert app icon" width="112" height="112">
+        <img src="rendered_images/wegert-icon-512.png" alt="Wegert app icon" width="112" height="112">
       </div>
       <div>
-        <p class="eyebrow">Android</p>
+        <p class="section_label">Android</p>
         <h2>A small native app for the complex plane.</h2>
         <p>
           The current prerelease is an installable test APK. The repository also contains the source,
@@ -123,7 +123,7 @@
     </section>
 
     <section class="section source_section">
-      <p class="eyebrow">Open source</p>
+      <p class="section_label">Open source</p>
       <h2>The picture is not a black box.</h2>
       <p>
         The readable C and GLSL are kept in the repository alongside the mathematical and rendering contracts.
@@ -137,7 +137,7 @@ gradle :app:assembleDebug</code></pre>
 
   <footer>
     <a class="brand" href="#top">
-      <img src="../rendered_images/wegert-icon-512.png" alt="" width="28" height="28">
+      <img src="rendered_images/wegert-icon-512.png" alt="" width="28" height="28">
       <span>Wegert</span>
     </a>
     <p>Interactive phase portraits of complex rational functions.</p>
