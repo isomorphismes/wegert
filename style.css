@@ -217,7 +217,7 @@ h3 {
 
 .intro_visual figcaption {
   margin-top: 13px;
-  color: #77777e;
+  color: var(--muted);
   text-align: center;
   font-size: 0.88rem;
 }
@@ -382,7 +382,7 @@ footer {
   justify-content: space-between;
   gap: 24px;
   border-top: 1px solid var(--line);
-  color: #77777e;
+  color: var(--muted);
   font-size: 0.9rem;
 }
 
