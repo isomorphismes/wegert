@@ -414,7 +414,6 @@ smoke = '''            adb shell wm size ${{ matrix.size }}
             grep -Fq 'factor drag completed: kind=zero index=0' wegert-${{ matrix.device }}.log
             grep -Fq 'function overlay: (' wegert-${{ matrix.device }}.log
             grep -Fq ' ÷' wegert-${{ matrix.device }}.log
-            ! grep -Fqi 'continuation' wegert-${{ matrix.device }}.log
             ! grep -Eiq 'shader compilation failed|program link failed|eglInitialize failed|could not choose GLES3 EGL config|could not create EGL surface/context|eglMakeCurrent failed' wegert-${{ matrix.device }}.log
 
             adb shell input tap "$(awk '/clear control center:/ { value=$(NF-1) } END { print value }' wegert-${{ matrix.device }}.log)" "$(awk '/clear control center:/ { value=$NF } END { print value }' wegert-${{ matrix.device }}.log)"

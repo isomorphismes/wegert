@@ -1,8 +1,8 @@
 zero & infinity is an interactive phase-portrait explorer for complex rational functions.
 
-Choose the ○ or × control, then tap the portrait to add a zero or pole. Drag an existing marker to move that factor, drag empty portrait space to pan the complex plane, and pinch to zoom. In the whole portrait, clear removes every factor without moving the camera; in continuation view, it clears the path. A three-finger tap restores the starting function and view.
+Choose the ○ or × control, then tap the portrait to add a zero or pole. Drag an existing marker to move that factor, drag empty portrait space to pan the complex plane, and pinch to zoom. Clear removes every factor without moving the camera, and a three-finger tap restores the starting function and camera.
 
-The continuation control reveals a path of overlapping Taylor discs. Tap inside the preceding disc to add the next center, or switch back to the whole portrait to edit factors. The displayed rational function uses ÷ followed by each denominator factor.
+Touching near an opposite marker snaps to that stored coordinate so equal zero/pole factors cancel one-for-one. The displayed rational function uses ÷ followed by each denominator factor.
 
 The phase portrait is rendered directly on the GPU using domain coloring: hue shows phase and repeating lightness bands show modulus. Android's system Back control leaves the app; no separate exit button occupies the portrait.
 
