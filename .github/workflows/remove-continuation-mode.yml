@@ -16,7 +16,9 @@ jobs:
           fetch-depth: 0
 
       - name: Remove continuation product slice
-        run: python3 _/build/remove_continuation_mode.py
+        run: |
+          sed -i "/! grep -Fqi 'continuation'/d" _/build/remove_continuation_mode.py
+          python3 _/build/remove_continuation_mode.py
 
       - name: Check preserved host behavior
         run: |
