@@ -35,6 +35,8 @@ jobs:
           java-version: '17'
 
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
       - name: Install Android toolchain
         run: |
@@ -179,7 +181,6 @@ jobs:
             adb shell input keyevent KEYCODE_BACK
             sleep 1
             ! adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity' | grep -Fq 'org.isomorphisms.wegert'
-
 
       - uses: actions/upload-artifact@v4
         if: always()
