@@ -153,8 +153,12 @@ jobs:
             adb shell pidof -s org.isomorphisms.wegert | tr -d '\r' | grep -Eq '^[0-9]+$'
             awk '/EGL surface ready:/ { split($NF, dimensions, "x"); width=dimensions[1]; height=dimensions[2] } END { exit !(width > 0 && height > 0) }' wegert-${{ matrix.device }}.log
 
-            # Drag the existing zero at z=1.
-            adb shell input swipe "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(dimensions[1] / 2 + dimensions[2] / 7) }' wegert-${{ matrix.device }}.log)" "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(dimensions[2] / 2) }' wegert-${{ matrix.device }}.log)" "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(dimensions[1] / 2 + dimensions[2] / 7 + 80) }' wegert-${{ matrix.device }}.log)" "$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(dimensions[2] / 2) }' wegert-${{ matrix.device }}.log)" 350
+            # Add a zero at a known empty portrait coordinate, then drag that exact marker.
+            drag_x="$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(dimensions[1] / 2) }' wegert-${{ matrix.device }}.log)"
+            drag_y="$(awk '/EGL surface ready:/ { split($NF, dimensions, "x") } END { print int(3 * dimensions[2] / 4) }' wegert-${{ matrix.device }}.log)"
+            adb shell input tap "$drag_x" "$drag_y"
+            sleep 1
+            adb shell input swipe "$drag_x" "$drag_y" "$((drag_x + 80))" "$drag_y" 350
             sleep 1
 
             # Place a pole and keep the rational-function formula exercised.
@@ -169,7 +173,7 @@ jobs:
             adb logcat -d > wegert-${{ matrix.device }}.log
             adb exec-out screencap -p > wegert-${{ matrix.device }}.png
             adb shell pidof -s org.isomorphisms.wegert | tr -d '\r' | grep -Eq '^[0-9]+$'
-            grep -Fq 'factor drag completed: kind=zero index=0' wegert-${{ matrix.device }}.log
+            grep -Eq 'factor drag completed: kind=zero index=[0-9]+' wegert-${{ matrix.device }}.log
             grep -Fq 'function overlay: (' wegert-${{ matrix.device }}.log
             grep -Fq ' ÷' wegert-${{ matrix.device }}.log
             ! grep -Eiq 'shader compilation failed|program link failed|eglInitialize failed|could not choose GLES3 EGL config|could not create EGL surface/context|eglMakeCurrent failed' wegert-${{ matrix.device }}.log
