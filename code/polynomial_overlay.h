@@ -292,12 +292,6 @@ static void clear_button_origin(const struct engine *engine, float *x, float *y)
     *y = (float)(engine->height - engine->clear_button_height) - margin;
 }
 
-static void view_button_origin(const struct engine *engine, float *x, float *y) {
-    float margin = clear_button_margin(engine);
-    *x = 0.5f * (float)(engine->width - engine->view_button_width);
-    *y = (float)(engine->height - engine->view_button_height) - margin;
-}
-
 static bool polynomial_overlay_initialize(struct engine *engine) {
     if (engine->overlay_program != 0) {
         return true;
@@ -332,8 +326,6 @@ static bool polynomial_overlay_initialize(struct engine *engine) {
     overlay_configure_texture(engine->overlay_texture);
     glGenTextures(1, &engine->clear_button_texture);
     overlay_configure_texture(engine->clear_button_texture);
-    glGenTextures(1, &engine->view_button_texture);
-    overlay_configure_texture(engine->view_button_texture);
     return true;
 }
 
@@ -424,31 +416,6 @@ static bool clear_button_rebuild_texture(struct engine *engine) {
         );
     }
 #endif
-    return rebuilt;
-}
-
-static bool view_button_rebuild_texture(struct engine *engine) {
-    const char *label = engine->view_kind == VIEW_CONTINUATION
-        ? "whole portrait"
-        : "continuation";
-    bool rebuilt = overlay_rebuild_button_texture(
-        engine,
-        engine->view_button_texture,
-        label,
-        &engine->view_button_width,
-        &engine->view_button_height
-    );
-    if (rebuilt) {
-        float left = 0.0f;
-        float top = 0.0f;
-        view_button_origin(engine, &left, &top);
-        LOGI(
-            "view control center: %d %d",
-            (int)(left + 0.5f * (float)engine->view_button_width),
-            (int)(top + 0.5f * (float)engine->view_button_height)
-        );
-        engine->view_button_dirty = false;
-    }
     return rebuilt;
 }
 
@@ -549,23 +516,12 @@ static void polynomial_overlay_draw(struct engine *engine) {
     if (!polynomial_overlay_initialize(engine)) {
         return;
     }
-    if (
-        engine->view_kind == VIEW_WHOLE_PORTRAIT &&
-        engine->overlay_dirty &&
-        !polynomial_overlay_rebuild_texture(engine)
-    ) {
+    if (engine->overlay_dirty && !polynomial_overlay_rebuild_texture(engine)) {
         return;
     }
     if (
         (engine->clear_button_width <= 0 || engine->clear_button_height <= 0) &&
         !clear_button_rebuild_texture(engine)
-    ) {
-        return;
-    }
-    if (
-        (engine->view_button_width <= 0 || engine->view_button_height <= 0 ||
-         engine->view_button_dirty) &&
-        !view_button_rebuild_texture(engine)
     ) {
         return;
     }
@@ -578,20 +534,15 @@ static void polynomial_overlay_draw(struct engine *engine) {
     float clear_button_x = 0.0f;
     float clear_button_y = 0.0f;
     clear_button_origin(engine, &clear_button_x, &clear_button_y);
-    float view_button_x = 0.0f;
-    float view_button_y = 0.0f;
-    view_button_origin(engine, &view_button_x, &view_button_y);
 
-    if (engine->view_kind == VIEW_WHOLE_PORTRAIT) {
-        overlay_draw_texture(
-            engine,
-            engine->overlay_texture,
-            engine->overlay_width,
-            engine->overlay_height,
-            16.0f,
-            16.0f
-        );
-    }
+    overlay_draw_texture(
+        engine,
+        engine->overlay_texture,
+        engine->overlay_width,
+        engine->overlay_height,
+        16.0f,
+        16.0f
+    );
     overlay_draw_texture(
         engine,
         engine->clear_button_texture,
@@ -599,14 +550,6 @@ static void polynomial_overlay_draw(struct engine *engine) {
         engine->clear_button_height,
         clear_button_x,
         clear_button_y
-    );
-    overlay_draw_texture(
-        engine,
-        engine->view_button_texture,
-        engine->view_button_width,
-        engine->view_button_height,
-        view_button_x,
-        view_button_y
     );
 
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -622,10 +565,6 @@ static void polynomial_overlay_destroy(struct engine *engine) {
         glDeleteTextures(1, &engine->clear_button_texture);
         engine->clear_button_texture = 0;
     }
-    if (engine->view_button_texture != 0) {
-        glDeleteTextures(1, &engine->view_button_texture);
-        engine->view_button_texture = 0;
-    }
     if (engine->overlay_program != 0) {
         glDeleteProgram(engine->overlay_program);
         engine->overlay_program = 0;
@@ -634,16 +573,12 @@ static void polynomial_overlay_destroy(struct engine *engine) {
     engine->overlay_height = 0;
     engine->clear_button_width = 0;
     engine->clear_button_height = 0;
-    engine->view_button_width = 0;
-    engine->view_button_height = 0;
     engine->overlay_unavailable = false;
     engine->overlay_dirty = true;
-    engine->view_button_dirty = true;
 }
 
 static bool polynomial_overlay_contains(const struct engine *engine, float x, float y) {
-    return engine->view_kind == VIEW_WHOLE_PORTRAIT &&
-        engine->overlay_width > 0 && engine->overlay_height > 0 &&
+    return engine->overlay_width > 0 && engine->overlay_height > 0 &&
         x >= 16.0f && x < 16.0f + (float)engine->overlay_width &&
         y >= 16.0f && y < 16.0f + (float)engine->overlay_height;
 }
@@ -655,15 +590,6 @@ static bool clear_button_contains(const struct engine *engine, float x, float y)
     return engine->clear_button_width > 0 && engine->clear_button_height > 0 &&
         x >= left && x < left + (float)engine->clear_button_width &&
         y >= top && y < top + (float)engine->clear_button_height;
-}
-
-static bool view_button_contains(const struct engine *engine, float x, float y) {
-    float left = 0.0f;
-    float top = 0.0f;
-    view_button_origin(engine, &left, &top);
-    return engine->view_button_width > 0 && engine->view_button_height > 0 &&
-        x >= left && x < left + (float)engine->view_button_width &&
-        y >= top && y < top + (float)engine->view_button_height;
 }
 
 #endif

@@ -11,10 +11,9 @@ static bool nearly_equal(float left, float right) {
 int main(void) {
     enum gesture_kind ui_holds[] = {
         GESTURE_BLOCKED,
-        GESTURE_CLEAR_BUTTON,
-        GESTURE_VIEW_BUTTON
+        GESTURE_CLEAR_BUTTON
     };
-    for (int index = 0; index < 3; ++index) {
+    for (int index = 0; index < 2; ++index) {
         enum gesture_kind gesture = ui_holds[index];
         assert(gesture_is_ui_hold(gesture));
         assert(!gesture_pointer_down_starts_pinch(gesture, 2));
@@ -28,13 +27,6 @@ int main(void) {
     assert(gesture_pointer_down_resets(GESTURE_FACTOR, 3));
     assert(gesture_pointer_down_resets(GESTURE_PINCH, 3));
     assert(!gesture_pointer_down_resets(GESTURE_NONE, 3));
-
-    assert(!gesture_view_release_toggles(GESTURE_VIEW_BUTTON, false));
-    assert(gesture_view_release_toggles(GESTURE_VIEW_BUTTON, true));
-    assert(!gesture_view_release_toggles(GESTURE_BLOCKED, true));
-
-    assert(gesture_touch_can_capture_factor(false));
-    assert(!gesture_touch_can_capture_factor(true));
 
     float half_height = 3.5f;
     assert(gesture_apply_pinch_zoom(100.0f, 200.0f, &half_height));
