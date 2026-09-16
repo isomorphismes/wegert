@@ -1,0 +1,51 @@
+name: Publish homepage
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - index.html
+      - style.css
+      - rendered_images/wegert-icon-512.png
+      - rendered_images/wegert_g.png
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stage homepage
+        run: |
+          rm -rf .pages-site
+          mkdir -p .pages-site/rendered_images
+          cp index.html style.css .pages-site/
+          cp rendered_images/wegert-icon-512.png .pages-site/rendered_images/
+          cp rendered_images/wegert_g.png .pages-site/rendered_images/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload homepage
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .pages-site
+
+      - name: Deploy homepage
+        id: deployment
+        uses: actions/deploy-pages@v5
