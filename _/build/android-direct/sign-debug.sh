@@ -25,3 +25,4 @@ apksigner="$build_tools/apksigner"
   --out "$output" \
   "$input"
 "$apksigner" verify --verbose "$output"
+bash "$build_root/android-signing/verify-test-signing.sh" "$output"

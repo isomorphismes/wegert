@@ -81,6 +81,9 @@ jobs:
       - name: Build debug APK
         run: gradle --no-daemon :app:assembleDebug
 
+      - name: Verify stable test signing identity
+        run: bash android-signing/verify-test-signing.sh app/build/outputs/apk/debug/app-debug.apk
+
       - name: Verify APK contains every supported ABI
         run: |
           unzip -l app/build/outputs/apk/debug/app-debug.apk > /tmp/apk-files
@@ -146,6 +149,7 @@ jobs:
           script: |
             adb shell wm size ${{ matrix.size }}
             adb shell wm density ${{ matrix.density }}
+            adb install -r artifacts/app-debug.apk
             adb install -r artifacts/app-debug.apk
             adb logcat -c
             adb shell am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n org.isomorphisms.wegert/android.app.NativeActivity
