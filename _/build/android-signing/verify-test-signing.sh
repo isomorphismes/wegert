@@ -45,8 +45,8 @@ apksigner="$build_tools/apksigner"
 [[ -x $apksigner ]] || fail "apksigner not found: $apksigner"
 
 apk_sha256=$(
-  "$apksigner" verify --print-certs "$apk" |
-    sed -n 's/^Signer #1 certificate SHA-256 digest: //p' |
+  "$apksigner" verify --verbose --print-certs "$apk" 2>&1 |
+    sed -n 's/^.*certificate SHA-256 digest:[[:space:]]*//p' |
     head -n 1 |
     tr '[:upper:]' '[:lower:]' |
     tr -d ':[:space:]'
