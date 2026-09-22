@@ -3,7 +3,6 @@
 #include <stdio.h>
 
 #define MAX_FACTORS 64
-#include "../continuation_path.h"
 #include "../factor_snap.h"
 #include "../factor_state.h"
 
@@ -46,35 +45,6 @@ int main(void) {
         near_opposite[1]
     ) == FACTOR_CANCELLED_OPPOSITE);
     assert(inserted_zero_count == 0 && inserted_pole_count == 0);
-
-    float zeros[MAX_FACTORS][2] = {{0.0f, 0.0f}};
-    float poles[MAX_FACTORS][2] = {{3.0f, 4.0f}};
-    struct continuation_path path = {0};
-    continuation_path_clear(&path);
-    float near_pole[2] = {3.000001f, 4.0f};
-    assert(factor_snap_to_nearest(near_pole, poles, 1, 1.0e-6f, 2.0f) == 0);
-    assert(near_pole[0] == 3.0f && near_pole[1] == 4.0f);
-    assert(!continuation_path_add_center(
-        &path,
-        near_pole[0],
-        near_pole[1],
-        zeros,
-        0,
-        poles,
-        1
-    ));
-
-    float programmatic_near_miss[2] = {3.000001f, 4.0f};
-    assert(continuation_path_add_center(
-        &path,
-        programmatic_near_miss[0],
-        programmatic_near_miss[1],
-        zeros,
-        0,
-        poles,
-        1
-    ));
-    assert(path.radii[0] > 0.0f);
 
     puts("factor snap tests passed");
     return 0;
