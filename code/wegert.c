@@ -20,7 +20,6 @@
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define MAX_FACTORS 64
 
-#include "continuation_path.h"
 #include "factor_snap.h"
 #include "factor_state.h"
 #include "gesture_state.h"
@@ -87,11 +86,6 @@ static const char *VERTEX_SHADER =
     "    gl_Position = vec4(a_position, 0.0, 1.0);\n"
     "}\n";
 
-enum view_kind {
-    VIEW_WHOLE_PORTRAIT,
-    VIEW_CONTINUATION
-};
-
 struct engine {
     struct android_app *app;
 
@@ -112,10 +106,6 @@ struct engine {
     GLint pole_count_location;
     GLint zeros_location;
     GLint poles_location;
-    GLint view_kind_location;
-    GLint continuation_count_location;
-    GLint continuation_centers_location;
-    GLint continuation_radii_location;
 
     GLuint placement_program;
     GLint placement_resolution_location;
@@ -124,7 +114,6 @@ struct engine {
     GLuint overlay_program;
     GLuint overlay_texture;
     GLuint clear_button_texture;
-    GLuint view_button_texture;
     GLint overlay_resolution_location;
     GLint overlay_origin_location;
     GLint overlay_size_location;
@@ -133,10 +122,7 @@ struct engine {
     int overlay_height;
     int clear_button_width;
     int clear_button_height;
-    int view_button_width;
-    int view_button_height;
     bool overlay_dirty;
-    bool view_button_dirty;
     bool overlay_unavailable;
 
     float center[2];
@@ -146,8 +132,6 @@ struct engine {
     int zero_count;
     int pole_count;
     enum factor_kind placement_kind;
-    enum view_kind view_kind;
-    struct continuation_path continuation;
 
     enum gesture_kind gesture;
     bool moved;
@@ -174,60 +158,6 @@ static void placement_control_centers(
     float *center_y
 );
 
-static void clear_continuation_path(struct engine *engine) {
-    continuation_path_clear(&engine->continuation);
-    engine->dirty = true;
-}
-
-static void set_whole_portrait_view(struct engine *engine) {
-    if (engine->view_kind == VIEW_WHOLE_PORTRAIT) {
-        return;
-    }
-    engine->view_kind = VIEW_WHOLE_PORTRAIT;
-    engine->view_button_dirty = true;
-    engine->dirty = true;
-    LOGI("whole portrait view enabled");
-}
-
-static void set_continuation_view(struct engine *engine) {
-    if (engine->view_kind == VIEW_CONTINUATION) {
-        return;
-    }
-
-    if (engine->continuation.count == 0) {
-        if (continuation_path_seed(
-                &engine->continuation,
-                engine->center[0],
-                engine->center[1],
-                engine->zeros,
-                engine->zero_count,
-                engine->poles,
-                engine->pole_count
-            )) {
-            LOGI(
-                "continuation seeded at %.6g%+.6gi radius=%.9g",
-                engine->center[0],
-                engine->center[1],
-                engine->continuation.radii[0]
-            );
-        } else {
-            LOGI("continuation seed rejected: camera center is an uncancelled pole");
-        }
-    }
-
-    engine->view_kind = VIEW_CONTINUATION;
-    engine->view_button_dirty = true;
-    engine->dirty = true;
-    LOGI("continuation view enabled");
-}
-
-static void toggle_view(struct engine *engine) {
-    if (engine->view_kind == VIEW_CONTINUATION) {
-        set_whole_portrait_view(engine);
-    } else {
-        set_continuation_view(engine);
-    }
-}
 
 static void initialize_function(struct engine *engine) {
     engine->center[0] = 0.0f;
@@ -243,22 +173,18 @@ static void initialize_function(struct engine *engine) {
     engine->zeros[2][1] = 0.0f;
     engine->pole_count = 0;
     engine->placement_kind = FACTOR_ZERO;
-    engine->view_kind = VIEW_WHOLE_PORTRAIT;
-    continuation_path_clear(&engine->continuation);
     engine->overlay_dirty = true;
-    engine->view_button_dirty = true;
     engine->dirty = true;
 }
 
 static void reset_all(struct engine *engine) {
     initialize_function(engine);
-    LOGI("default function, camera, view, and continuation path reset");
+    LOGI("default function and camera reset");
 }
 
 static void clear_function(struct engine *engine) {
     engine->zero_count = 0;
     engine->pole_count = 0;
-    continuation_path_clear(&engine->continuation);
     engine->overlay_dirty = true;
     engine->dirty = true;
 }
@@ -384,19 +310,6 @@ static bool create_renderer(struct engine *engine) {
     engine->pole_count_location = glGetUniformLocation(engine->program, "u_pole_count");
     engine->zeros_location = glGetUniformLocation(engine->program, "u_zeros[0]");
     engine->poles_location = glGetUniformLocation(engine->program, "u_poles[0]");
-    engine->view_kind_location = glGetUniformLocation(engine->program, "u_view_kind");
-    engine->continuation_count_location = glGetUniformLocation(
-        engine->program,
-        "u_continuation_count"
-    );
-    engine->continuation_centers_location = glGetUniformLocation(
-        engine->program,
-        "u_continuation_centers[0]"
-    );
-    engine->continuation_radii_location = glGetUniformLocation(
-        engine->program,
-        "u_continuation_radii[0]"
-    );
 
     GLuint placement_vertex_shader = compile_shader(GL_VERTEX_SHADER, VERTEX_SHADER);
     GLuint placement_fragment_shader = compile_shader(
@@ -589,18 +502,6 @@ static void draw_frame(struct engine *engine) {
     glUniform1i(engine->pole_count_location, engine->pole_count);
     glUniform2fv(engine->zeros_location, MAX_FACTORS, &engine->zeros[0][0]);
     glUniform2fv(engine->poles_location, MAX_FACTORS, &engine->poles[0][0]);
-    glUniform1i(engine->view_kind_location, (int)engine->view_kind);
-    glUniform1i(engine->continuation_count_location, engine->continuation.count);
-    glUniform2fv(
-        engine->continuation_centers_location,
-        MAX_CONTINUATION_STEPS,
-        &engine->continuation.centers[0][0]
-    );
-    glUniform1fv(
-        engine->continuation_radii_location,
-        MAX_CONTINUATION_STEPS,
-        engine->continuation.radii
-    );
 
     glBindVertexArray(engine->vao);
     glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -722,7 +623,6 @@ static void add_zero(struct engine *engine, float x, float y) {
         return;
     }
 
-    continuation_path_clear(&engine->continuation);
     engine->overlay_dirty = true;
     engine->dirty = true;
 }
@@ -747,7 +647,6 @@ static void add_pole(struct engine *engine, float x, float y) {
         return;
     }
 
-    continuation_path_clear(&engine->continuation);
     engine->overlay_dirty = true;
     engine->dirty = true;
 }
@@ -825,54 +724,10 @@ static void move_captured_factor(struct engine *engine, float x, float y) {
         engine->captured_factor_world_units_per_pixel,
         position
     );
-    continuation_path_clear(&engine->continuation);
     engine->overlay_dirty = true;
     engine->dirty = true;
 }
 
-static void add_continuation_center(struct engine *engine, float x, float y) {
-    if (engine->width <= 0 || engine->height <= 0) {
-        return;
-    }
-
-    float center[2];
-    screen_to_complex(engine, x, y, center);
-    snap_touch_to_factors(engine, center, engine->poles, engine->pole_count);
-    bool accepted = continuation_path_add_center(
-        &engine->continuation,
-        center[0],
-        center[1],
-        engine->zeros,
-        engine->zero_count,
-        engine->poles,
-        engine->pole_count
-    );
-    if (accepted) {
-        int step = engine->continuation.count - 1;
-        if (engine->continuation.count == 1) {
-            LOGI(
-                "continuation seed added: center=%.6g%+.6gi radius=%.6g",
-                center[0],
-                center[1],
-                engine->continuation.radii[step]
-            );
-        } else {
-            LOGI(
-                "continuation step added: center=%.6g%+.6gi radius=%.6g",
-                center[0],
-                center[1],
-                engine->continuation.radii[step]
-            );
-        }
-        engine->dirty = true;
-    } else {
-        if (engine->continuation.count == 0) {
-            LOGI("continuation seed rejected: tap is an uncancelled pole");
-        } else {
-            LOGI("continuation step rejected: tap must be inside the preceding Taylor disc");
-        }
-    }
-}
 
 static float placement_control_radius(const struct engine *engine) {
     float radius = 0.065f * fminf((float)engine->width, (float)engine->height);
@@ -954,15 +809,9 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
             enum factor_kind selected_kind = FACTOR_ZERO;
             if (placement_control_hit(engine, x, y, &selected_kind)) {
                 engine->placement_kind = selected_kind;
-                set_whole_portrait_view(engine);
                 engine->gesture = GESTURE_BLOCKED;
                 engine->moved = false;
                 engine->dirty = true;
-                return 1;
-            }
-            if (view_button_contains(engine, x, y)) {
-                engine->gesture = GESTURE_VIEW_BUTTON;
-                engine->moved = false;
                 return 1;
             }
             if (clear_button_contains(engine, x, y)) {
@@ -980,14 +829,7 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
             engine->down_y = y;
             engine->last_x = engine->down_x;
             engine->last_y = engine->down_y;
-            struct factor_target target = {
-                .found = false,
-                .kind = FACTOR_ZERO,
-                .index = -1
-            };
-            if (gesture_touch_can_capture_factor(engine->view_kind == VIEW_CONTINUATION)) {
-                target = factor_target_at(engine, x, y);
-            }
+            struct factor_target target = factor_target_at(engine, x, y);
             if (target.found) {
                 capture_factor(engine, &target);
                 engine->gesture = GESTURE_FACTOR;
@@ -1098,9 +940,7 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
             if (engine->gesture == GESTURE_SINGLE && !engine->moved) {
                 float x = AMotionEvent_getX(event, 0);
                 float y = AMotionEvent_getY(event, 0);
-                if (engine->view_kind == VIEW_CONTINUATION) {
-                    add_continuation_center(engine, x, y);
-                } else if (engine->placement_kind == FACTOR_POLE) {
+                if (engine->placement_kind == FACTOR_POLE) {
                     add_pole(engine, x, y);
                 } else {
                     add_zero(engine, x, y);
@@ -1113,22 +953,8 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
                     AMotionEvent_getY(event, 0)
                 )
             ) {
-                if (engine->view_kind == VIEW_CONTINUATION) {
-                    clear_continuation_path(engine);
-                    LOGI("continuation path cleared");
-                } else {
-                    clear_function(engine);
-                    LOGI("whole portrait factors cleared");
-                }
-            } else if (gesture_view_release_toggles(
-                engine->gesture,
-                view_button_contains(
-                    engine,
-                    AMotionEvent_getX(event, 0),
-                    AMotionEvent_getY(event, 0)
-                )
-            )) {
-                toggle_view(engine);
+                clear_function(engine);
+                LOGI("factors cleared");
             }
             engine->gesture = GESTURE_NONE;
             engine->moved = false;
