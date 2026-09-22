@@ -180,5 +180,6 @@ jobs:
           name: wegert-source-built-ick
           path: |
             _/build/app/build/outputs/apk/debug/app-debug.apk
-            /tmp/source-built-object.sha256
+            ${{ runner.temp }}/complex_math_ick.o
+            ${{ runner.temp }}/source-built-object.sha256
           if-no-files-found: error
