@@ -2,6 +2,14 @@
 
 Interactive Wegert phase portraits of complex rational functions.
 
+## Android app demo
+
+<video controls muted loop src="https://raw.githubusercontent.com/isomorphismes/wegert/main/rendered_images/add-and-drag-two-zeros-and-two-poles.mp4"></video>
+
+[![Wegert Android: add and drag zeros and poles](rendered_images/add-and-drag-two-zeros-and-two-poles-preview.gif)](rendered_images/add-and-drag-two-zeros-and-two-poles.mp4)
+
+The demo shows the Android app placing and dragging two zeros and two poles in the live phase portrait.
+
 ## Featured Wegert reference
 
 This is the original Wegert-gist codomain-phase animation for `g(z) = (z - 1)(z - 2)(z - 5)`. The roots stay fixed at 1, 2, and 5 while only the codomain is multiplied by `exp(i theta)`.
