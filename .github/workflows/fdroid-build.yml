@@ -40,7 +40,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify release and Fastlane metadata
+      - name: Verify release and Triple-T metadata
         run: fdroid/verify-metadata.sh
 
       - uses: actions/setup-java@v4
@@ -81,7 +81,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify release and Fastlane metadata
+      - name: Verify release and Triple-T metadata
         run: fdroid/verify-metadata.sh
 
       - name: Run fdroiddata metadata, scanner, and production build tests

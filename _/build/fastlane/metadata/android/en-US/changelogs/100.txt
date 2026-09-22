@@ -1,1 +1,0 @@
-Adds the native interactive phase portrait, zero and pole controls, draggable factors, pan and pinch gestures, a clear control, an expanded formula using ÷, and a source-rebuildable F-Droid release path.

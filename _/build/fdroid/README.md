@@ -13,7 +13,9 @@ Wegert remains the internal project/package name. F-Droid publishes it as **zero
 5. `Publish tested APK` requires the same tested source and immutable tag.
 6. Copy `fdroid/org.isomorphisms.wegert.yml.template` into fdroiddata and submit the upstream merge request.
 
-The F-Droid workflow makes two clean direct builds and requires byte-identical unsigned APKs. It also runs the recipe inside F-Droid's production-like buildserver image and checks metadata, scanner output, ABI packaging, and the upstream Fastlane metadata.
+The canonical upstream store metadata is Triple-T under `app/src/main/play`. `fdroid/verify-metadata.sh` rejects the old `fastlane/metadata/android` tree if it reappears, so CI cannot silently fall back to a second metadata source.
+
+The F-Droid workflow makes two clean direct builds and requires byte-identical unsigned APKs. It also runs the recipe inside F-Droid's production-like buildserver image and checks metadata, scanner output, ABI packaging, and upstream Triple-T extraction through F-Droid's legacy-named `tools/check-fastlane.py`.
 
 ## Local checks
 
