@@ -1,0 +1,33 @@
+name: Build Wegert Android demo preview
+
+on:
+  push:
+    branches:
+      - docs/android-demo-inline
+    paths:
+      - '.github/workflows/build-android-demo-preview.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Render compact GIF preview
+        run: |
+          set -eu
+          ffmpeg -y             -i rendered_images/add-and-drag-two-zeros-and-two-poles.mp4             -vf "fps=10,scale=384:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer:bayer_scale=3"             rendered_images/add-and-drag-two-zeros-and-two-poles-preview.gif
+          test -s rendered_images/add-and-drag-two-zeros-and-two-poles-preview.gif
+
+      - name: Commit preview
+        run: |
+          set -eu
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add rendered_images/add-and-drag-two-zeros-and-two-poles-preview.gif
+          git diff --cached --quiet && exit 0
+          git commit -m "Add Wegert Android demo GIF preview"
+          git push
