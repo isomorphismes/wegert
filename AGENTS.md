@@ -57,6 +57,21 @@ runtime capture when it is needed for provenance. Unless interaction or device
 UI is the subject, the presentation artifact should show the visualization
 rather than status bars, navigation chrome, debug overlays, or setup controls.
 
+## Preserve Android update identity
+
+Wegert test APKs for `org.isomorphisms.wegert` must keep the repository's
+established public test-only signing certificate. Do not generate or substitute a
+new signer per machine, CI runner, branch, workflow run, prerelease, or rebuild.
+Keep Android `versionCode` nondecreasing so a newer test APK can replace an
+installed older one.
+
+Acceptance for installable test APKs must exercise replacement installation
+without uninstalling the existing package first. A signing-certificate change,
+package-name change, downgrade, or other migration that can force an uninstall
+must be explicit and must not be hidden as ordinary installation cleanup.
+F-Droid and any eventual production/store signing remain separate signing
+boundaries.
+
 ## Preserve the source-facing layout
 
 Build systems, packaging, generated files, test harnesses, compiler machinery,

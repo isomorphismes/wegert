@@ -61,7 +61,9 @@ jobs:
           echo "code=$WEGERT_VERSION_CODE" >> "$GITHUB_OUTPUT"
           echo "tag=v$WEGERT_VERSION_NAME" >> "$GITHUB_OUTPUT"
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: ''
 
       - name: Install APK inspection tool
         run: sdkmanager "build-tools;36.0.0"

@@ -7,6 +7,7 @@ on:
       - '.gitmodules'
       - '_/build/_deps/**'
       - '_/build/android-direct/**'
+      - '_/build/android-signing/**'
       - '_/build/CMakeLists.txt'
       - '_/build/fdroid/release.properties'
       - '_/build/fdroid/release-values.sh'
@@ -24,6 +25,7 @@ on:
       - '.gitmodules'
       - '_/build/_deps/**'
       - '_/build/android-direct/**'
+      - '_/build/android-signing/**'
       - '_/build/CMakeLists.txt'
       - '_/build/fdroid/release.properties'
       - '_/build/fdroid/release-values.sh'
@@ -86,7 +88,9 @@ jobs:
           sudo apt-get install -y build-essential ca-certificates chezscheme libgmp-dev python3 unzip zip
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ''
 
       - name: Install Android platform, packaging tools, NDK and CMake
         run: |
@@ -176,6 +180,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot-save -no-metrics
           script: |
             set -eu
+            adb install -r _/build/build/direct/wegert-direct-debug.apk
             adb install -r _/build/build/direct/wegert-direct-debug.apk
             adb logcat -c
             adb shell am start -W -n org.isomorphisms.wegert/.WegertActivity | tee _/build/build/direct/start.txt
