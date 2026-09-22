@@ -4,10 +4,21 @@ plugins {
 
 // Release identity is source-controlled so F-Droid can rebuild a tagged commit
 // without GitHub Actions environment variables. Keep the code monotonically
-// increasing across both test APK and F-Droid releases.
+// increasing across test APK, F-Droid, and Google Play releases.
 val releaseVersionCode = 101
 val releaseVersionName = "0.2.0"
 val fdroidBuild = providers.gradleProperty("fdroidBuild").orNull == "true"
+
+val playUploadKeystorePath = providers.environmentVariable("ANDROID_UPLOAD_KEYSTORE_PATH").orNull
+val playUploadKeystorePassword = providers.environmentVariable("ANDROID_UPLOAD_KEYSTORE_PASSWORD").orNull
+val playUploadKeyAlias = providers.environmentVariable("ANDROID_UPLOAD_KEY_ALIAS").orNull
+val playUploadKeyPassword = providers.environmentVariable("ANDROID_UPLOAD_KEY_PASSWORD").orNull
+val playUploadConfigured = listOf(
+    playUploadKeystorePath,
+    playUploadKeystorePassword,
+    playUploadKeyAlias,
+    playUploadKeyPassword,
+).all { !it.isNullOrBlank() }
 
 val wegertColorMarker = "/*__WEGERT_COLOR_CORE__*/"
 val generatedWegertAssets = layout.buildDirectory.dir("generated/wegert-assets")
@@ -47,6 +58,15 @@ android {
             keyPassword = "wegert-debug"
             storeType = "pkcs12"
         }
+
+        if (playUploadConfigured) {
+            create("playUpload") {
+                storeFile = file(playUploadKeystorePath!!)
+                storePassword = playUploadKeystorePassword!!
+                keyAlias = playUploadKeyAlias!!
+                keyPassword = playUploadKeyPassword!!
+            }
+        }
     }
 
     defaultConfig {
@@ -62,6 +82,7 @@ android {
         // and x86_64 is included so the same APK can be installed on CI emulators.
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+            debugSymbolLevel = "FULL"
         }
 
         externalNativeBuild {
@@ -77,6 +98,11 @@ android {
     buildTypes {
         getByName("debug") {
             signingConfig = signingConfigs.getByName("stableDebug")
+        }
+        getByName("release") {
+            if (playUploadConfigured) {
+                signingConfig = signingConfigs.getByName("playUpload")
+            }
         }
     }
 
