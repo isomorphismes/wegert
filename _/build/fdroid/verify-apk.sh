@@ -17,10 +17,7 @@ scratch="$(mktemp -d "${TMPDIR:-/tmp}/wegert-apk.XXXXXX")"
 trap 'rm -rf "$scratch"' EXIT
 unzip -Z1 "$apk" > "$scratch/files"
 
-for library in \
-    lib/arm64-v8a/libwegert.so \
-    lib/armeabi-v7a/libwegert.so \
-    lib/x86_64/libwegert.so; do
+for library in     lib/arm64-v8a/libwegert.so     lib/armeabi-v7a/libwegert.so     lib/x86_64/libwegert.so; do
     grep -Fxq "$library" "$scratch/files"
 done
 
@@ -33,10 +30,10 @@ if [[ -z "$sdk_root" ]]; then
     echo "ANDROID_SDK_ROOT or ANDROID_HOME is required" >&2
     exit 1
 fi
-aapt="$sdk_root/build-tools/36.0.0/aapt"
+aapt="$sdk_root/build-tools/$WEGERT_BUILD_TOOLS/aapt"
 test -x "$aapt"
 "$aapt" dump badging "$apk" > "$scratch/badging"
-grep -Fq "package: name='org.isomorphisms.wegert' versionCode='$WEGERT_VERSION_CODE' versionName='$WEGERT_VERSION_NAME'" "$scratch/badging"
+grep -Fq "package: name='$WEGERT_PACKAGE_ID' versionCode='$WEGERT_VERSION_CODE' versionName='$WEGERT_VERSION_NAME'" "$scratch/badging"
 grep -Fq "application-label:'zero & infinity'" "$scratch/badging"
 
 sha256sum "$apk"

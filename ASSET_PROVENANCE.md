@@ -8,10 +8,10 @@ Canonical/current copies:
 
 - `rendered_images/wegert-icon-512.png`
 - `_/build/artwork/wegert-icon-512.png`
-- `_/build/fastlane/metadata/android/en-US/images/icon.png`
+- `_/build/app/src/main/play/listings/en-US/graphics/icon/icon.png`
 - root `wegert-icon-512.png` is a symlink to the canonical rendered image
 
-The first three files above are the same Git blob (`7eb3b96f1ed5c82fd3891ead080c838aca08aedd`), so the Fastlane/F-Droid store icon is an exact copy, not an independently sourced asset.
+The first three files above are the same Git blob (`7eb3b96f1ed5c82fd3891ead080c838aca08aedd`), so the Triple-T/F-Droid store icon is an exact copy, not an independently sourced asset.
 
 Commit `a9a28fd0ea5277406ba7d5c4807eec29d28dbb1a` (`Add a phase-portrait Android launcher icon`) introduced the 512px icon together with the Android launcher family under:
 
@@ -28,15 +28,12 @@ No checked-in source file or transformation recipe records how the PNG density/f
 
 ## Store screenshot
 
-Current store screenshot:
+The former Fastlane store screenshot was intentionally removed during the Triple-T migration rather than silently carrying an asset whose licensing authority is unresolved into the canonical store metadata. Its history remains at:
 
-- `_/build/fastlane/metadata/android/en-US/images/phoneScreenshots/1.png`
+- commit `944adcce4927b84e795354cff8e75be7eada7417`, which added the first screenshot;
+- commit `a685c58adf7f6b1d99f46727ea65334937a97b45` (`Fix F-Droid phone screenshot asset`), which replaced it with the most recent image.
 
-Commit `944adcce4927b84e795354cff8e75be7eada7417` added the first Fastlane phone screenshot. Commit `a685c58adf7f6b1d99f46727ea65334937a97b45` (`Fix F-Droid phone screenshot asset`) replaced it with the current image; later history only moved/renamed the store path.
-
-No checked-in capture command, source file, import URL, or attribution identifies where the current screenshot came from or who captured it.
-
-**Copyright/license status:** unresolved. The capture/import source and licensing authority need a copyright-holder statement; commit authorship alone is not used as proof.
+No checked-in capture command, source file, import URL, or attribution identified who captured that screenshot or who could license it. A new screenshot should be added under Triple-T only when its capture/holder authority can be recorded.
 
 ## Recorded touch demonstrations
 

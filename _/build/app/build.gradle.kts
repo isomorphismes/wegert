@@ -1,12 +1,24 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
 }
 
-// Release identity is source-controlled so F-Droid can rebuild a tagged commit
-// without GitHub Actions environment variables. Keep the code monotonically
-// increasing across both test APK and F-Droid releases.
-val releaseVersionCode = 101
-val releaseVersionName = "0.2.0"
+val releaseProperties = Properties().apply {
+    rootProject.file("fdroid/release.properties").inputStream().use { load(it) }
+}
+fun releaseProperty(name: String): String =
+    releaseProperties.getProperty(name) ?: error("missing fdroid/release.properties key: $name")
+
+val releasePackageId = releaseProperty("packageId")
+val releaseVersionCode = releaseProperty("versionCode").toInt()
+val releaseVersionName = releaseProperty("versionName")
+val releaseMinSdk = releaseProperty("minSdk").toInt()
+val releaseCompileSdk = releaseProperty("compileSdk").toInt()
+val releaseTargetSdk = releaseProperty("targetSdk").toInt()
+val releaseBuildTools = releaseProperty("buildTools")
+val releaseCmakeVersion = releaseProperty("cmake")
+val releaseNdkVersion = releaseProperty("ndk")
 val fdroidBuild = providers.gradleProperty("fdroidBuild").orNull == "true"
 
 val wegertColorMarker = "/*__WEGERT_COLOR_CORE__*/"
@@ -35,9 +47,10 @@ val assembleWegertShader = tasks.register("assembleWegertShader") {
 }
 
 android {
-    namespace = "org.isomorphisms.wegert"
-    compileSdk = 36
-    ndkVersion = "29.0.14206865"
+    namespace = releasePackageId
+    compileSdk = releaseCompileSdk
+    buildToolsVersion = releaseBuildTools
+    ndkVersion = releaseNdkVersion
 
     signingConfigs {
         create("stableDebug") {
@@ -50,16 +63,13 @@ android {
     }
 
     defaultConfig {
-        applicationId = "org.isomorphisms.wegert"
-        minSdk = 26
-        targetSdk = 36
+        applicationId = releasePackageId
+        minSdk = releaseMinSdk
+        targetSdk = releaseTargetSdk
         versionCode = releaseVersionCode
         versionName = releaseVersionName
         manifestPlaceholders["appLabel"] = if (fdroidBuild) "zero & infinity" else "Wegert"
 
-        // arm64-v8a is the main real phone/tablet target. armeabi-v7a keeps
-        // the same native app installable on 32-bit Android/Android Go userspace,
-        // and x86_64 is included so the same APK can be installed on CI emulators.
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
         }
@@ -82,9 +92,6 @@ android {
 
     sourceSets {
         getByName("main") {
-            // AGP forbids Provider objects in SourceSet. Resolve the directory
-            // eagerly here; the explicit preBuild dependency below carries the
-            // generation ordering.
             assets.srcDir(generatedWegertAssets.get().asFile)
         }
     }
@@ -92,7 +99,7 @@ android {
     externalNativeBuild {
         cmake {
             path = rootProject.file("CMakeLists.txt")
-            version = "3.22.1"
+            version = releaseCmakeVersion
         }
     }
 }
