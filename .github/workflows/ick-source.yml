@@ -1,0 +1,184 @@
+name: ICK source-built Wegert boundary
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ICK_REPOSITORY: dilapidated-shed/ick
+  ICK_COMMIT: 6972a59d95feb7292da9b5fd9b67a26706f1b6de
+  ANDROID_NDK_VERSION: 29.0.14206865
+
+jobs:
+  source-built-ick-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+
+    steps:
+      - name: Check out Wegert
+        uses: actions/checkout@v4
+
+      - name: Remove checked ICK object before qualification
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -f _/build/complex_math_ick.o
+          test ! -e _/build/complex_math_ick.o
+
+      - name: Check out pinned ICK source of truth
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.ICK_REPOSITORY }}
+          ref: ${{ env.ICK_COMMIT }}
+          fetch-depth: 1
+          submodules: true
+          path: ick-source
+
+      - name: Verify and materialize ICK-owned source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          test "$(git -C ick-source rev-parse HEAD)" = "$ICK_COMMIT"
+          . ick-source/ick/SOURCE.lock
+          test "$(git -C ick-source/gcc rev-parse HEAD)" = "$gcc_commit"
+          sh ick-source/ick/materialize.sh             ick-source/gcc             "$GITHUB_WORKSPACE/ick-build/source"
+          test -s ick-build/source/COPYING3
+          test -s ick-build/source/COPYING.RUNTIME
+
+      - name: Install ICK build and AArch64 execution tools
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y             build-essential file flex bison texinfo             libgmp-dev libmpfr-dev libmpc-dev libisl-dev libzstd-dev             binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu             libc6-dev-arm64-cross qemu-user
+
+      - name: Configure source-built AArch64 ICK
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p ick-build/build ick-build/stage
+          cd ick-build/build
+          ../source/configure             --target=aarch64-linux-gnu             --prefix="$GITHUB_WORKSPACE/ick-build/stage"             --with-as="$(command -v aarch64-linux-gnu-as)"             --with-ld="$(command -v aarch64-linux-gnu-ld)"             --enable-languages=c             --disable-bootstrap             --disable-multilib             --disable-nls             --disable-shared             --disable-threads             --without-headers             --disable-libatomic             --disable-libgomp             --disable-libquadmath             --disable-libssp             --disable-libvtv
+
+      - name: Build ICK from its owned source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          make -C ick-build/build -j2 all-gcc
+          make -C ick-build/build install-gcc
+          ick="$GITHUB_WORKSPACE/ick-build/stage/bin/aarch64-linux-gnu-gcc"
+          "$ick" --version
+          cc1_path="$("$ick" -print-prog-name=cc1)"
+          test -x "$cc1_path"
+          case "$cc1_path" in
+            "$GITHUB_WORKSPACE/ick-build/stage"/*) ;;
+            *) echo "cc1 escaped the source-built ICK installation: $cc1_path" >&2; exit 1 ;;
+          esac
+
+      - name: Rebuild Wegert complex boundary with ICK
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ick="$GITHUB_WORKSPACE/ick-build/stage/bin/aarch64-linux-gnu-gcc"
+
+          "$ick"             -std=gnu11 -O2 -fPIC -ffixed-x18 -fvisibility=hidden             -S _/build/complex_math_ick.c             -o "$RUNNER_TEMP/complex_math_ick.s"
+          if grep -Eq '(^|[^[:alnum:]_])(x18|w18)([^[:alnum:]_]|$)'               "$RUNNER_TEMP/complex_math_ick.s"; then
+            echo 'Android-reserved x18 was used' >&2
+            exit 1
+          fi
+
+          "$ick"             -std=gnu11 -O2 -fPIC -ffixed-x18 -fvisibility=hidden             -c _/build/complex_math_ick.c             -o "$RUNNER_TEMP/complex_math_ick.o"
+
+          aarch64-linux-gnu-readelf -h "$RUNNER_TEMP/complex_math_ick.o"             | tee "$RUNNER_TEMP/complex_math_ick.elf"
+          grep -q 'Machine:.*AArch64' "$RUNNER_TEMP/complex_math_ick.elf"
+
+          aarch64-linux-gnu-nm -g --defined-only "$RUNNER_TEMP/complex_math_ick.o"             | tee "$RUNNER_TEMP/complex_math_ick.defined"
+          grep -Eq '[[:space:]]wegert_expand_roots_cartesian$'             "$RUNNER_TEMP/complex_math_ick.defined"
+
+          aarch64-linux-gnu-nm -u "$RUNNER_TEMP/complex_math_ick.o"             | tee "$RUNNER_TEMP/complex_math_ick.undefined"
+          ! grep -Eq '__mul(sc|dc|xc)3|__div(sc|dc|xc)3'             "$RUNNER_TEMP/complex_math_ick.undefined"
+
+          sha256sum "$RUNNER_TEMP/complex_math_ick.o"             | tee "$RUNNER_TEMP/source-built-object.sha256"
+
+      - name: Execute the rebuilt Wegert boundary under AArch64
+        shell: bash
+        run: |
+          set -euxo pipefail
+          aarch64-linux-gnu-gcc -std=c11 -O2 -fPIE             _/build/tests/complex_math_test.c             "$RUNNER_TEMP/complex_math_ick.o"             -lm -o "$RUNNER_TEMP/wegert-ick-complex-math-test"
+          qemu-aarch64 -L /usr/aarch64-linux-gnu             "$RUNNER_TEMP/wegert-ick-complex-math-test"
+
+      - name: Install Android toolchain
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ''
+
+      - name: Fetch pinned Android packages
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sdkmanager             "platforms;android-36"             "build-tools;36.0.0"             "ndk;$ANDROID_NDK_VERSION"             "cmake;3.22.1"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.1'
+
+      - name: Build Wegert APK with the fresh ICK object
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cp "$RUNNER_TEMP/complex_math_ick.o" _/build/complex_math_ick.o
+          test "$(sha256sum _/build/complex_math_ick.o | awk '{print $1}')" =                "$(sha256sum "$RUNNER_TEMP/complex_math_ick.o" | awk '{print $1}')"
+          (
+            cd _/build
+            gradle --no-daemon :app:assembleDebug
+          )
+
+      - name: Verify packaged ABI set
+        shell: bash
+        run: |
+          set -euxo pipefail
+          apk=_/build/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$apk"
+          unzip -t "$apk"
+          unzip -Z1 "$apk" | grep -Fxq 'lib/arm64-v8a/libwegert.so'
+          unzip -Z1 "$apk" | grep -Fxq 'lib/armeabi-v7a/libwegert.so'
+          unzip -Z1 "$apk" | grep -Fxq 'lib/x86_64/libwegert.so'
+
+      - name: Record source-built consumer receipt
+        shell: bash
+        run: |
+          {
+            echo '### ICK → Wegert consumer receipt'
+            echo
+            echo "PASS: ICK source pinned at \`$ICK_REPOSITORY@$ICK_COMMIT\`"
+            echo
+            echo 'PASS: ICK materialized and built from ICK-owned source'
+            echo
+            echo 'PASS: Wegert \`complex_math_ick.c\` rebuilt as AArch64 PIC with reserved x18 protected'
+            echo
+            echo 'PASS: Wegert complex boundary executed under AArch64 QEMU'
+            echo
+            echo 'PASS: debug APK built after replacing the checked object with the fresh ICK object'
+            echo
+            echo 'PASS: APK contains arm64-v8a, armeabi-v7a, and x86_64 native libraries'
+            echo
+            echo
+            echo 'SKIP: this is not Android ARM64 runtime execution and does not qualify F-Droid source rebuilding'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Retain source-built evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: wegert-source-built-ick
+          path: |
+            _/build/app/build/outputs/apk/debug/app-debug.apk
+            /tmp/source-built-object.sha256
+          if-no-files-found: error
