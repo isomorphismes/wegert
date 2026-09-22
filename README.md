@@ -40,7 +40,7 @@ The 512x512 app icon is canonical at [`rendered_images/wegert-icon-512.png`](ren
 - `code/` — canonical readable C, headers, GLSL, and render-source code.
 - `rendered_images/` — canonical rendered PNG/MP4 output.
 - repository root — README/license, source-entrypoint symlinks, and an ordinary copy of the featured MP4 for reliable GitHub downloads.
-- `_/build/` — Android packaging, Gradle, CMake, tests, F-Droid/Fastlane metadata, checked build objects/provenance, and other build/release machinery.
+- `_/build/` — Android packaging, Gradle, CMake, tests, F-Droid/Triple-T metadata, checked build objects/provenance, and other build/release machinery.
 - `.github/` — workflow files remain at the required GitHub path.
 
 The build tree already uses symlinks for the readable source. Root source names remain valid as symlinks into `code/`, so existing `_/build` references keep working without duplicating the source.

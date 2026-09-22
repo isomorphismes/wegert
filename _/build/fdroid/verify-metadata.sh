@@ -6,7 +6,11 @@ source "$repo_root/fdroid/release-values.sh"
 
 appid=org.isomorphisms.wegert
 metadata="$repo_root/fdroid/$appid.yml.template"
-locale="$repo_root/fastlane/metadata/android/en-US"
+play="$repo_root/app/src/main/play"
+locale="$play/listings/en-US"
+release_note="$play/release-notes/en-US/default.txt"
+icon="$locale/graphics/icon/icon.png"
+screenshots_dir="$locale/graphics/phone-screenshots"
 builder="$repo_root/fdroid/build-apk.sh"
 
 metadata_version_name="$(sed -n 's/^  - versionName: \(.*\)$/\1/p' "$metadata" | tail -n 1)"
@@ -35,6 +39,13 @@ grep -Fxq 'UpdateCheckData: _/build/fdroid/release.properties|versionCode=([0-9]
 grep -Fxq '    subdir: _/build' "$metadata"
 grep -Fxq '    build: SDK_ROOT="$$SDK$$" NDK_ROOT="$$NDK$$" bash fdroid/build-apk.sh' "$metadata"
 
+# Triple-T is the one upstream source-metadata layout. Keeping the old Fastlane
+# tree beside it would allow an accidental fallback or two drifting copies.
+if [[ -e "$repo_root/fastlane/metadata/android" ]]; then
+    echo "legacy Fastlane metadata must not coexist with Triple-T" >&2
+    exit 1
+fi
+
 if grep -Eq '^[[:space:]]+(gradle|gradleprops):' "$metadata"; then
     echo "F-Droid metadata must not invoke Gradle" >&2
     exit 1
@@ -57,22 +68,22 @@ grep -Fq 'zipalign' "$builder"
 
 for required in \
     title.txt \
-    short_description.txt \
-    full_description.txt \
-    "changelogs/$WEGERT_VERSION_CODE.txt" \
-    images/icon.png; do
+    short-description.txt \
+    full-description.txt; do
     test -s "$locale/$required"
 done
+test -s "$release_note"
+test -s "$icon"
 
-mapfile -t screenshots < <(find "$locale/images/phoneScreenshots" -maxdepth 1 -type f -name '*.png' -print | sort)
+mapfile -t screenshots < <(find "$screenshots_dir" -maxdepth 1 -type f -name '*.png' -print | sort)
 test "${#screenshots[@]}" -ge 1
 
 test "$(wc -m < "$locale/title.txt")" -le 51
-test "$(wc -m < "$locale/short_description.txt")" -le 81
-test "$(wc -m < "$locale/full_description.txt")" -le 4001
-test "$(wc -m < "$locale/changelogs/$WEGERT_VERSION_CODE.txt")" -le 501
+test "$(wc -m < "$locale/short-description.txt")" -le 81
+test "$(wc -m < "$locale/full-description.txt")" -le 4001
+test "$(wc -m < "$release_note")" -le 501
 
-python3 - "$locale/images/icon.png" "${screenshots[@]}" <<'PY'
+python3 - "$icon" "${screenshots[@]}" <<'PY'
 import struct
 import sys
 from pathlib import Path
@@ -98,11 +109,11 @@ for raw_path in sys.argv[2:]:
 PY
 
 if grep -Eq '<uses-permission[^>]+android.permission.INTERNET' "$repo_root/app/src/main/AndroidManifest.xml"; then
-    echo "Fastlane description says there is no network permission, but the manifest requests it" >&2
+    echo "Triple-T description says there is no network permission, but the manifest requests it" >&2
     exit 1
 fi
 
 printf 'metadata: %s (%s), tag auto-update enabled\n' "$WEGERT_VERSION_NAME" "$WEGERT_VERSION_CODE"
 printf 'F-Droid build: direct NDK/CMake + aapt2, no Gradle\n'
-printf 'fastlane: title, descriptions, icon, changelog, and %d phone screenshot(s) via subdir _/build\n' "${#screenshots[@]}"
+printf 'triple-t: title, descriptions, icon, release note, and %d phone screenshot(s) via subdir _/build\n' "${#screenshots[@]}"
 printf 'apk packaging: one universal APK with arm64-v8a, armeabi-v7a, and x86_64\n'

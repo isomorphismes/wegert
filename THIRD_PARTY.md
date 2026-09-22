@@ -4,7 +4,7 @@
 
 ## Bundled artwork and media
 
-See [`ASSET_PROVENANCE.md`](ASSET_PROVENANCE.md) for the checked provenance of the launcher-icon family, Fastlane/F-Droid store copies, phone screenshot, recorded touch demonstrations, and generated demo media. That audit distinguishes exact copies, repository-generated outputs, app recordings, and material whose source/holder authority is still unresolved; it does not infer ownership from commit authorship.
+See [`ASSET_PROVENANCE.md`](ASSET_PROVENANCE.md) for the checked provenance of the launcher-icon family, Triple-T/F-Droid store copies, phone screenshot, recorded touch demonstrations, and generated demo media. That audit distinguishes exact copies, repository-generated outputs, app recordings, and material whose source/holder authority is still unresolved; it does not infer ownership from commit authorship.
 
 The media-rendering paths use external NumPy, Pillow, FFmpeg, R, and, when present, a system DejaVu Sans font. Those are build/runtime inputs rather than vendored repository media and retain their upstream terms.
 
