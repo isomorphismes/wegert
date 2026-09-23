@@ -86,7 +86,7 @@ fi
 # Pin the schema CLI and Click together. check-jsonschema 0.38.1 uses the
 # generic click.ParamType API added in Click 8.4; Debian's older system Click
 # otherwise satisfies the loose dependency but fails at import time.
-python3 -m pip install --quiet --break-system-packages \
+python3 -m pip install --quiet --break-system-packages --ignore-installed \
     check-jsonschema==0.38.1 \
     click==8.4.2
 check-jsonschema --schemafile schemas/metadata.json "metadata/$appid.yml"
