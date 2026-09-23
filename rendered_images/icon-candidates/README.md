@@ -1,6 +1,7 @@
 # Icon candidates
 
-`jones-trefoil.png` is rendered by the running Android Wegert renderer from the
+`jones-trefoil.png` is the source candidate for the current canonical launcher
+icon. It is rendered by the running Android Wegert renderer from the
 right-handed trefoil Jones polynomial convention
 
 `V(z) = z + z^3 - z^4`.
@@ -13,3 +14,5 @@ leading `-1` as a phase rotation by pi.  Colour still comes from the canonical
 records a 512x512 runtime screenshot, removes only the Android navigation-button
 strip by cropping `460x460+26+0`, resizes that crop to 512x512, and commits the
 candidate here.
+
+`original-phase-portrait.png` preserves the previous launcher artwork as an alternate candidate.
