@@ -113,8 +113,8 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add rendered_images/icon-candidates \
-            rendered_images/wegert-icon-512.png \
+          git add rendered_images/icon-candidates rendered_images/wegert-icon-512.png
+          git add -f \
             _/build/artwork/wegert-icon-512.png \
             _/build/app/src/main/play/listings/en-US/graphics/icon/icon.png \
             _/build/app/src/main/res/drawable-*/ic_launcher_foreground.png \
