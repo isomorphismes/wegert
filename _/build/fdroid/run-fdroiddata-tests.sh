@@ -9,7 +9,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 output_dir="${FDROID_OUTPUT_DIR:-$repo_root/build/fdroiddata}"
-image="${FDROID_BUILDSERVER_IMAGE:-registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie}"
+image="${FDROID_BUILDSERVER_IMAGE:-registry.gitlab.com/fdroid/fdroidserver@sha256:9cb68105642ca4e7b295f0ceab10f069f5b3247dc18fa7c36046e9d81aa469a8}"
 source_revision="${SOURCE_REVISION:-$(git -C "$repo_root" rev-parse HEAD)}"
 source_repo="${SOURCE_REPO:-https://github.com/isomorphismes/wegert.git}"
 
