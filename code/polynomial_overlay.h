@@ -300,19 +300,40 @@ static bool polynomial_overlay_initialize(struct engine *engine) {
         return false;
     }
 
-    GLuint vertex_shader = compile_shader(GL_VERTEX_SHADER, VERTEX_SHADER);
-    GLuint fragment_shader = compile_shader(GL_FRAGMENT_SHADER, POLYNOMIAL_OVERLAY_FRAGMENT_SHADER);
-    if (vertex_shader == 0 || fragment_shader == 0) {
+    char error[2048] = {0};
+    GLuint vertex_shader = 0;
+    GLuint fragment_shader = 0;
+    if (!wegert_gles_compile_shader(
+        GL_VERTEX_SHADER,
+        WEGERT_FULLSCREEN_VERTEX_SHADER,
+        &vertex_shader,
+        error,
+        sizeof(error)
+    ) || !wegert_gles_compile_shader(
+        GL_FRAGMENT_SHADER,
+        POLYNOMIAL_OVERLAY_FRAGMENT_SHADER,
+        &fragment_shader,
+        error,
+        sizeof(error)
+    )) {
         if (vertex_shader != 0) glDeleteShader(vertex_shader);
         if (fragment_shader != 0) glDeleteShader(fragment_shader);
+        LOGE("%s", error);
         engine->overlay_unavailable = true;
         return false;
     }
 
-    engine->overlay_program = link_program(vertex_shader, fragment_shader);
+    bool linked = wegert_gles_link_program(
+        vertex_shader,
+        fragment_shader,
+        &engine->overlay_program,
+        error,
+        sizeof(error)
+    );
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
-    if (engine->overlay_program == 0) {
+    if (!linked) {
+        LOGE("%s", error);
         engine->overlay_unavailable = true;
         return false;
     }

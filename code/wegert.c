@@ -14,6 +14,8 @@
 #include <stdlib.h>
 
 #include "wegert_scene.h"
+#include "wegert_gles.h"
+#include "wegert_portrait_renderer_gles.h"
 #include "factor_drag.h"
 
 #define LOG_TAG "Wegert"
@@ -76,34 +78,16 @@ static const char *PLACEMENT_CONTROL_FRAGMENT_SHADER =
     "    out_color = zero_button.a >= pole_button.a ? zero_button : pole_button;\n"
     "}\n";
 
-static const char *VERTEX_SHADER =
-    "#version 300 es\n"
-    "precision highp float;\n"
-    "layout(location = 0) in vec2 a_position;\n"
-    "out vec2 v_ndc;\n"
-    "void main() {\n"
-    "    v_ndc = a_position;\n"
-    "    gl_Position = vec4(a_position, 0.0, 1.0);\n"
-    "}\n";
-
 struct engine {
     struct android_app *app;
 
     EGLDisplay display;
     EGLSurface surface;
     EGLContext context;
-    GLuint program;
+    struct wegert_portrait_renderer_gles portrait_renderer;
+
     GLuint vao;
     GLuint vbo;
-    GLint center_location;
-    GLint half_height_location;
-    GLint aspect_location;
-    GLint resolution_location;
-    GLint zero_count_location;
-    GLint pole_count_location;
-    GLint zeros_location;
-    GLint poles_location;
-
     GLuint placement_program;
     GLint placement_resolution_location;
     GLint placement_kind_location;
@@ -200,110 +184,62 @@ static char *load_asset_text(AAssetManager *manager, const char *name) {
     return text;
 }
 
-static GLuint compile_shader(GLenum type, const char *source) {
-    GLuint shader = glCreateShader(type);
-    glShaderSource(shader, 1, &source, NULL);
-    glCompileShader(shader);
-
-    GLint compiled = GL_FALSE;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-    if (compiled == GL_TRUE) {
-        return shader;
-    }
-
-    GLint length = 0;
-    glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
-    char *log = length > 0 ? malloc((size_t)length) : NULL;
-    if (log != NULL) {
-        glGetShaderInfoLog(shader, length, NULL, log);
-        LOGE("shader compilation failed: %s", log);
-        free(log);
-    } else {
-        LOGE("shader compilation failed");
-    }
-    glDeleteShader(shader);
-    return 0;
-}
-
-static GLuint link_program(GLuint vertex_shader, GLuint fragment_shader) {
-    GLuint program = glCreateProgram();
-    glAttachShader(program, vertex_shader);
-    glAttachShader(program, fragment_shader);
-    glLinkProgram(program);
-
-    GLint linked = GL_FALSE;
-    glGetProgramiv(program, GL_LINK_STATUS, &linked);
-    if (linked == GL_TRUE) {
-        return program;
-    }
-
-    GLint length = 0;
-    glGetProgramiv(program, GL_INFO_LOG_LENGTH, &length);
-    char *log = length > 0 ? malloc((size_t)length) : NULL;
-    if (log != NULL) {
-        glGetProgramInfoLog(program, length, NULL, log);
-        LOGE("program link failed: %s", log);
-        free(log);
-    } else {
-        LOGE("program link failed");
-    }
-    glDeleteProgram(program);
-    return 0;
-}
-
 #include "polynomial_overlay.h"
 
 static bool create_renderer(struct engine *engine) {
-    static const GLfloat fullscreen_triangle[] = {
-        -1.0f, -1.0f,
-         3.0f, -1.0f,
-        -1.0f,  3.0f
-    };
-
-    char *fragment_source = load_asset_text(engine->app->activity->assetManager, "wegert.frag");
+    char *fragment_source = load_asset_text(
+        engine->app->activity->assetManager,
+        "wegert.frag"
+    );
     if (fragment_source == NULL) {
         return false;
     }
 
-    GLuint vertex_shader = compile_shader(GL_VERTEX_SHADER, VERTEX_SHADER);
-    GLuint fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fragment_source);
-    free(fragment_source);
-
-    if (vertex_shader == 0 || fragment_shader == 0) {
-        if (vertex_shader != 0) glDeleteShader(vertex_shader);
-        if (fragment_shader != 0) glDeleteShader(fragment_shader);
-        return false;
-    }
-
-    engine->program = link_program(vertex_shader, fragment_shader);
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
-    if (engine->program == 0) {
-        return false;
-    }
-
-    engine->center_location = glGetUniformLocation(engine->program, "u_center");
-    engine->half_height_location = glGetUniformLocation(engine->program, "u_half_height");
-    engine->aspect_location = glGetUniformLocation(engine->program, "u_aspect");
-    engine->resolution_location = glGetUniformLocation(engine->program, "u_resolution");
-    engine->zero_count_location = glGetUniformLocation(engine->program, "u_zero_count");
-    engine->pole_count_location = glGetUniformLocation(engine->program, "u_pole_count");
-    engine->zeros_location = glGetUniformLocation(engine->program, "u_zeros[0]");
-    engine->poles_location = glGetUniformLocation(engine->program, "u_poles[0]");
-
-    GLuint placement_vertex_shader = compile_shader(GL_VERTEX_SHADER, VERTEX_SHADER);
-    GLuint placement_fragment_shader = compile_shader(
-        GL_FRAGMENT_SHADER,
-        PLACEMENT_CONTROL_FRAGMENT_SHADER
+    char error[2048] = {0};
+    bool portrait_ready = wegert_portrait_renderer_gles_initialize(
+        &engine->portrait_renderer,
+        fragment_source,
+        error,
+        sizeof(error)
     );
-    if (placement_vertex_shader != 0 && placement_fragment_shader != 0) {
-        engine->placement_program = link_program(
+    free(fragment_source);
+    if (!portrait_ready) {
+        LOGE("%s", error[0] != '\0' ? error : "portrait renderer unavailable");
+        return false;
+    }
+
+    GLuint placement_vertex_shader = 0;
+    GLuint placement_fragment_shader = 0;
+    bool placement_vertex_ready = wegert_gles_compile_shader(
+        GL_VERTEX_SHADER,
+        WEGERT_FULLSCREEN_VERTEX_SHADER,
+        &placement_vertex_shader,
+        error,
+        sizeof(error)
+    );
+    bool placement_fragment_ready = wegert_gles_compile_shader(
+        GL_FRAGMENT_SHADER,
+        PLACEMENT_CONTROL_FRAGMENT_SHADER,
+        &placement_fragment_shader,
+        error,
+        sizeof(error)
+    );
+    if (placement_vertex_ready && placement_fragment_ready) {
+        if (!wegert_gles_link_program(
             placement_vertex_shader,
-            placement_fragment_shader
-        );
+            placement_fragment_shader,
+            &engine->placement_program,
+            error,
+            sizeof(error)
+        )) {
+            LOGE("%s", error);
+        }
+    } else {
+        LOGE("%s", error);
     }
     if (placement_vertex_shader != 0) glDeleteShader(placement_vertex_shader);
     if (placement_fragment_shader != 0) glDeleteShader(placement_fragment_shader);
+
     if (engine->placement_program == 0) {
         LOGE("placement controls unavailable");
     } else {
@@ -317,25 +253,17 @@ static bool create_renderer(struct engine *engine) {
         );
     }
 
-    glGenVertexArrays(1, &engine->vao);
-    glBindVertexArray(engine->vao);
+    if (!wegert_gles_create_fullscreen_triangle(&engine->vao, &engine->vbo)) {
+        LOGE("could not create UI fullscreen triangle");
+        wegert_portrait_renderer_gles_destroy(&engine->portrait_renderer);
+        return false;
+    }
 
-    glGenBuffers(1, &engine->vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, engine->vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(fullscreen_triangle), fullscreen_triangle, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * (GLsizei)sizeof(GLfloat), (const void *)0);
-    glEnableVertexAttribArray(0);
-
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_CULL_FACE);
-    glDisable(GL_SCISSOR_TEST);
-    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-    LOGI("renderer ready: GL_VERSION=%s GL_RENDERER=%s program=%u vao=%u vbo=%u uniforms=%d,%d,%d,%d,%d,%d,%d,%d",
-         glGetString(GL_VERSION), glGetString(GL_RENDERER), engine->program, engine->vao, engine->vbo,
-         engine->center_location, engine->half_height_location, engine->aspect_location,
-         engine->resolution_location, engine->zero_count_location, engine->pole_count_location,
-         engine->zeros_location, engine->poles_location);
+    LOGI(
+        "renderer ready: GL_VERSION=%s GL_RENDERER=%s",
+        glGetString(GL_VERSION),
+        glGetString(GL_RENDERER)
+    );
     return true;
 }
 
@@ -424,18 +352,8 @@ static void terminate_display(struct engine *engine) {
     }
 
     polynomial_overlay_destroy(engine);
-    if (engine->vbo != 0) {
-        glDeleteBuffers(1, &engine->vbo);
-        engine->vbo = 0;
-    }
-    if (engine->vao != 0) {
-        glDeleteVertexArrays(1, &engine->vao);
-        engine->vao = 0;
-    }
-    if (engine->program != 0) {
-        glDeleteProgram(engine->program);
-        engine->program = 0;
-    }
+    wegert_portrait_renderer_gles_destroy(&engine->portrait_renderer);
+    wegert_gles_destroy_fullscreen_triangle(&engine->vao, &engine->vbo);
     if (engine->placement_program != 0) {
         glDeleteProgram(engine->placement_program);
         engine->placement_program = 0;
@@ -467,24 +385,21 @@ static void update_surface_size(struct engine *engine) {
 }
 
 static void draw_frame(struct engine *engine) {
-    if (engine->display == EGL_NO_DISPLAY || engine->program == 0 || engine->scene.width <= 0 || engine->scene.height <= 0) {
+    if (
+        engine->display == EGL_NO_DISPLAY ||
+        engine->scene.width <= 0 ||
+        engine->scene.height <= 0
+    ) {
         return;
     }
 
-    float aspect = wegert_scene_aspect(&engine->scene);
+    if (!wegert_portrait_renderer_gles_render_frame(
+        &engine->portrait_renderer,
+        &engine->scene
+    )) {
+        return;
+    }
 
-    glUseProgram(engine->program);
-    glUniform2f(engine->center_location, engine->scene.view.center[0], engine->scene.view.center[1]);
-    glUniform1f(engine->half_height_location, engine->scene.view.half_height);
-    glUniform1f(engine->aspect_location, aspect);
-    glUniform2f(engine->resolution_location, (float)engine->scene.width, (float)engine->scene.height);
-    glUniform1i(engine->zero_count_location, engine->scene.function.zero_count);
-    glUniform1i(engine->pole_count_location, engine->scene.function.pole_count);
-    glUniform2fv(engine->zeros_location, WEGERT_MAX_FACTORS, &engine->scene.function.zeros[0][0]);
-    glUniform2fv(engine->poles_location, WEGERT_MAX_FACTORS, &engine->scene.function.poles[0][0]);
-
-    glBindVertexArray(engine->vao);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
     polynomial_overlay_draw(engine);
 
     if (engine->placement_program != 0) {
