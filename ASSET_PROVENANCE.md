@@ -71,6 +71,14 @@ The current regeneration path for the six rational-function movies is now `_/bui
 
 These MP4s are **generated outputs, not imported media**. Generation provenance does not by itself prove who owns every copyrightable element of an output; the repository license applies only to the extent contributors have authority over the resulting material.
 
+## Botched-render archive
+
+Historical pre-refactor movie bytes are preserved under `botched-renders/`
+with a postmortem in `botched-renders/JOURNAL.md`.  The archive distinguishes
+incorrect rendering semantics from outputs that were merely produced through a
+non-canonical duplicate path.  Archiving an artifact does not change its
+copyright or licensing status.
+
 ## R-generated codomain-phase media
 
 `code/Wegert_g_codomain_phase.R` is the checked-in source used by `.github/workflows/render-root-videos.yml` to generate:
