@@ -86,6 +86,7 @@ jobs:
       - name: Record rendered icon candidate
         working-directory: .
         run: |
+          git pull --rebase origin jones-trefoil-icon
           mkdir -p rendered_images/icon-candidates
           cp jones-trefoil-icon.png rendered_images/icon-candidates/jones-trefoil.png
           git config user.name "github-actions[bot]"
