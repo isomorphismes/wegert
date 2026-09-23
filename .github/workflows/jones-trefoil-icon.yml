@@ -12,6 +12,9 @@ on:
       - '.github/workflows/jones-trefoil-icon.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   capture:
     runs-on: ubuntu-latest
@@ -41,6 +44,12 @@ jobs:
 
       - name: Build icon-capture APK
         run: gradle --no-daemon -PiconCapture=true :app:assembleDebug
+
+      - name: Install image cropper
+        working-directory: .
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
 
       - name: Enable KVM permissions
         working-directory: .
@@ -72,11 +81,26 @@ jobs:
             adb shell pidof -s org.isomorphisms.wegert | tr -d '\r' | grep -Eq '^[0-9]+$'
             ! grep -Eiq 'shader compilation failed|program link failed|eglInitialize failed|could not choose GLES3 EGL config|could not create EGL surface/context|eglMakeCurrent failed' jones-trefoil-icon.log
             python3 -c 'import struct; f=open("jones-trefoil-icon-512.png","rb"); assert f.read(8).hex()=="89504e470d0a1a0a"; f.read(4); assert f.read(4)==b"IHDR"; w,h=struct.unpack(">II",f.read(8)); print(w,h); assert (w,h)==(512,512),(w,h)'
+            convert jones-trefoil-icon-512.png -crop 460x460+26+0 +repage -resize 512x512 jones-trefoil-icon.png
+
+      - name: Record rendered icon candidate
+        working-directory: .
+        run: |
+          mkdir -p rendered_images/icon-candidates
+          cp jones-trefoil-icon.png rendered_images/icon-candidates/jones-trefoil.png
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add rendered_images/icon-candidates/jones-trefoil.png
+          if ! git diff --cached --quiet; then
+            git commit -m "Add Jones-trefoil renderer icon candidate"
+            git push origin HEAD:jones-trefoil-icon
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
           name: jones-trefoil-icon-runtime-capture
           path: |
             jones-trefoil-icon-512.png
+            jones-trefoil-icon.png
             jones-trefoil-icon.log
           if-no-files-found: error
