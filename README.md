@@ -82,6 +82,38 @@ Hue is the phase of the rational function. The Android renderer's lightness repe
 
 The featured `wegert_g_codomain_phase.mp4` intentionally uses the older R gist rule instead: hue is `Arg(f(z))`, and lightness is `66 + 4*fract(|f(z)|/100) + 3*fract(hue/100)` with HCL chroma `45`. Its viewport, fixed roots, labels, cream frame, and codomain-only phase rotation come directly from the preserved R reference renderer.
 
+## Reusable frame rendering
+
+The mathematical portrait renderer is independent of Android UI code. A host
+program can keep one offscreen EGL/GLES context alive and render successive
+`wegert_scene` values through the same
+`wegert_portrait_renderer_gles_render_frame()` path used by the app.
+
+`code/wegert_render_frames.c` is a small stream driver for that boundary. It
+reads zero/pole coordinates for successive frames on standard input and emits
+top-origin RGB24 frames on standard output. Movie tooling can therefore choose
+the scene for each frame without reimplementing rational-function evaluation or
+Wegert colouring.
+
+The host driver requires EGL/GLES development libraries. From `_/build`:
+
+```sh
+./android-direct/assemble-shader.sh /tmp/wegert.frag
+cc -std=c11 -Wall -Wextra -Werror -pedantic \
+  wegert_function.c wegert_view.c wegert_scene.c \
+  wegert_gles.c wegert_portrait_renderer_gles.c \
+  wegert_offscreen_gles.c wegert_render_frames.c \
+  -lEGL -lGLESv2 -lm -o /tmp/wegert-render-frames
+
+printf '3 0 1 0 2 0 5 0\n' |
+  EGL_PLATFORM=surfaceless /tmp/wegert-render-frames \
+    /tmp/wegert.frag 640 480 0 0 3.5 > /tmp/frame.rgb
+```
+
+The stream driver deliberately renders the portrait only. Android controls,
+formula overlays, movie encoding and other presentation belong downstream of
+this boundary.
+
 ## Android build
 
 Requirements are Android SDK 36, NDK r29 (`29.0.14206865`), CMake 3.22.1, JDK 17, Gradle 9.5.1, and Android Gradle Plugin 9.3.1.

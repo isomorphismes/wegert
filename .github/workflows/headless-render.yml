@@ -1,0 +1,69 @@
+name: Headless Wegert frame renderer
+
+on:
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - 'code/wegert_function.*'
+      - 'code/wegert_view.*'
+      - 'code/wegert_scene.*'
+      - 'code/wegert_gles.*'
+      - 'code/wegert_portrait_renderer_gles.*'
+      - 'code/wegert_offscreen_gles.*'
+      - 'code/wegert_render_frames.c'
+      - 'code/wegert.frag.in'
+      - 'code/wegert_color.glsl'
+      - '_/build/android-direct/assemble-shader.sh'
+      - '.github/workflows/headless-render.yml'
+  pull_request:
+    paths:
+      - 'code/wegert_function.*'
+      - 'code/wegert_view.*'
+      - 'code/wegert_scene.*'
+      - 'code/wegert_gles.*'
+      - 'code/wegert_portrait_renderer_gles.*'
+      - 'code/wegert_offscreen_gles.*'
+      - 'code/wegert_render_frames.c'
+      - 'code/wegert.frag.in'
+      - 'code/wegert_color.glsl'
+      - '_/build/android-direct/assemble-shader.sh'
+      - '.github/workflows/headless-render.yml'
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Mesa EGL/GLES
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1-mesa-dev libgles2-mesa-dev
+
+      - name: Build headless renderer
+        working-directory: _/build
+        run: |
+          set -euo pipefail
+          ./android-direct/assemble-shader.sh /tmp/wegert.frag
+          cc -std=c11 -Wall -Wextra -Werror -pedantic \
+            wegert_function.c wegert_view.c wegert_scene.c \
+            wegert_gles.c wegert_portrait_renderer_gles.c \
+            wegert_offscreen_gles.c wegert_render_frames.c \
+            -lEGL -lGLESv2 -lm \
+            -o /tmp/wegert-render-frames
+
+      - name: Render two frames through the canonical portrait renderer
+        working-directory: _/build
+        env:
+          EGL_PLATFORM: surfaceless
+        run: |
+          set -euo pipefail
+          printf '%s\n' \
+            '3 0 1 0 2 0 5 0' \
+            '1 1 -0.5 0.25 0.75 -0.4' \
+            | /tmp/wegert-render-frames \
+                /tmp/wegert.frag 64 48 0 0 3.5 \
+                > /tmp/frames.rgb
+          test "$(stat -c %s /tmp/frames.rgb)" -eq $((2 * 64 * 48 * 3))
+          test -n "$(od -An -tu1 -N 192 /tmp/frames.rgb | tr -d ' 0\n')"
