@@ -12,6 +12,7 @@ on:
       - 'code/wegert_portrait_renderer_gles.*'
       - 'code/wegert_offscreen_gles.*'
       - 'code/wegert_render_frames.c'
+      - '_/build/render_root_videos.py'
       - 'code/wegert.frag.in'
       - 'code/wegert_color.glsl'
       - '_/build/android-direct/assemble-shader.sh'
@@ -25,6 +26,7 @@ on:
       - 'code/wegert_portrait_renderer_gles.*'
       - 'code/wegert_offscreen_gles.*'
       - 'code/wegert_render_frames.c'
+      - '_/build/render_root_videos.py'
       - 'code/wegert.frag.in'
       - 'code/wegert_color.glsl'
       - '_/build/android-direct/assemble-shader.sh'
@@ -52,6 +54,9 @@ jobs:
             wegert_offscreen_gles.c wegert_render_frames.c \
             -lEGL -lGLESv2 -lm \
             -o /tmp/wegert-render-frames
+
+      - name: Check movie sequencer
+        run: python3 -m py_compile _/build/render_root_videos.py
 
       - name: Render two frames through the canonical portrait renderer
         working-directory: _/build
