@@ -8,6 +8,7 @@
 #include <stdio.h>
 
 #include "complex_math.h"
+#include "wegert_function.h"
 
 struct polynomial_text_complex {
     double real;
@@ -60,14 +61,14 @@ static void polynomial_text_format_number(double value, char *output, size_t cap
 }
 
 static void polynomial_text_expand_roots(
-    const float roots[MAX_FACTORS][2],
+    const float roots[WEGERT_MAX_FACTORS][2],
     int root_count,
-    struct polynomial_text_complex coefficients[MAX_FACTORS + 1]
+    struct polynomial_text_complex coefficients[WEGERT_MAX_FACTORS + 1]
 ) {
-    double coefficients_cartesian[(MAX_FACTORS + 1) * 2];
+    double coefficients_cartesian[(WEGERT_MAX_FACTORS + 1) * 2];
     wegert_expand_roots_cartesian(&roots[0][0], root_count, coefficients_cartesian);
 
-    for (int index = 0; index <= MAX_FACTORS; ++index) {
+    for (int index = 0; index <= WEGERT_MAX_FACTORS; ++index) {
         coefficients[index].real = coefficients_cartesian[2 * index];
         coefficients[index].imag = coefficients_cartesian[2 * index + 1];
     }
@@ -112,7 +113,7 @@ static void polynomial_text_append_complex_magnitude(
 }
 
 static void polynomial_text_format_polynomial(
-    const struct polynomial_text_complex coefficients[MAX_FACTORS + 1],
+    const struct polynomial_text_complex coefficients[WEGERT_MAX_FACTORS + 1],
     int degree,
     char *output,
     size_t capacity
@@ -210,14 +211,14 @@ static void polynomial_text_append_factor(
 }
 
 static void polynomial_text_format_function(
-    const float zeros[MAX_FACTORS][2],
+    const float zeros[WEGERT_MAX_FACTORS][2],
     int zero_count,
-    const float poles[MAX_FACTORS][2],
+    const float poles[WEGERT_MAX_FACTORS][2],
     int pole_count,
     char *output,
     size_t capacity
 ) {
-    struct polynomial_text_complex numerator_coefficients[MAX_FACTORS + 1];
+    struct polynomial_text_complex numerator_coefficients[WEGERT_MAX_FACTORS + 1];
     char numerator[2048];
 
     polynomial_text_expand_roots(zeros, zero_count, numerator_coefficients);

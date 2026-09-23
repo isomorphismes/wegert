@@ -18,25 +18,15 @@ static void test_density_scaled_touch_radius(void) {
 }
 
 static void test_nearest_factor_wins_across_kinds(void) {
-    const struct factor_viewport viewport = {
-        .width = 1000,
-        .height = 500,
-        .center_x = 0.0f,
-        .center_y = 0.0f,
+    const struct wegert_view view = {
+        .center = {0.0f, 0.0f},
         .half_height = 2.5f
     };
     const float zeros[][2] = {{0.0f, 0.0f}, {-1.0f, 1.0f}};
     const float poles[][2] = {{0.2f, 0.0f}};
 
     struct factor_target target = nearest_factor_target(
-        &viewport,
-        zeros,
-        2,
-        poles,
-        1,
-        516.0f,
-        250.0f,
-        24.0f
+        &view, 1000, 500, zeros, 2, poles, 1, 516.0f, 250.0f, 24.0f
     );
 
     assert(target.found);
@@ -45,24 +35,14 @@ static void test_nearest_factor_wins_across_kinds(void) {
 }
 
 static void test_target_outside_radius_is_rejected(void) {
-    const struct factor_viewport viewport = {
-        .width = 1000,
-        .height = 500,
-        .center_x = 0.0f,
-        .center_y = 0.0f,
+    const struct wegert_view view = {
+        .center = {0.0f, 0.0f},
         .half_height = 2.5f
     };
     const float zeros[][2] = {{0.0f, 0.0f}};
 
     struct factor_target target = nearest_factor_target(
-        &viewport,
-        zeros,
-        1,
-        NULL,
-        0,
-        525.0f,
-        250.0f,
-        24.0f
+        &view, 1000, 500, zeros, 1, NULL, 0, 525.0f, 250.0f, 24.0f
     );
 
     assert(!target.found);
@@ -70,24 +50,14 @@ static void test_target_outside_radius_is_rejected(void) {
 }
 
 static void test_target_on_radius_is_included(void) {
-    const struct factor_viewport viewport = {
-        .width = 1000,
-        .height = 500,
-        .center_x = 0.0f,
-        .center_y = 0.0f,
+    const struct wegert_view view = {
+        .center = {0.0f, 0.0f},
         .half_height = 2.5f
     };
     const float poles[][2] = {{0.0f, 0.0f}};
 
     struct factor_target target = nearest_factor_target(
-        &viewport,
-        NULL,
-        0,
-        poles,
-        1,
-        524.0f,
-        250.0f,
-        24.0f
+        &view, 1000, 500, NULL, 0, poles, 1, 524.0f, 250.0f, 24.0f
     );
 
     assert(target.found);
@@ -96,18 +66,17 @@ static void test_target_on_radius_is_included(void) {
 }
 
 static void test_screen_projection_uses_view_center(void) {
-    const struct factor_viewport viewport = {
-        .width = 1000,
-        .height = 500,
-        .center_x = 3.0f,
-        .center_y = -2.0f,
+    const struct wegert_view view = {
+        .center = {3.0f, -2.0f},
         .half_height = 2.5f
     };
     const float position[] = {4.0f, -1.0f};
     float screen_x = 0.0f;
     float screen_y = 0.0f;
 
-    assert(factor_screen_position(&viewport, position, &screen_x, &screen_y));
+    assert(factor_screen_position(
+        &view, 1000, 500, position, &screen_x, &screen_y
+    ));
     assert(nearly_equal(screen_x, 600.0f));
     assert(nearly_equal(screen_y, 150.0f));
 }

@@ -288,8 +288,8 @@ static float clear_button_margin(const struct engine *engine) {
 
 static void clear_button_origin(const struct engine *engine, float *x, float *y) {
     float margin = clear_button_margin(engine);
-    *x = (float)(engine->width - engine->clear_button_width) - margin;
-    *y = (float)(engine->height - engine->clear_button_height) - margin;
+    *x = (float)(engine->scene.width - engine->clear_button_width) - margin;
+    *y = (float)(engine->scene.height - engine->clear_button_height) - margin;
 }
 
 static bool polynomial_overlay_initialize(struct engine *engine) {
@@ -420,16 +420,16 @@ static bool clear_button_rebuild_texture(struct engine *engine) {
 }
 
 static bool polynomial_overlay_rebuild_texture(struct engine *engine) {
-    if (engine->width <= 64 || engine->height <= 64) {
+    if (engine->scene.width <= 64 || engine->scene.height <= 64) {
         return false;
     }
 
     char text[4096];
     polynomial_text_format_function(
-        engine->zeros,
-        engine->zero_count,
-        engine->poles,
-        engine->pole_count,
+        engine->scene.function.zeros,
+        engine->scene.function.zero_count,
+        engine->scene.function.poles,
+        engine->scene.function.pole_count,
         text,
         sizeof(text)
     );
@@ -437,7 +437,7 @@ static bool polynomial_overlay_rebuild_texture(struct engine *engine) {
     LOGI("function overlay: %s", text);
 #endif
 
-    int width = engine->width - 32;
+    int width = engine->scene.width - 32;
     if (width > 1280) width = 1280;
     int scale = width >= 900 ? 3 : 2;
     int max_number_digits = overlay_max_digit_run(text);
@@ -451,8 +451,8 @@ static bool polynomial_overlay_rebuild_texture(struct engine *engine) {
 
     int lines = overlay_measure_wrapped_lines(text, max_columns);
     int height = 2 * padding + 7 * scale + (lines - 1) * line_advance;
-    if (height > engine->height - 32) {
-        height = engine->height - 32;
+    if (height > engine->scene.height - 32) {
+        height = engine->scene.height - 32;
     }
 
     size_t pixel_count = (size_t)width * (size_t)height;
@@ -529,7 +529,7 @@ static void polynomial_overlay_draw(struct engine *engine) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glUseProgram(engine->overlay_program);
-    glUniform2f(engine->overlay_resolution_location, (float)engine->width, (float)engine->height);
+    glUniform2f(engine->overlay_resolution_location, (float)engine->scene.width, (float)engine->scene.height);
 
     float clear_button_x = 0.0f;
     float clear_button_y = 0.0f;

@@ -95,6 +95,10 @@ The host-side gesture, pinch-zoom, factor-drag, canonical-factor, touch-snap, co
 
 ```sh
 cd _/build
+cc -std=c11 -Wall -Wextra -Werror -pedantic wegert_function.c wegert_view.c wegert_scene.c tests/test_wegert_scene.c -lm -o /tmp/wegert-scene-test
+/tmp/wegert-scene-test
+cc -std=c11 -Wall -Wextra -Werror -pedantic wegert_function.c tests/test_wegert_function.c -o /tmp/wegert-function-test
+/tmp/wegert-function-test
 cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_gesture_state.c -lm -o /tmp/wegert-gesture-test
 /tmp/wegert-gesture-test
 cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_factor_state.c -o /tmp/wegert-factor-test

@@ -1,6 +1,8 @@
 #ifndef WEGERT_FACTOR_STATE_H
 #define WEGERT_FACTOR_STATE_H
 
+#include "wegert_function.h"
+
 enum factor_change {
     FACTOR_UNCHANGED,
     FACTOR_APPENDED,
@@ -8,7 +10,7 @@ enum factor_change {
 };
 
 static int factor_find_exact(
-    float factors[MAX_FACTORS][2],
+    float factors[WEGERT_MAX_FACTORS][2],
     int factor_count,
     float real,
     float imag
@@ -22,7 +24,7 @@ static int factor_find_exact(
 }
 
 static void factor_remove_at(
-    float factors[MAX_FACTORS][2],
+    float factors[WEGERT_MAX_FACTORS][2],
     int *factor_count,
     int removed_index
 ) {
@@ -34,9 +36,9 @@ static void factor_remove_at(
 }
 
 static enum factor_change factor_insert_reduced(
-    float same_kind[MAX_FACTORS][2],
+    float same_kind[WEGERT_MAX_FACTORS][2],
     int *same_kind_count,
-    float opposite_kind[MAX_FACTORS][2],
+    float opposite_kind[WEGERT_MAX_FACTORS][2],
     int *opposite_kind_count,
     float real,
     float imag
@@ -52,7 +54,7 @@ static enum factor_change factor_insert_reduced(
         return FACTOR_CANCELLED_OPPOSITE;
     }
 
-    if (*same_kind_count >= MAX_FACTORS) {
+    if (*same_kind_count >= WEGERT_MAX_FACTORS) {
         return FACTOR_UNCHANGED;
     }
 

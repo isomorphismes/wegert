@@ -1,6 +1,8 @@
 #ifndef WEGERT_FACTOR_SNAP_H
 #define WEGERT_FACTOR_SNAP_H
 
+#include "wegert_function.h"
+
 /*
  * Convert a screen-space touch target to world units, then copy the nearest
  * stored factor exactly.  This is deliberately a UI operation: callers that
@@ -8,7 +10,7 @@
  */
 static int factor_snap_to_nearest(
     float point[2],
-    float factors[MAX_FACTORS][2],
+    float factors[WEGERT_MAX_FACTORS][2],
     int factor_count,
     float world_per_pixel,
     float touch_radius_pixels
