@@ -17,6 +17,8 @@
 #include "wegert_gles.h"
 #include "wegert_portrait_renderer_gles.h"
 #include "wegert_placement_controls.h"
+#include "wegert_overlay_renderer_gles.h"
+#include "polynomial_text.h"
 #include "factor_drag.h"
 
 #define LOG_TAG "Wegert"
@@ -94,19 +96,7 @@ struct engine {
     GLint placement_radius_location;
     GLint placement_kind_location;
 
-    GLuint overlay_program;
-    GLuint overlay_texture;
-    GLuint clear_button_texture;
-    GLint overlay_resolution_location;
-    GLint overlay_origin_location;
-    GLint overlay_size_location;
-    GLint overlay_sampler_location;
-    int overlay_width;
-    int overlay_height;
-    int clear_button_width;
-    int clear_button_height;
-    bool overlay_dirty;
-    bool overlay_unavailable;
+    struct wegert_overlay_renderer_gles overlay_renderer;
 
     struct wegert_scene scene;
     enum factor_kind placement_kind;
@@ -132,7 +122,7 @@ struct engine {
 static void initialize_scene(struct engine *engine) {
     wegert_scene_initialize_default(&engine->scene);
     engine->placement_kind = FACTOR_ZERO;
-    engine->overlay_dirty = true;
+    wegert_overlay_renderer_gles_mark_dirty(&engine->overlay_renderer);
     engine->dirty = true;
 }
 
@@ -143,7 +133,7 @@ static void reset_all(struct engine *engine) {
 
 static void clear_function(struct engine *engine) {
     wegert_function_clear(&engine->scene.function);
-    engine->overlay_dirty = true;
+    wegert_overlay_renderer_gles_mark_dirty(&engine->overlay_renderer);
     engine->dirty = true;
 }
 
@@ -178,7 +168,6 @@ static char *load_asset_text(AAssetManager *manager, const char *name) {
     return text;
 }
 
-#include "polynomial_overlay.h"
 
 static bool create_renderer(struct engine *engine) {
     char *fragment_source = load_asset_text(
@@ -347,7 +336,7 @@ static bool initialize_display(struct engine *engine) {
     }
 
     glViewport(0, 0, engine->scene.width, engine->scene.height);
-    engine->overlay_dirty = true;
+    wegert_overlay_renderer_gles_mark_dirty(&engine->overlay_renderer);
     engine->dirty = true;
     return true;
 }
@@ -357,7 +346,7 @@ static void terminate_display(struct engine *engine) {
         return;
     }
 
-    polynomial_overlay_destroy(engine);
+    wegert_overlay_renderer_gles_destroy(&engine->overlay_renderer);
     wegert_portrait_renderer_gles_destroy(&engine->portrait_renderer);
     wegert_gles_destroy_fullscreen_triangle(&engine->vao, &engine->vbo);
     if (engine->placement_program != 0) {
@@ -386,7 +375,7 @@ static void update_surface_size(struct engine *engine) {
     eglQuerySurface(engine->display, engine->surface, EGL_WIDTH, &engine->scene.width);
     eglQuerySurface(engine->display, engine->surface, EGL_HEIGHT, &engine->scene.height);
     glViewport(0, 0, engine->scene.width, engine->scene.height);
-    engine->overlay_dirty = true;
+    wegert_overlay_renderer_gles_mark_dirty(&engine->overlay_renderer);
     engine->dirty = true;
 }
 
@@ -406,7 +395,34 @@ static void draw_frame(struct engine *engine) {
         return;
     }
 
-    polynomial_overlay_draw(engine);
+    bool overlay_was_dirty = engine->overlay_renderer.dirty;
+    char overlay_error[2048] = {0};
+    if (!wegert_overlay_renderer_gles_draw(
+        &engine->overlay_renderer,
+        &engine->scene,
+        AConfiguration_getDensity(engine->app->config),
+        engine->vao,
+        overlay_error,
+        sizeof(overlay_error)
+    )) {
+        if (overlay_error[0] != '\0') {
+            LOGE("%s", overlay_error);
+        }
+    }
+#ifndef NDEBUG
+    if (overlay_was_dirty && !engine->overlay_renderer.dirty) {
+        char function_text[4096];
+        polynomial_text_format_function(
+            engine->scene.function.zeros,
+            engine->scene.function.zero_count,
+            engine->scene.function.poles,
+            engine->scene.function.pole_count,
+            function_text,
+            sizeof(function_text)
+        );
+        LOGI("function overlay: %s", function_text);
+    }
+#endif
 
     struct wegert_placement_controls placement_controls;
     bool have_placement_controls = wegert_placement_controls_layout(
@@ -452,6 +468,22 @@ static void draw_frame(struct engine *engine) {
                 (int)placement_controls.zero_center[1],
                 (int)placement_controls.pole_center[0],
                 (int)placement_controls.pole_center[1]
+            );
+        }
+
+        float clear_button_x = 0.0f;
+        float clear_button_y = 0.0f;
+        if (wegert_overlay_renderer_gles_clear_button_center(
+            &engine->overlay_renderer,
+            &engine->scene,
+            AConfiguration_getDensity(engine->app->config),
+            &clear_button_x,
+            &clear_button_y
+        )) {
+            LOGI(
+                "clear control center: %d %d",
+                (int)clear_button_x,
+                (int)clear_button_y
             );
         }
 
@@ -527,7 +559,7 @@ static void add_zero(struct engine *engine, float x, float y) {
         return;
     }
 
-    engine->overlay_dirty = true;
+    wegert_overlay_renderer_gles_mark_dirty(&engine->overlay_renderer);
     engine->dirty = true;
 }
 
@@ -551,7 +583,7 @@ static void add_pole(struct engine *engine, float x, float y) {
         return;
     }
 
-    engine->overlay_dirty = true;
+    wegert_overlay_renderer_gles_mark_dirty(&engine->overlay_renderer);
     engine->dirty = true;
 }
 
@@ -619,7 +651,7 @@ static void move_captured_factor(struct engine *engine, float x, float y) {
         engine->captured_factor_world_units_per_pixel,
         position
     );
-    engine->overlay_dirty = true;
+    wegert_overlay_renderer_gles_mark_dirty(&engine->overlay_renderer);
     engine->dirty = true;
 }
 
@@ -670,12 +702,22 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
                 engine->dirty = true;
                 return 1;
             }
-            if (clear_button_contains(engine, x, y)) {
+            if (wegert_overlay_renderer_gles_clear_button_contains(
+                &engine->overlay_renderer,
+                &engine->scene,
+                AConfiguration_getDensity(engine->app->config),
+                x,
+                y
+            )) {
                 engine->gesture = GESTURE_CLEAR_BUTTON;
                 engine->moved = false;
                 return 1;
             }
-            if (polynomial_overlay_contains(engine, x, y)) {
+            if (wegert_overlay_renderer_gles_formula_contains(
+                &engine->overlay_renderer,
+                x,
+                y
+            )) {
                 engine->gesture = GESTURE_BLOCKED;
                 engine->moved = false;
                 return 1;
@@ -803,8 +845,10 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
                 }
             } else if (
                 engine->gesture == GESTURE_CLEAR_BUTTON &&
-                clear_button_contains(
-                    engine,
+                wegert_overlay_renderer_gles_clear_button_contains(
+                    &engine->overlay_renderer,
+                    &engine->scene,
+                    AConfiguration_getDensity(engine->app->config),
                     AMotionEvent_getX(event, 0),
                     AMotionEvent_getY(event, 0)
                 )
