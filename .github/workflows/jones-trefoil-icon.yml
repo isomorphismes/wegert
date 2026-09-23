@@ -71,16 +71,7 @@ jobs:
             adb exec-out screencap -p > jones-trefoil-icon-512.png
             adb shell pidof -s org.isomorphisms.wegert | tr -d '\r' | grep -Eq '^[0-9]+$'
             ! grep -Eiq 'shader compilation failed|program link failed|eglInitialize failed|could not choose GLES3 EGL config|could not create EGL surface/context|eglMakeCurrent failed' jones-trefoil-icon.log
-            python3 - <<'PY'
-            import struct
-            path = "jones-trefoil-icon-512.png"
-            with open(path, "rb") as f:
-                assert f.read(8) == b"\x89PNG\r\n\x1a\n"
-                length = struct.unpack(">I", f.read(4))[0]
-                assert f.read(4) == b"IHDR"
-                width, height = struct.unpack(">II", f.read(8))
-            assert (width, height) == (512, 512), (width, height)
-            PY
+            python3 -c 'import struct; f=open("jones-trefoil-icon-512.png","rb"); assert f.read(8)==b"\\x89PNG\\r\\n\\x1a\\n"; f.read(4); assert f.read(4)==b"IHDR"; w,h=struct.unpack(">II",f.read(8)); assert (w,h)==(512,512),(w,h)'
 
       - uses: actions/upload-artifact@v4
         with:
