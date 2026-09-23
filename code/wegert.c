@@ -160,6 +160,24 @@ static void placement_control_centers(
 
 
 static void initialize_function(struct engine *engine) {
+#ifdef WEGERT_ICON_CAPTURE
+    // Right-handed trefoil Jones polynomial in the convention
+    // V(z) = z + z^3 - z^4 = -z(z-r1)(z-r2)(z-r3).
+    // The shader applies the leading -1 as a pi phase rotation.
+    engine->center[0] = 0.55f;
+    engine->center[1] = 0.0f;
+    engine->half_height = 1.65f;
+
+    engine->zero_count = 4;
+    engine->zeros[0][0] = 0.0f;
+    engine->zeros[0][1] = 0.0f;
+    engine->zeros[1][0] = 1.4655712f;
+    engine->zeros[1][1] = 0.0f;
+    engine->zeros[2][0] = -0.2327856f;
+    engine->zeros[2][1] = 0.7925520f;
+    engine->zeros[3][0] = -0.2327856f;
+    engine->zeros[3][1] = -0.7925520f;
+#else
     engine->center[0] = 0.0f;
     engine->center[1] = 0.0f;
     engine->half_height = 3.5f;
@@ -171,6 +189,7 @@ static void initialize_function(struct engine *engine) {
     engine->zeros[1][1] = 0.0f;
     engine->zeros[2][0] = 5.0f;
     engine->zeros[2][1] = 0.0f;
+#endif
     engine->pole_count = 0;
     engine->placement_kind = FACTOR_ZERO;
     engine->overlay_dirty = true;
@@ -505,6 +524,7 @@ static void draw_frame(struct engine *engine) {
 
     glBindVertexArray(engine->vao);
     glDrawArrays(GL_TRIANGLES, 0, 3);
+#ifndef WEGERT_ICON_CAPTURE
     polynomial_overlay_draw(engine);
 
     if (engine->placement_program != 0) {
@@ -521,6 +541,7 @@ static void draw_frame(struct engine *engine) {
         glDrawArrays(GL_TRIANGLES, 0, 3);
         glDisable(GL_BLEND);
     }
+#endif
 
     if (!engine->logged_first_frame) {
         float zero_control_x = 0.0f;
