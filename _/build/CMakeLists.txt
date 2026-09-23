@@ -26,6 +26,7 @@ set(WEGERT_SOURCES
     wegert_scene.c
     wegert_gles.c
     wegert_portrait_renderer_gles.c
+    wegert_placement_controls.c
 )
 if(WEGERT_ENABLE_DIRECT_JNI)
     list(APPEND WEGERT_SOURCES wegert_jni.c)

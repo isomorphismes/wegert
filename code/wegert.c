@@ -16,6 +16,7 @@
 #include "wegert_scene.h"
 #include "wegert_gles.h"
 #include "wegert_portrait_renderer_gles.h"
+#include "wegert_placement_controls.h"
 #include "factor_drag.h"
 
 #define LOG_TAG "Wegert"
@@ -31,6 +32,9 @@ static const char *PLACEMENT_CONTROL_FRAGMENT_SHADER =
     "precision highp float;\n"
     "in vec2 v_ndc;\n"
     "uniform vec2 u_resolution;\n"
+    "uniform vec2 u_zero_center;\n"
+    "uniform vec2 u_pole_center;\n"
+    "uniform float u_radius;\n"
     "uniform int u_placement_kind;\n"
     "out vec4 out_color;\n"
     "float circle_mask(vec2 point, vec2 center, float radius) {\n"
@@ -43,22 +47,21 @@ static const char *PLACEMENT_CONTROL_FRAGMENT_SHADER =
     "    return 1.0 - smoothstep(half_width - 1.0, half_width + 1.0, distance_to_line);\n"
     "}\n"
     "vec4 button(vec2 point, vec2 center, bool selected, bool pole) {\n"
-    "    float radius = clamp(min(u_resolution.x, u_resolution.y) * 0.065, 36.0, 56.0);\n"
-    "    float disk = circle_mask(point, center, radius);\n"
-    "    float rim = circle_mask(point, center, radius) - circle_mask(point, center, radius - 3.0);\n"
+    "    float disk = circle_mask(point, center, u_radius);\n"
+    "    float rim = circle_mask(point, center, u_radius) - circle_mask(point, center, u_radius - 3.0);\n"
     "    vec4 background = selected ? vec4(0.96, 0.96, 0.93, 0.94) : vec4(0.05, 0.05, 0.05, 0.72);\n"
     "    vec3 mark_color = selected ? vec3(0.05) : vec3(0.96);\n"
     "    float mark = 0.0;\n"
     "    if (pole) {\n"
-    "        float reach = radius * 0.38;\n"
-    "        float width = max(2.5, radius * 0.075);\n"
+    "        float reach = u_radius * 0.38;\n"
+    "        float width = max(2.5, u_radius * 0.075);\n"
     "        mark = max(\n"
     "            line_mask(point, center - vec2(reach), center + vec2(reach), width),\n"
     "            line_mask(point, center + vec2(-reach, reach), center + vec2(reach, -reach), width)\n"
     "        );\n"
     "    } else {\n"
-    "        float outer = circle_mask(point, center, radius * 0.40);\n"
-    "        float inner = circle_mask(point, center, radius * 0.27);\n"
+    "        float outer = circle_mask(point, center, u_radius * 0.40);\n"
+    "        float inner = circle_mask(point, center, u_radius * 0.27);\n"
     "        mark = outer - inner;\n"
     "    }\n"
     "    vec4 color = background * disk;\n"
@@ -68,13 +71,9 @@ static const char *PLACEMENT_CONTROL_FRAGMENT_SHADER =
     "    return color;\n"
     "}\n"
     "void main() {\n"
-    "    vec2 point = gl_FragCoord.xy;\n"
-    "    float radius = clamp(min(u_resolution.x, u_resolution.y) * 0.065, 36.0, 56.0);\n"
-    "    float margin = max(18.0, radius * 0.38);\n"
-    "    vec2 zero_center = vec2(margin + radius, margin + radius);\n"
-    "    vec2 pole_center = zero_center + vec2(2.0 * radius + margin * 0.55, 0.0);\n"
-    "    vec4 zero_button = button(point, zero_center, u_placement_kind == 0, false);\n"
-    "    vec4 pole_button = button(point, pole_center, u_placement_kind == 1, true);\n"
+    "    vec2 point = vec2(gl_FragCoord.x, u_resolution.y - gl_FragCoord.y);\n"
+    "    vec4 zero_button = button(point, u_zero_center, u_placement_kind == 0, false);\n"
+    "    vec4 pole_button = button(point, u_pole_center, u_placement_kind == 1, true);\n"
     "    out_color = zero_button.a >= pole_button.a ? zero_button : pole_button;\n"
     "}\n";
 
@@ -90,6 +89,9 @@ struct engine {
     GLuint vbo;
     GLuint placement_program;
     GLint placement_resolution_location;
+    GLint placement_zero_center_location;
+    GLint placement_pole_center_location;
+    GLint placement_radius_location;
     GLint placement_kind_location;
 
     GLuint overlay_program;
@@ -126,14 +128,6 @@ struct engine {
     bool dirty;
     bool logged_first_frame;
 };
-
-static void placement_control_centers(
-    const struct engine *engine,
-    float *zero_x,
-    float *pole_x,
-    float *center_y
-);
-
 
 static void initialize_scene(struct engine *engine) {
     wegert_scene_initialize_default(&engine->scene);
@@ -246,6 +240,18 @@ static bool create_renderer(struct engine *engine) {
         engine->placement_resolution_location = glGetUniformLocation(
             engine->placement_program,
             "u_resolution"
+        );
+        engine->placement_zero_center_location = glGetUniformLocation(
+            engine->placement_program,
+            "u_zero_center"
+        );
+        engine->placement_pole_center_location = glGetUniformLocation(
+            engine->placement_program,
+            "u_pole_center"
+        );
+        engine->placement_radius_location = glGetUniformLocation(
+            engine->placement_program,
+            "u_radius"
         );
         engine->placement_kind_location = glGetUniformLocation(
             engine->placement_program,
@@ -402,7 +408,14 @@ static void draw_frame(struct engine *engine) {
 
     polynomial_overlay_draw(engine);
 
-    if (engine->placement_program != 0) {
+    struct wegert_placement_controls placement_controls;
+    bool have_placement_controls = wegert_placement_controls_layout(
+        engine->scene.width,
+        engine->scene.height,
+        &placement_controls
+    );
+
+    if (engine->placement_program != 0 && have_placement_controls) {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glUseProgram(engine->placement_program);
@@ -411,6 +424,20 @@ static void draw_frame(struct engine *engine) {
             (float)engine->scene.width,
             (float)engine->scene.height
         );
+        glUniform2f(
+            engine->placement_zero_center_location,
+            placement_controls.zero_center[0],
+            placement_controls.zero_center[1]
+        );
+        glUniform2f(
+            engine->placement_pole_center_location,
+            placement_controls.pole_center[0],
+            placement_controls.pole_center[1]
+        );
+        glUniform1f(
+            engine->placement_radius_location,
+            placement_controls.radius
+        );
         glUniform1i(engine->placement_kind_location, (int)engine->placement_kind);
         glBindVertexArray(engine->vao);
         glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -418,22 +445,15 @@ static void draw_frame(struct engine *engine) {
     }
 
     if (!engine->logged_first_frame) {
-        float zero_control_x = 0.0f;
-        float pole_control_x = 0.0f;
-        float placement_control_y = 0.0f;
-        placement_control_centers(
-            engine,
-            &zero_control_x,
-            &pole_control_x,
-            &placement_control_y
-        );
-        LOGI(
-            "placement control centers: zero=%d,%d pole=%d,%d",
-            (int)zero_control_x,
-            (int)placement_control_y,
-            (int)pole_control_x,
-            (int)placement_control_y
-        );
+        if (have_placement_controls) {
+            LOGI(
+                "placement control centers: zero=%d,%d pole=%d,%d",
+                (int)placement_controls.zero_center[0],
+                (int)placement_controls.zero_center[1],
+                (int)placement_controls.pole_center[0],
+                (int)placement_controls.pole_center[1]
+            );
+        }
 
         GLubyte pixel[4] = {0, 0, 0, 0};
         glReadPixels(engine->scene.width / 2, engine->scene.height / 2, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
@@ -604,58 +624,6 @@ static void move_captured_factor(struct engine *engine, float x, float y) {
 }
 
 
-static float placement_control_radius(const struct engine *engine) {
-    float radius = 0.065f * fminf((float)engine->scene.width, (float)engine->scene.height);
-    if (radius < 36.0f) radius = 36.0f;
-    if (radius > 56.0f) radius = 56.0f;
-    return radius;
-}
-
-static void placement_control_centers(
-    const struct engine *engine,
-    float *zero_x,
-    float *pole_x,
-    float *center_y
-) {
-    float radius = placement_control_radius(engine);
-    float margin = fmaxf(18.0f, radius * 0.38f);
-    *zero_x = margin + radius;
-    *pole_x = *zero_x + 2.0f * radius + margin * 0.55f;
-    *center_y = (float)engine->scene.height - margin - radius;
-}
-
-static bool placement_control_hit(
-    const struct engine *engine,
-    float x,
-    float y,
-    enum factor_kind *kind
-) {
-    if (engine->scene.width <= 0 || engine->scene.height <= 0) {
-        return false;
-    }
-
-    float radius = placement_control_radius(engine);
-    float zero_center_x = 0.0f;
-    float pole_center_x = 0.0f;
-    float center_y = 0.0f;
-    placement_control_centers(
-        engine,
-        &zero_center_x,
-        &pole_center_x,
-        &center_y
-    );
-
-    if (hypotf(x - zero_center_x, y - center_y) <= radius) {
-        *kind = FACTOR_ZERO;
-        return true;
-    }
-    if (hypotf(x - pole_center_x, y - center_y) <= radius) {
-        *kind = FACTOR_POLE;
-        return true;
-    }
-    return false;
-}
-
 static float pointer_distance(const AInputEvent *event) {
     float dx = AMotionEvent_getX(event, 0) - AMotionEvent_getX(event, 1);
     float dy = AMotionEvent_getY(event, 0) - AMotionEvent_getY(event, 1);
@@ -682,7 +650,20 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
             float x = AMotionEvent_getX(event, 0);
             float y = AMotionEvent_getY(event, 0);
             enum factor_kind selected_kind = FACTOR_ZERO;
-            if (placement_control_hit(engine, x, y, &selected_kind)) {
+            struct wegert_placement_controls placement_controls;
+            bool hit_placement_control =
+                wegert_placement_controls_layout(
+                    engine->scene.width,
+                    engine->scene.height,
+                    &placement_controls
+                ) &&
+                wegert_placement_controls_hit(
+                    &placement_controls,
+                    x,
+                    y,
+                    &selected_kind
+                );
+            if (hit_placement_control) {
                 engine->placement_kind = selected_kind;
                 engine->gesture = GESTURE_BLOCKED;
                 engine->moved = false;
