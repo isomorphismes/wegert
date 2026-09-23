@@ -83,17 +83,45 @@ jobs:
             python3 -c 'import struct; f=open("jones-trefoil-icon-512.png","rb"); assert f.read(8).hex()=="89504e470d0a1a0a"; f.read(4); assert f.read(4)==b"IHDR"; w,h=struct.unpack(">II",f.read(8)); print(w,h); assert (w,h)==(512,512),(w,h)'
             convert jones-trefoil-icon-512.png -crop 460x460+26+0 +repage -resize 512x512 jones-trefoil-icon.png
 
-      - name: Record rendered icon candidate
+      - name: Record Jones icon family
         working-directory: .
         run: |
           git pull --rebase origin jones-trefoil-icon
           mkdir -p rendered_images/icon-candidates
+          if [ ! -e rendered_images/icon-candidates/original-phase-portrait.png ]; then
+            cp rendered_images/wegert-icon-512.png rendered_images/icon-candidates/original-phase-portrait.png
+          fi
           cp jones-trefoil-icon.png rendered_images/icon-candidates/jones-trefoil.png
+          cp jones-trefoil-icon.png rendered_images/wegert-icon-512.png
+          cp jones-trefoil-icon.png _/build/artwork/wegert-icon-512.png
+          cp jones-trefoil-icon.png _/build/app/src/main/play/listings/en-US/graphics/icon/icon.png
+
+          for spec in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            density="${spec%%:*}"
+            size="${spec##*:}"
+            convert jones-trefoil-icon.png -resize "${size}x${size}!" "_/build/app/src/main/res/mipmap-${density}/ic_launcher.png"
+            convert jones-trefoil-icon.png -resize "${size}x${size}!" \
+              \( -size "${size}x${size}" xc:none -fill white -draw "circle $((size/2)),$((size/2)) $((size/2)),0" \) \
+              -alpha off -compose CopyOpacity -composite "_/build/app/src/main/res/mipmap-${density}/ic_launcher_round.png"
+          done
+
+          for spec in mdpi:108 hdpi:162 xhdpi:216 xxhdpi:324 xxxhdpi:432; do
+            density="${spec%%:*}"
+            size="${spec##*:}"
+            convert jones-trefoil-icon.png -resize "${size}x${size}!" "_/build/app/src/main/res/drawable-${density}/ic_launcher_foreground.png"
+          done
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add rendered_images/icon-candidates/jones-trefoil.png
+          git add rendered_images/icon-candidates \
+            rendered_images/wegert-icon-512.png \
+            _/build/artwork/wegert-icon-512.png \
+            _/build/app/src/main/play/listings/en-US/graphics/icon/icon.png \
+            _/build/app/src/main/res/drawable-*/ic_launcher_foreground.png \
+            _/build/app/src/main/res/mipmap-*/ic_launcher.png \
+            _/build/app/src/main/res/mipmap-*/ic_launcher_round.png
           if ! git diff --cached --quiet; then
-            git commit -m "Add Jones-trefoil renderer icon candidate"
+            git commit -m "Use Jones-trefoil portrait for launcher icon"
             git push origin HEAD:jones-trefoil-icon
           fi
 
