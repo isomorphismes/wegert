@@ -8,8 +8,10 @@ plugins {
 val releaseVersionCode = 101
 val releaseVersionName = "0.2.0"
 val fdroidBuild = providers.gradleProperty("fdroidBuild").orNull == "true"
+val iconCapture = providers.gradleProperty("iconCapture").orNull == "true"
 
 val wegertColorMarker = "/*__WEGERT_COLOR_CORE__*/"
+val wegertIconCaptureMarker = "/*__WEGERT_ICON_CAPTURE__*/"
 val generatedWegertAssets = layout.buildDirectory.dir("generated/wegert-assets")
 val assembleWegertShader = tasks.register("assembleWegertShader") {
     val template = rootProject.file("wegert.frag.in")
@@ -28,9 +30,20 @@ val assembleWegertShader = tasks.register("assembleWegertShader") {
             "Wegert fragment template must contain exactly one coloring-core marker"
         }
 
+        check(templateText.contains(wegertIconCaptureMarker)) {
+            "Wegert fragment template is missing the icon-capture marker"
+        }
+
         val outputFile = output.get().asFile
         outputFile.parentFile.mkdirs()
-        outputFile.writeText(templateText.replace(wegertColorMarker, colorCore.readText()))
+        outputFile.writeText(
+            templateText
+                .replace(wegertColorMarker, colorCore.readText())
+                .replace(
+                    wegertIconCaptureMarker,
+                    if (iconCapture) "#define WEGERT_ICON_CAPTURE 1" else ""
+                )
+        )
     }
 }
 
@@ -69,6 +82,7 @@ android {
                 arguments += listOf(
                     "-DANDROID_STL=none",
                     "-DWEGERT_USE_ICK_PREBUILT=${if (fdroidBuild) "OFF" else "ON"}",
+                    "-DWEGERT_ICON_CAPTURE=${if (iconCapture) "ON" else "OFF"}",
                 )
             }
         }
