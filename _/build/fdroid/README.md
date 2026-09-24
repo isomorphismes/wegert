@@ -17,6 +17,19 @@ The canonical upstream store metadata is Triple-T under `app/src/main/play`. `fd
 
 The F-Droid workflow makes two clean direct builds and requires byte-identical unsigned APKs. It also runs the recipe inside F-Droid's production-like buildserver image and checks metadata, scanner output, ABI packaging, and upstream Triple-T extraction through F-Droid's legacy-named `tools/check-fastlane.py`.
 
+`fdroid/produce-candidate-receipt.sh` is the first consumer of ai-ci's trusted
+`candidate-v1` receipt producer. The workflow runs the production-like F-Droid
+build through that producer and records the exact source revision, independently
+checked `fdroiddata` and `fdroidserver` revisions, observed buildserver image
+digest, command log, and produced APK bytes.
+
+This first slice is intentionally not a complete candidate pass. It records the
+second buildserver rebuild, the checks still bundled inside the buildserver
+script, APK identity, manual policy reviews, and install/launch evidence as
+`not-verified` rather than manufacturing pass rows. The generated receipt and
+all witnesses are uploaded as the `wegert-fdroiddata-candidate` workflow
+artifact.
+
 ## Local checks
 
 From the repository root:
