@@ -1,0 +1,9 @@
+receipt	WEGERT-FDROID-CANDIDATE
+release	WEGERT-FDROID-RELEASE	org.isomorphisms.wegert	0.2.0	101	@SOURCE_REVISION@
+toolchain	WEGERT-FDROID-TOOLCHAIN	4498e27635a1c3b737510342c1f2355c25ce0211	6af4c4216e43d0fcb29e33919cd0fe8fef7e7400	registry.gitlab.com/fdroid/fdroidserver@sha256:9cb68105642ca4e7b295f0ceab10f069f5b3247dc18fa7c36046e9d81aa469a8
+profile	candidate-v1
+signing	fdroid
+native	yes
+artifact	WEGERT-FDROID-BUILD-ONE	buildserver-one	rebuild	org.isomorphisms.wegert	0.2.0	101	armeabi-v7a,arm64-v8a,x86_64
+artifact	WEGERT-FDROID-BUILD-TWO	buildserver-two	rebuild	org.isomorphisms.wegert	0.2.0	101	armeabi-v7a,arm64-v8a,x86_64
+same_artifact	WEGERT-FDROID-REPRODUCIBLE	buildserver-one	buildserver-two
