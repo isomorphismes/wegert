@@ -24,7 +24,16 @@ option(
     OFF
 )
 
-set(WEGERT_SOURCES wegert.c)
+set(WEGERT_SOURCES
+    wegert.c
+    wegert_function.c
+    wegert_view.c
+    wegert_scene.c
+    wegert_gles.c
+    wegert_portrait_renderer_gles.c
+    wegert_placement_controls.c
+    wegert_overlay_renderer_gles.c
+)
 if(WEGERT_ENABLE_DIRECT_JNI)
     list(APPEND WEGERT_SOURCES wegert_jni.c)
 endif()

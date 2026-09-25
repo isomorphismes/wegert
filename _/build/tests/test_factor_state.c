@@ -1,12 +1,11 @@
 #include <assert.h>
 #include <stdio.h>
 
-#define MAX_FACTORS 64
 #include "../factor_state.h"
 
 int main(void) {
-    float zeros[MAX_FACTORS][2] = {{0.0f, 0.0f}};
-    float poles[MAX_FACTORS][2] = {{0.0f, 0.0f}};
+    float zeros[WEGERT_MAX_FACTORS][2] = {{0.0f, 0.0f}};
+    float poles[WEGERT_MAX_FACTORS][2] = {{0.0f, 0.0f}};
     int zero_count = 0;
     int pole_count = 0;
 
@@ -44,14 +43,14 @@ int main(void) {
     assert(zero_count == 1 && pole_count == 2);
     assert(poles[1][0] == 7.0f && poles[1][1] == -2.0f);
 
-    zero_count = MAX_FACTORS;
+    zero_count = WEGERT_MAX_FACTORS;
     assert(factor_insert_reduced(zeros, &zero_count, poles, &pole_count, 7.0f, -2.0f) ==
         FACTOR_CANCELLED_OPPOSITE);
-    assert(zero_count == MAX_FACTORS && pole_count == 1);
+    assert(zero_count == WEGERT_MAX_FACTORS && pole_count == 1);
 
     assert(factor_insert_reduced(zeros, &zero_count, poles, &pole_count, 9.0f, 9.0f) ==
         FACTOR_UNCHANGED);
-    assert(zero_count == MAX_FACTORS);
+    assert(zero_count == WEGERT_MAX_FACTORS);
 
     puts("factor state tests passed");
     return 0;

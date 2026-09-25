@@ -13,12 +13,17 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "wegert_scene.h"
+#include "wegert_gles.h"
+#include "wegert_portrait_renderer_gles.h"
+#include "wegert_placement_controls.h"
+#include "wegert_overlay_renderer_gles.h"
+#include "polynomial_text.h"
 #include "factor_drag.h"
 
 #define LOG_TAG "Wegert"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define MAX_FACTORS 64
 
 #include "factor_snap.h"
 #include "factor_state.h"
@@ -29,6 +34,9 @@ static const char *PLACEMENT_CONTROL_FRAGMENT_SHADER =
     "precision highp float;\n"
     "in vec2 v_ndc;\n"
     "uniform vec2 u_resolution;\n"
+    "uniform vec2 u_zero_center;\n"
+    "uniform vec2 u_pole_center;\n"
+    "uniform float u_radius;\n"
     "uniform int u_placement_kind;\n"
     "out vec4 out_color;\n"
     "float circle_mask(vec2 point, vec2 center, float radius) {\n"
@@ -41,22 +49,21 @@ static const char *PLACEMENT_CONTROL_FRAGMENT_SHADER =
     "    return 1.0 - smoothstep(half_width - 1.0, half_width + 1.0, distance_to_line);\n"
     "}\n"
     "vec4 button(vec2 point, vec2 center, bool selected, bool pole) {\n"
-    "    float radius = clamp(min(u_resolution.x, u_resolution.y) * 0.065, 36.0, 56.0);\n"
-    "    float disk = circle_mask(point, center, radius);\n"
-    "    float rim = circle_mask(point, center, radius) - circle_mask(point, center, radius - 3.0);\n"
+    "    float disk = circle_mask(point, center, u_radius);\n"
+    "    float rim = circle_mask(point, center, u_radius) - circle_mask(point, center, u_radius - 3.0);\n"
     "    vec4 background = selected ? vec4(0.96, 0.96, 0.93, 0.94) : vec4(0.05, 0.05, 0.05, 0.72);\n"
     "    vec3 mark_color = selected ? vec3(0.05) : vec3(0.96);\n"
     "    float mark = 0.0;\n"
     "    if (pole) {\n"
-    "        float reach = radius * 0.38;\n"
-    "        float width = max(2.5, radius * 0.075);\n"
+    "        float reach = u_radius * 0.38;\n"
+    "        float width = max(2.5, u_radius * 0.075);\n"
     "        mark = max(\n"
     "            line_mask(point, center - vec2(reach), center + vec2(reach), width),\n"
     "            line_mask(point, center + vec2(-reach, reach), center + vec2(reach, -reach), width)\n"
     "        );\n"
     "    } else {\n"
-    "        float outer = circle_mask(point, center, radius * 0.40);\n"
-    "        float inner = circle_mask(point, center, radius * 0.27);\n"
+    "        float outer = circle_mask(point, center, u_radius * 0.40);\n"
+    "        float inner = circle_mask(point, center, u_radius * 0.27);\n"
     "        mark = outer - inner;\n"
     "    }\n"
     "    vec4 color = background * disk;\n"
@@ -66,24 +73,10 @@ static const char *PLACEMENT_CONTROL_FRAGMENT_SHADER =
     "    return color;\n"
     "}\n"
     "void main() {\n"
-    "    vec2 point = gl_FragCoord.xy;\n"
-    "    float radius = clamp(min(u_resolution.x, u_resolution.y) * 0.065, 36.0, 56.0);\n"
-    "    float margin = max(18.0, radius * 0.38);\n"
-    "    vec2 zero_center = vec2(margin + radius, margin + radius);\n"
-    "    vec2 pole_center = zero_center + vec2(2.0 * radius + margin * 0.55, 0.0);\n"
-    "    vec4 zero_button = button(point, zero_center, u_placement_kind == 0, false);\n"
-    "    vec4 pole_button = button(point, pole_center, u_placement_kind == 1, true);\n"
+    "    vec2 point = vec2(gl_FragCoord.x, u_resolution.y - gl_FragCoord.y);\n"
+    "    vec4 zero_button = button(point, u_zero_center, u_placement_kind == 0, false);\n"
+    "    vec4 pole_button = button(point, u_pole_center, u_placement_kind == 1, true);\n"
     "    out_color = zero_button.a >= pole_button.a ? zero_button : pole_button;\n"
-    "}\n";
-
-static const char *VERTEX_SHADER =
-    "#version 300 es\n"
-    "precision highp float;\n"
-    "layout(location = 0) in vec2 a_position;\n"
-    "out vec2 v_ndc;\n"
-    "void main() {\n"
-    "    v_ndc = a_position;\n"
-    "    gl_Position = vec4(a_position, 0.0, 1.0);\n"
     "}\n";
 
 struct engine {
@@ -92,45 +85,20 @@ struct engine {
     EGLDisplay display;
     EGLSurface surface;
     EGLContext context;
-    int32_t width;
-    int32_t height;
+    struct wegert_portrait_renderer_gles portrait_renderer;
 
-    GLuint program;
     GLuint vao;
     GLuint vbo;
-    GLint center_location;
-    GLint half_height_location;
-    GLint aspect_location;
-    GLint resolution_location;
-    GLint zero_count_location;
-    GLint pole_count_location;
-    GLint zeros_location;
-    GLint poles_location;
-
     GLuint placement_program;
     GLint placement_resolution_location;
+    GLint placement_zero_center_location;
+    GLint placement_pole_center_location;
+    GLint placement_radius_location;
     GLint placement_kind_location;
 
-    GLuint overlay_program;
-    GLuint overlay_texture;
-    GLuint clear_button_texture;
-    GLint overlay_resolution_location;
-    GLint overlay_origin_location;
-    GLint overlay_size_location;
-    GLint overlay_sampler_location;
-    int overlay_width;
-    int overlay_height;
-    int clear_button_width;
-    int clear_button_height;
-    bool overlay_dirty;
-    bool overlay_unavailable;
+    struct wegert_overlay_renderer_gles overlay_renderer;
 
-    float center[2];
-    float half_height;
-    float zeros[MAX_FACTORS][2];
-    float poles[MAX_FACTORS][2];
-    int zero_count;
-    int pole_count;
+    struct wegert_scene scene;
     enum factor_kind placement_kind;
 
     enum gesture_kind gesture;
@@ -151,60 +119,40 @@ struct engine {
     bool logged_first_frame;
 };
 
-static void placement_control_centers(
-    const struct engine *engine,
-    float *zero_x,
-    float *pole_x,
-    float *center_y
-);
-
-
-static void initialize_function(struct engine *engine) {
+static void initialize_scene(struct engine *engine) {
+    wegert_scene_initialize_default(&engine->scene);
 #ifdef WEGERT_ICON_CAPTURE
     // Right-handed trefoil Jones polynomial in the convention
     // V(z) = z + z^3 - z^4 = -z(z-r1)(z-r2)(z-r3).
     // The shader applies the leading -1 as a pi phase rotation.
-    engine->center[0] = 0.55f;
-    engine->center[1] = 0.0f;
-    engine->half_height = 1.65f;
+    engine->scene.view.center[0] = 0.55f;
+    engine->scene.view.center[1] = 0.0f;
+    engine->scene.view.half_height = 1.65f;
 
-    engine->zero_count = 4;
-    engine->zeros[0][0] = 0.0f;
-    engine->zeros[0][1] = 0.0f;
-    engine->zeros[1][0] = 1.4655712f;
-    engine->zeros[1][1] = 0.0f;
-    engine->zeros[2][0] = -0.2327856f;
-    engine->zeros[2][1] = 0.7925520f;
-    engine->zeros[3][0] = -0.2327856f;
-    engine->zeros[3][1] = -0.7925520f;
-#else
-    engine->center[0] = 0.0f;
-    engine->center[1] = 0.0f;
-    engine->half_height = 3.5f;
-
-    engine->zero_count = 3;
-    engine->zeros[0][0] = 1.0f;
-    engine->zeros[0][1] = 0.0f;
-    engine->zeros[1][0] = 2.0f;
-    engine->zeros[1][1] = 0.0f;
-    engine->zeros[2][0] = 5.0f;
-    engine->zeros[2][1] = 0.0f;
+    engine->scene.function.zero_count = 4;
+    engine->scene.function.zeros[0][0] = 0.0f;
+    engine->scene.function.zeros[0][1] = 0.0f;
+    engine->scene.function.zeros[1][0] = 1.4655712f;
+    engine->scene.function.zeros[1][1] = 0.0f;
+    engine->scene.function.zeros[2][0] = -0.2327856f;
+    engine->scene.function.zeros[2][1] = 0.7925520f;
+    engine->scene.function.zeros[3][0] = -0.2327856f;
+    engine->scene.function.zeros[3][1] = -0.7925520f;
+    engine->scene.function.pole_count = 0;
 #endif
-    engine->pole_count = 0;
     engine->placement_kind = FACTOR_ZERO;
-    engine->overlay_dirty = true;
+    wegert_overlay_renderer_gles_mark_dirty(&engine->overlay_renderer);
     engine->dirty = true;
 }
 
 static void reset_all(struct engine *engine) {
-    initialize_function(engine);
+    initialize_scene(engine);
     LOGI("default function and camera reset");
 }
 
 static void clear_function(struct engine *engine) {
-    engine->zero_count = 0;
-    engine->pole_count = 0;
-    engine->overlay_dirty = true;
+    wegert_function_clear(&engine->scene.function);
+    wegert_overlay_renderer_gles_mark_dirty(&engine->overlay_renderer);
     engine->dirty = true;
 }
 
@@ -239,110 +187,61 @@ static char *load_asset_text(AAssetManager *manager, const char *name) {
     return text;
 }
 
-static GLuint compile_shader(GLenum type, const char *source) {
-    GLuint shader = glCreateShader(type);
-    glShaderSource(shader, 1, &source, NULL);
-    glCompileShader(shader);
-
-    GLint compiled = GL_FALSE;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-    if (compiled == GL_TRUE) {
-        return shader;
-    }
-
-    GLint length = 0;
-    glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
-    char *log = length > 0 ? malloc((size_t)length) : NULL;
-    if (log != NULL) {
-        glGetShaderInfoLog(shader, length, NULL, log);
-        LOGE("shader compilation failed: %s", log);
-        free(log);
-    } else {
-        LOGE("shader compilation failed");
-    }
-    glDeleteShader(shader);
-    return 0;
-}
-
-static GLuint link_program(GLuint vertex_shader, GLuint fragment_shader) {
-    GLuint program = glCreateProgram();
-    glAttachShader(program, vertex_shader);
-    glAttachShader(program, fragment_shader);
-    glLinkProgram(program);
-
-    GLint linked = GL_FALSE;
-    glGetProgramiv(program, GL_LINK_STATUS, &linked);
-    if (linked == GL_TRUE) {
-        return program;
-    }
-
-    GLint length = 0;
-    glGetProgramiv(program, GL_INFO_LOG_LENGTH, &length);
-    char *log = length > 0 ? malloc((size_t)length) : NULL;
-    if (log != NULL) {
-        glGetProgramInfoLog(program, length, NULL, log);
-        LOGE("program link failed: %s", log);
-        free(log);
-    } else {
-        LOGE("program link failed");
-    }
-    glDeleteProgram(program);
-    return 0;
-}
-
-#include "polynomial_overlay.h"
 
 static bool create_renderer(struct engine *engine) {
-    static const GLfloat fullscreen_triangle[] = {
-        -1.0f, -1.0f,
-         3.0f, -1.0f,
-        -1.0f,  3.0f
-    };
-
-    char *fragment_source = load_asset_text(engine->app->activity->assetManager, "wegert.frag");
+    char *fragment_source = load_asset_text(
+        engine->app->activity->assetManager,
+        "wegert.frag"
+    );
     if (fragment_source == NULL) {
         return false;
     }
 
-    GLuint vertex_shader = compile_shader(GL_VERTEX_SHADER, VERTEX_SHADER);
-    GLuint fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fragment_source);
-    free(fragment_source);
-
-    if (vertex_shader == 0 || fragment_shader == 0) {
-        if (vertex_shader != 0) glDeleteShader(vertex_shader);
-        if (fragment_shader != 0) glDeleteShader(fragment_shader);
-        return false;
-    }
-
-    engine->program = link_program(vertex_shader, fragment_shader);
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
-    if (engine->program == 0) {
-        return false;
-    }
-
-    engine->center_location = glGetUniformLocation(engine->program, "u_center");
-    engine->half_height_location = glGetUniformLocation(engine->program, "u_half_height");
-    engine->aspect_location = glGetUniformLocation(engine->program, "u_aspect");
-    engine->resolution_location = glGetUniformLocation(engine->program, "u_resolution");
-    engine->zero_count_location = glGetUniformLocation(engine->program, "u_zero_count");
-    engine->pole_count_location = glGetUniformLocation(engine->program, "u_pole_count");
-    engine->zeros_location = glGetUniformLocation(engine->program, "u_zeros[0]");
-    engine->poles_location = glGetUniformLocation(engine->program, "u_poles[0]");
-
-    GLuint placement_vertex_shader = compile_shader(GL_VERTEX_SHADER, VERTEX_SHADER);
-    GLuint placement_fragment_shader = compile_shader(
-        GL_FRAGMENT_SHADER,
-        PLACEMENT_CONTROL_FRAGMENT_SHADER
+    char error[2048] = {0};
+    bool portrait_ready = wegert_portrait_renderer_gles_initialize(
+        &engine->portrait_renderer,
+        fragment_source,
+        error,
+        sizeof(error)
     );
-    if (placement_vertex_shader != 0 && placement_fragment_shader != 0) {
-        engine->placement_program = link_program(
+    free(fragment_source);
+    if (!portrait_ready) {
+        LOGE("%s", error[0] != '\0' ? error : "portrait renderer unavailable");
+        return false;
+    }
+
+    GLuint placement_vertex_shader = 0;
+    GLuint placement_fragment_shader = 0;
+    bool placement_vertex_ready = wegert_gles_compile_shader(
+        GL_VERTEX_SHADER,
+        WEGERT_FULLSCREEN_VERTEX_SHADER,
+        &placement_vertex_shader,
+        error,
+        sizeof(error)
+    );
+    bool placement_fragment_ready = wegert_gles_compile_shader(
+        GL_FRAGMENT_SHADER,
+        PLACEMENT_CONTROL_FRAGMENT_SHADER,
+        &placement_fragment_shader,
+        error,
+        sizeof(error)
+    );
+    if (placement_vertex_ready && placement_fragment_ready) {
+        if (!wegert_gles_link_program(
             placement_vertex_shader,
-            placement_fragment_shader
-        );
+            placement_fragment_shader,
+            &engine->placement_program,
+            error,
+            sizeof(error)
+        )) {
+            LOGE("%s", error);
+        }
+    } else {
+        LOGE("%s", error);
     }
     if (placement_vertex_shader != 0) glDeleteShader(placement_vertex_shader);
     if (placement_fragment_shader != 0) glDeleteShader(placement_fragment_shader);
+
     if (engine->placement_program == 0) {
         LOGE("placement controls unavailable");
     } else {
@@ -350,31 +249,35 @@ static bool create_renderer(struct engine *engine) {
             engine->placement_program,
             "u_resolution"
         );
+        engine->placement_zero_center_location = glGetUniformLocation(
+            engine->placement_program,
+            "u_zero_center"
+        );
+        engine->placement_pole_center_location = glGetUniformLocation(
+            engine->placement_program,
+            "u_pole_center"
+        );
+        engine->placement_radius_location = glGetUniformLocation(
+            engine->placement_program,
+            "u_radius"
+        );
         engine->placement_kind_location = glGetUniformLocation(
             engine->placement_program,
             "u_placement_kind"
         );
     }
 
-    glGenVertexArrays(1, &engine->vao);
-    glBindVertexArray(engine->vao);
+    if (!wegert_gles_create_fullscreen_triangle(&engine->vao, &engine->vbo)) {
+        LOGE("could not create UI fullscreen triangle");
+        wegert_portrait_renderer_gles_destroy(&engine->portrait_renderer);
+        return false;
+    }
 
-    glGenBuffers(1, &engine->vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, engine->vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(fullscreen_triangle), fullscreen_triangle, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * (GLsizei)sizeof(GLfloat), (const void *)0);
-    glEnableVertexAttribArray(0);
-
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_CULL_FACE);
-    glDisable(GL_SCISSOR_TEST);
-    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-    LOGI("renderer ready: GL_VERSION=%s GL_RENDERER=%s program=%u vao=%u vbo=%u uniforms=%d,%d,%d,%d,%d,%d,%d,%d",
-         glGetString(GL_VERSION), glGetString(GL_RENDERER), engine->program, engine->vao, engine->vbo,
-         engine->center_location, engine->half_height_location, engine->aspect_location,
-         engine->resolution_location, engine->zero_count_location, engine->pole_count_location,
-         engine->zeros_location, engine->poles_location);
+    LOGI(
+        "renderer ready: GL_VERSION=%s GL_RENDERER=%s",
+        glGetString(GL_VERSION),
+        glGetString(GL_RENDERER)
+    );
     return true;
 }
 
@@ -436,9 +339,9 @@ static bool initialize_display(struct engine *engine) {
     engine->display = display;
     engine->surface = surface;
     engine->context = context;
-    eglQuerySurface(display, surface, EGL_WIDTH, &engine->width);
-    eglQuerySurface(display, surface, EGL_HEIGHT, &engine->height);
-    LOGI("EGL surface ready: %dx%d", engine->width, engine->height);
+    eglQuerySurface(display, surface, EGL_WIDTH, &engine->scene.width);
+    eglQuerySurface(display, surface, EGL_HEIGHT, &engine->scene.height);
+    LOGI("EGL surface ready: %dx%d", engine->scene.width, engine->scene.height);
 
     if (!create_renderer(engine)) {
         eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
@@ -451,8 +354,8 @@ static bool initialize_display(struct engine *engine) {
         return false;
     }
 
-    glViewport(0, 0, engine->width, engine->height);
-    engine->overlay_dirty = true;
+    glViewport(0, 0, engine->scene.width, engine->scene.height);
+    wegert_overlay_renderer_gles_mark_dirty(&engine->overlay_renderer);
     engine->dirty = true;
     return true;
 }
@@ -462,19 +365,9 @@ static void terminate_display(struct engine *engine) {
         return;
     }
 
-    polynomial_overlay_destroy(engine);
-    if (engine->vbo != 0) {
-        glDeleteBuffers(1, &engine->vbo);
-        engine->vbo = 0;
-    }
-    if (engine->vao != 0) {
-        glDeleteVertexArrays(1, &engine->vao);
-        engine->vao = 0;
-    }
-    if (engine->program != 0) {
-        glDeleteProgram(engine->program);
-        engine->program = 0;
-    }
+    wegert_overlay_renderer_gles_destroy(&engine->overlay_renderer);
+    wegert_portrait_renderer_gles_destroy(&engine->portrait_renderer);
+    wegert_gles_destroy_fullscreen_triangle(&engine->vao, &engine->vbo);
     if (engine->placement_program != 0) {
         glDeleteProgram(engine->placement_program);
         engine->placement_program = 0;
@@ -498,43 +391,89 @@ static void update_surface_size(struct engine *engine) {
     if (engine->display == EGL_NO_DISPLAY || engine->surface == EGL_NO_SURFACE) {
         return;
     }
-    eglQuerySurface(engine->display, engine->surface, EGL_WIDTH, &engine->width);
-    eglQuerySurface(engine->display, engine->surface, EGL_HEIGHT, &engine->height);
-    glViewport(0, 0, engine->width, engine->height);
-    engine->overlay_dirty = true;
+    eglQuerySurface(engine->display, engine->surface, EGL_WIDTH, &engine->scene.width);
+    eglQuerySurface(engine->display, engine->surface, EGL_HEIGHT, &engine->scene.height);
+    glViewport(0, 0, engine->scene.width, engine->scene.height);
+    wegert_overlay_renderer_gles_mark_dirty(&engine->overlay_renderer);
     engine->dirty = true;
 }
 
 static void draw_frame(struct engine *engine) {
-    if (engine->display == EGL_NO_DISPLAY || engine->program == 0 || engine->width <= 0 || engine->height <= 0) {
+    if (
+        engine->display == EGL_NO_DISPLAY ||
+        engine->scene.width <= 0 ||
+        engine->scene.height <= 0
+    ) {
         return;
     }
 
-    float aspect = (float)engine->width / (float)engine->height;
+    if (!wegert_portrait_renderer_gles_render_frame(
+        &engine->portrait_renderer,
+        &engine->scene
+    )) {
+        return;
+    }
 
-    glUseProgram(engine->program);
-    glUniform2f(engine->center_location, engine->center[0], engine->center[1]);
-    glUniform1f(engine->half_height_location, engine->half_height);
-    glUniform1f(engine->aspect_location, aspect);
-    glUniform2f(engine->resolution_location, (float)engine->width, (float)engine->height);
-    glUniform1i(engine->zero_count_location, engine->zero_count);
-    glUniform1i(engine->pole_count_location, engine->pole_count);
-    glUniform2fv(engine->zeros_location, MAX_FACTORS, &engine->zeros[0][0]);
-    glUniform2fv(engine->poles_location, MAX_FACTORS, &engine->poles[0][0]);
-
-    glBindVertexArray(engine->vao);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    struct wegert_placement_controls placement_controls;
+    bool have_placement_controls = false;
 #ifndef WEGERT_ICON_CAPTURE
-    polynomial_overlay_draw(engine);
+    bool overlay_was_dirty = engine->overlay_renderer.dirty;
+    char overlay_error[2048] = {0};
+    if (!wegert_overlay_renderer_gles_draw(
+        &engine->overlay_renderer,
+        &engine->scene,
+        AConfiguration_getDensity(engine->app->config),
+        engine->vao,
+        overlay_error,
+        sizeof(overlay_error)
+    )) {
+        if (overlay_error[0] != '\0') {
+            LOGE("%s", overlay_error);
+        }
+    }
+#ifndef NDEBUG
+    if (overlay_was_dirty && !engine->overlay_renderer.dirty) {
+        char function_text[4096];
+        polynomial_text_format_function(
+            engine->scene.function.zeros,
+            engine->scene.function.zero_count,
+            engine->scene.function.poles,
+            engine->scene.function.pole_count,
+            function_text,
+            sizeof(function_text)
+        );
+        LOGI("function overlay: %s", function_text);
+    }
+#endif
 
-    if (engine->placement_program != 0) {
+    have_placement_controls = wegert_placement_controls_layout(
+        engine->scene.width,
+        engine->scene.height,
+        &placement_controls
+    );
+
+    if (engine->placement_program != 0 && have_placement_controls) {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glUseProgram(engine->placement_program);
         glUniform2f(
             engine->placement_resolution_location,
-            (float)engine->width,
-            (float)engine->height
+            (float)engine->scene.width,
+            (float)engine->scene.height
+        );
+        glUniform2f(
+            engine->placement_zero_center_location,
+            placement_controls.zero_center[0],
+            placement_controls.zero_center[1]
+        );
+        glUniform2f(
+            engine->placement_pole_center_location,
+            placement_controls.pole_center[0],
+            placement_controls.pole_center[1]
+        );
+        glUniform1f(
+            engine->placement_radius_location,
+            placement_controls.radius
         );
         glUniform1i(engine->placement_kind_location, (int)engine->placement_kind);
         glBindVertexArray(engine->vao);
@@ -544,25 +483,34 @@ static void draw_frame(struct engine *engine) {
 #endif
 
     if (!engine->logged_first_frame) {
-        float zero_control_x = 0.0f;
-        float pole_control_x = 0.0f;
-        float placement_control_y = 0.0f;
-        placement_control_centers(
-            engine,
-            &zero_control_x,
-            &pole_control_x,
-            &placement_control_y
-        );
-        LOGI(
-            "placement control centers: zero=%d,%d pole=%d,%d",
-            (int)zero_control_x,
-            (int)placement_control_y,
-            (int)pole_control_x,
-            (int)placement_control_y
-        );
+        if (have_placement_controls) {
+            LOGI(
+                "placement control centers: zero=%d,%d pole=%d,%d",
+                (int)placement_controls.zero_center[0],
+                (int)placement_controls.zero_center[1],
+                (int)placement_controls.pole_center[0],
+                (int)placement_controls.pole_center[1]
+            );
+        }
+
+        float clear_button_x = 0.0f;
+        float clear_button_y = 0.0f;
+        if (wegert_overlay_renderer_gles_clear_button_center(
+            &engine->overlay_renderer,
+            &engine->scene,
+            AConfiguration_getDensity(engine->app->config),
+            &clear_button_x,
+            &clear_button_y
+        )) {
+            LOGI(
+                "clear control center: %d %d",
+                (int)clear_button_x,
+                (int)clear_button_y
+            );
+        }
 
         GLubyte pixel[4] = {0, 0, 0, 0};
-        glReadPixels(engine->width / 2, engine->height / 2, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+        glReadPixels(engine->scene.width / 2, engine->scene.height / 2, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
         GLenum error = glGetError();
         LOGI("first frame: center rgba=%u,%u,%u,%u glError=0x%x",
              pixel[0], pixel[1], pixel[2], pixel[3], error);
@@ -576,14 +524,7 @@ static void draw_frame(struct engine *engine) {
 }
 
 static void screen_to_complex(const struct engine *engine, float x, float y, float output[2]) {
-    float width = (float)engine->width;
-    float height = (float)engine->height;
-    float aspect = width / height;
-    float ndc_x = 2.0f * x / width - 1.0f;
-    float ndc_y = 1.0f - 2.0f * y / height;
-
-    output[0] = engine->center[0] + ndc_x * engine->half_height * aspect;
-    output[1] = engine->center[1] + ndc_y * engine->half_height;
+    (void)wegert_scene_screen_to_complex(&engine->scene, x, y, output);
 }
 
 static float factor_snap_radius_pixels(const struct engine *engine) {
@@ -601,10 +542,10 @@ static float factor_snap_radius_pixels(const struct engine *engine) {
 static void snap_touch_to_factors(
     const struct engine *engine,
     float point[2],
-    float factors[MAX_FACTORS][2],
+    float factors[WEGERT_MAX_FACTORS][2],
     int factor_count
 ) {
-    float world_per_pixel = 2.0f * engine->half_height / (float)engine->height;
+    float world_per_pixel = wegert_scene_world_units_per_pixel(&engine->scene);
     factor_snap_to_nearest(
         point,
         factors,
@@ -615,28 +556,24 @@ static void snap_touch_to_factors(
 }
 
 static void pan_by_pixels(struct engine *engine, float delta_x, float delta_y) {
-    if (engine->width <= 0 || engine->height <= 0) {
-        return;
+    if (wegert_scene_pan_by_pixels(&engine->scene, delta_x, delta_y)) {
+        engine->dirty = true;
     }
-    float aspect = (float)engine->width / (float)engine->height;
-    engine->center[0] -= 2.0f * delta_x * engine->half_height * aspect / (float)engine->width;
-    engine->center[1] += 2.0f * delta_y * engine->half_height / (float)engine->height;
-    engine->dirty = true;
 }
 
 static void add_zero(struct engine *engine, float x, float y) {
-    if (engine->width <= 0 || engine->height <= 0) {
+    if (engine->scene.width <= 0 || engine->scene.height <= 0) {
         return;
     }
 
     float factor[2];
     screen_to_complex(engine, x, y, factor);
-    snap_touch_to_factors(engine, factor, engine->poles, engine->pole_count);
+    snap_touch_to_factors(engine, factor, engine->scene.function.poles, engine->scene.function.pole_count);
     enum factor_change change = factor_insert_reduced(
-        engine->zeros,
-        &engine->zero_count,
-        engine->poles,
-        &engine->pole_count,
+        engine->scene.function.zeros,
+        &engine->scene.function.zero_count,
+        engine->scene.function.poles,
+        &engine->scene.function.pole_count,
         factor[0],
         factor[1]
     );
@@ -644,23 +581,23 @@ static void add_zero(struct engine *engine, float x, float y) {
         return;
     }
 
-    engine->overlay_dirty = true;
+    wegert_overlay_renderer_gles_mark_dirty(&engine->overlay_renderer);
     engine->dirty = true;
 }
 
 static void add_pole(struct engine *engine, float x, float y) {
-    if (engine->width <= 0 || engine->height <= 0) {
+    if (engine->scene.width <= 0 || engine->scene.height <= 0) {
         return;
     }
 
     float factor[2];
     screen_to_complex(engine, x, y, factor);
-    snap_touch_to_factors(engine, factor, engine->zeros, engine->zero_count);
+    snap_touch_to_factors(engine, factor, engine->scene.function.zeros, engine->scene.function.zero_count);
     enum factor_change change = factor_insert_reduced(
-        engine->poles,
-        &engine->pole_count,
-        engine->zeros,
-        &engine->zero_count,
+        engine->scene.function.poles,
+        &engine->scene.function.pole_count,
+        engine->scene.function.zeros,
+        &engine->scene.function.zero_count,
         factor[0],
         factor[1]
     );
@@ -668,18 +605,8 @@ static void add_pole(struct engine *engine, float x, float y) {
         return;
     }
 
-    engine->overlay_dirty = true;
+    wegert_overlay_renderer_gles_mark_dirty(&engine->overlay_renderer);
     engine->dirty = true;
-}
-
-static struct factor_viewport factor_viewport_for_engine(const struct engine *engine) {
-    return (struct factor_viewport) {
-        .width = engine->width,
-        .height = engine->height,
-        .center_x = engine->center[0],
-        .center_y = engine->center[1],
-        .half_height = engine->half_height
-    };
 }
 
 static struct factor_target factor_target_at(
@@ -691,13 +618,14 @@ static struct factor_target factor_target_at(
     if (engine->app != NULL && engine->app->config != NULL) {
         density_dpi = AConfiguration_getDensity(engine->app->config);
     }
-    struct factor_viewport viewport = factor_viewport_for_engine(engine);
     return nearest_factor_target(
-        &viewport,
-        engine->zeros,
-        engine->zero_count,
-        engine->poles,
-        engine->pole_count,
+        &engine->scene.view,
+        engine->scene.width,
+        engine->scene.height,
+        engine->scene.function.zeros,
+        engine->scene.function.zero_count,
+        engine->scene.function.poles,
+        engine->scene.function.pole_count,
         x,
         y,
         factor_touch_radius_pixels(density_dpi)
@@ -711,12 +639,12 @@ static void capture_factor(
     engine->captured_factor_kind = target->kind;
     engine->captured_factor_index = target->index;
     const float *position = target->kind == FACTOR_POLE
-        ? engine->poles[target->index]
-        : engine->zeros[target->index];
+        ? engine->scene.function.poles[target->index]
+        : engine->scene.function.zeros[target->index];
     engine->captured_factor_original[0] = position[0];
     engine->captured_factor_original[1] = position[1];
     engine->captured_factor_world_units_per_pixel =
-        2.0f * engine->half_height / (float)engine->height;
+        wegert_scene_world_units_per_pixel(&engine->scene);
 }
 
 static void move_captured_factor(struct engine *engine, float x, float y) {
@@ -724,15 +652,15 @@ static void move_captured_factor(struct engine *engine, float x, float y) {
     if (
         engine->captured_factor_kind == FACTOR_ZERO &&
         engine->captured_factor_index >= 0 &&
-        engine->captured_factor_index < engine->zero_count
+        engine->captured_factor_index < engine->scene.function.zero_count
     ) {
-        position = engine->zeros[engine->captured_factor_index];
+        position = engine->scene.function.zeros[engine->captured_factor_index];
     } else if (
         engine->captured_factor_kind == FACTOR_POLE &&
         engine->captured_factor_index >= 0 &&
-        engine->captured_factor_index < engine->pole_count
+        engine->captured_factor_index < engine->scene.function.pole_count
     ) {
-        position = engine->poles[engine->captured_factor_index];
+        position = engine->scene.function.poles[engine->captured_factor_index];
     }
     if (position == NULL) {
         return;
@@ -745,62 +673,10 @@ static void move_captured_factor(struct engine *engine, float x, float y) {
         engine->captured_factor_world_units_per_pixel,
         position
     );
-    engine->overlay_dirty = true;
+    wegert_overlay_renderer_gles_mark_dirty(&engine->overlay_renderer);
     engine->dirty = true;
 }
 
-
-static float placement_control_radius(const struct engine *engine) {
-    float radius = 0.065f * fminf((float)engine->width, (float)engine->height);
-    if (radius < 36.0f) radius = 36.0f;
-    if (radius > 56.0f) radius = 56.0f;
-    return radius;
-}
-
-static void placement_control_centers(
-    const struct engine *engine,
-    float *zero_x,
-    float *pole_x,
-    float *center_y
-) {
-    float radius = placement_control_radius(engine);
-    float margin = fmaxf(18.0f, radius * 0.38f);
-    *zero_x = margin + radius;
-    *pole_x = *zero_x + 2.0f * radius + margin * 0.55f;
-    *center_y = (float)engine->height - margin - radius;
-}
-
-static bool placement_control_hit(
-    const struct engine *engine,
-    float x,
-    float y,
-    enum factor_kind *kind
-) {
-    if (engine->width <= 0 || engine->height <= 0) {
-        return false;
-    }
-
-    float radius = placement_control_radius(engine);
-    float zero_center_x = 0.0f;
-    float pole_center_x = 0.0f;
-    float center_y = 0.0f;
-    placement_control_centers(
-        engine,
-        &zero_center_x,
-        &pole_center_x,
-        &center_y
-    );
-
-    if (hypotf(x - zero_center_x, y - center_y) <= radius) {
-        *kind = FACTOR_ZERO;
-        return true;
-    }
-    if (hypotf(x - pole_center_x, y - center_y) <= radius) {
-        *kind = FACTOR_POLE;
-        return true;
-    }
-    return false;
-}
 
 static float pointer_distance(const AInputEvent *event) {
     float dx = AMotionEvent_getX(event, 0) - AMotionEvent_getX(event, 1);
@@ -828,19 +704,42 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
             float x = AMotionEvent_getX(event, 0);
             float y = AMotionEvent_getY(event, 0);
             enum factor_kind selected_kind = FACTOR_ZERO;
-            if (placement_control_hit(engine, x, y, &selected_kind)) {
+            struct wegert_placement_controls placement_controls;
+            bool hit_placement_control =
+                wegert_placement_controls_layout(
+                    engine->scene.width,
+                    engine->scene.height,
+                    &placement_controls
+                ) &&
+                wegert_placement_controls_hit(
+                    &placement_controls,
+                    x,
+                    y,
+                    &selected_kind
+                );
+            if (hit_placement_control) {
                 engine->placement_kind = selected_kind;
                 engine->gesture = GESTURE_BLOCKED;
                 engine->moved = false;
                 engine->dirty = true;
                 return 1;
             }
-            if (clear_button_contains(engine, x, y)) {
+            if (wegert_overlay_renderer_gles_clear_button_contains(
+                &engine->overlay_renderer,
+                &engine->scene,
+                AConfiguration_getDensity(engine->app->config),
+                x,
+                y
+            )) {
                 engine->gesture = GESTURE_CLEAR_BUTTON;
                 engine->moved = false;
                 return 1;
             }
-            if (polynomial_overlay_contains(engine, x, y)) {
+            if (wegert_overlay_renderer_gles_formula_contains(
+                &engine->overlay_renderer,
+                x,
+                y
+            )) {
                 engine->gesture = GESTURE_BLOCKED;
                 engine->moved = false;
                 return 1;
@@ -927,7 +826,7 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
                 if (gesture_apply_pinch_zoom(
                     engine->pinch_last_distance,
                     distance,
-                    &engine->half_height
+                    &engine->scene.view.half_height
                 )) {
                     engine->dirty = true;
                 }
@@ -968,8 +867,10 @@ static int32_t handle_input(struct android_app *app, AInputEvent *event) {
                 }
             } else if (
                 engine->gesture == GESTURE_CLEAR_BUTTON &&
-                clear_button_contains(
-                    engine,
+                wegert_overlay_renderer_gles_clear_button_contains(
+                    &engine->overlay_renderer,
+                    &engine->scene,
+                    AConfiguration_getDensity(engine->app->config),
                     AMotionEvent_getX(event, 0),
                     AMotionEvent_getY(event, 0)
                 )
@@ -1031,7 +932,7 @@ void android_main(struct android_app *app) {
         .dirty = true,
         .logged_first_frame = false
     };
-    initialize_function(&engine);
+    initialize_scene(&engine);
 
     app->userData = &engine;
     app->onAppCmd = handle_command;
