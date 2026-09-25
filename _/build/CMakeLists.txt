@@ -18,6 +18,11 @@ option(
     "Include the direct DEX/JNI boundary in libwegert"
     OFF
 )
+option(
+    WEGERT_ICON_CAPTURE
+    "Build the clean Jones-trefoil launcher-icon capture preset"
+    OFF
+)
 
 set(WEGERT_SOURCES
     wegert.c
@@ -52,6 +57,9 @@ add_library(wegert SHARED ${WEGERT_SOURCES})
 target_include_directories(wegert PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_features(wegert PRIVATE c_std_11)
 target_compile_options(wegert PRIVATE -Wall -Wextra -Wpedantic)
+if(WEGERT_ICON_CAPTURE)
+    target_compile_definitions(wegert PRIVATE WEGERT_ICON_CAPTURE=1)
+endif()
 target_link_options(wegert PRIVATE -u ANativeActivity_onCreate)
 target_link_libraries(wegert
     native_app_glue

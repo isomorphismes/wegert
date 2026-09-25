@@ -121,6 +121,25 @@ struct engine {
 
 static void initialize_scene(struct engine *engine) {
     wegert_scene_initialize_default(&engine->scene);
+#ifdef WEGERT_ICON_CAPTURE
+    // Right-handed trefoil Jones polynomial in the convention
+    // V(z) = z + z^3 - z^4 = -z(z-r1)(z-r2)(z-r3).
+    // The shader applies the leading -1 as a pi phase rotation.
+    engine->scene.view.center[0] = 0.55f;
+    engine->scene.view.center[1] = 0.0f;
+    engine->scene.view.half_height = 1.65f;
+
+    engine->scene.function.zero_count = 4;
+    engine->scene.function.zeros[0][0] = 0.0f;
+    engine->scene.function.zeros[0][1] = 0.0f;
+    engine->scene.function.zeros[1][0] = 1.4655712f;
+    engine->scene.function.zeros[1][1] = 0.0f;
+    engine->scene.function.zeros[2][0] = -0.2327856f;
+    engine->scene.function.zeros[2][1] = 0.7925520f;
+    engine->scene.function.zeros[3][0] = -0.2327856f;
+    engine->scene.function.zeros[3][1] = -0.7925520f;
+    engine->scene.function.pole_count = 0;
+#endif
     engine->placement_kind = FACTOR_ZERO;
     wegert_overlay_renderer_gles_mark_dirty(&engine->overlay_renderer);
     engine->dirty = true;
@@ -395,6 +414,9 @@ static void draw_frame(struct engine *engine) {
         return;
     }
 
+    struct wegert_placement_controls placement_controls;
+    bool have_placement_controls = false;
+#ifndef WEGERT_ICON_CAPTURE
     bool overlay_was_dirty = engine->overlay_renderer.dirty;
     char overlay_error[2048] = {0};
     if (!wegert_overlay_renderer_gles_draw(
@@ -424,8 +446,7 @@ static void draw_frame(struct engine *engine) {
     }
 #endif
 
-    struct wegert_placement_controls placement_controls;
-    bool have_placement_controls = wegert_placement_controls_layout(
+    have_placement_controls = wegert_placement_controls_layout(
         engine->scene.width,
         engine->scene.height,
         &placement_controls
@@ -459,6 +480,7 @@ static void draw_frame(struct engine *engine) {
         glDrawArrays(GL_TRIANGLES, 0, 3);
         glDisable(GL_BLEND);
     }
+#endif
 
     if (!engine->logged_first_frame) {
         if (have_placement_controls) {

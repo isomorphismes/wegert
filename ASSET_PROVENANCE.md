@@ -11,20 +11,28 @@ Canonical/current copies:
 - `_/build/app/src/main/play/listings/en-US/graphics/icon/icon.png`
 - root `wegert-icon-512.png` is a symlink to the canonical rendered image
 
-The first three files above are the same Git blob (`7eb3b96f1ed5c82fd3891ead080c838aca08aedd`), so the Triple-T/F-Droid store icon is an exact copy, not an independently sourced asset.
+The current icon is a generated Wegert portrait of the right-handed trefoil Jones
+polynomial convention `V(z) = z + z^3 - z^4`.  The checked workflow
+`.github/workflows/jones-trefoil-icon.yml` builds an Android capture APK, runs
+the actual GLES Wegert renderer, and uses the canonical
+`code/wegert_color.glsl` colour mapping.  The polynomial is represented by its
+four zeros; the leading `-1` is applied as a phase rotation by pi.
 
-Commit `a9a28fd0ea5277406ba7d5c4807eec29d28dbb1a` (`Add a phase-portrait Android launcher icon`) introduced the 512px icon together with the Android launcher family under:
+The workflow captures a 512x512 runtime frame.  The only presentation
+post-processing is the documented `460x460+26+0` crop that removes Android
+navigation-button chrome, followed by resizing back to 512x512.  It then derives
+the Android density, round, and adaptive-foreground files from that captured
+image.  The canonical/store copies and Android launcher family are therefore
+reproducible from checked source rather than an undocumented imported image.
 
-- `_/build/app/src/main/res/drawable-{mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi}/ic_launcher_foreground.png`
-- `_/build/app/src/main/res/mipmap-{mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi}/ic_launcher.png`
-- `_/build/app/src/main/res/mipmap-{mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi}/ic_launcher_round.png`
-- `_/build/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml`
-- `_/build/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml`
-- `_/build/app/src/main/res/values/ic_launcher_background.xml`
+The previous phase-portrait icon introduced by commit
+`a9a28fd0ea5277406ba7d5c4807eec29d28dbb1a` is preserved at
+`rendered_images/icon-candidates/original-phase-portrait.png`.  Its original
+source/holder/licensing authority remains unresolved as documented in repository
+history; retaining it as an alternate candidate does not infer ownership.
 
-No checked-in source file or transformation recipe records how the PNG density/foreground/round variants were produced. Repository history therefore supports treating these as one introduced icon family, but does not establish the original source, creator, copyright holder, or permission to license the family.
-
-**Copyright/license status:** unresolved until the copyright holder or authorized contributor identifies the source/holder and confirms licensing authority. If that authority is confirmed, the existing repository GPL-3.0-or-later grant applies; this file does not make that confirmation on the holder's behalf.
+The Jones-trefoil candidate and its generation notes live under
+`rendered_images/icon-candidates/`.
 
 ## Store screenshot
 
