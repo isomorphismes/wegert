@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Sequence rational-function scenes and encode them as MP4.
+Sequence rational-function scenes and render their still frames.
 
-This file deliberately does not evaluate the complex function or implement
-Wegert colouring.  Each scene is sent to the C offscreen renderer, which uses
-the same GLSL portrait renderer as the Android app.
+This file deliberately does not evaluate the complex function, implement
+Wegert colouring, or contain movie-encoding machinery. Each scene is sent to
+the C offscreen renderer, which uses the same GLSL portrait renderer as the
+Android app; the generic movie writer consumes the resulting RGB24 frames.
 """
 
 import math
@@ -12,6 +13,8 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+
+from movie import write_rgb24_movie
 
 TAU = 2.0 * math.pi
 FPS = 18
@@ -167,53 +170,16 @@ def render_rgb_frames(kind):
             + completed.stderr.decode("utf-8", errors="replace")
         )
 
-    expected = FRAME_COUNT * WIDTH * HEIGHT * 3
+    frame_size = WIDTH * HEIGHT * 3
+    expected = FRAME_COUNT * frame_size
     if len(completed.stdout) != expected:
         raise SystemExit(
             f"C frame renderer produced {len(completed.stdout)} bytes for "
             f"{kind}; expected {expected}"
         )
-    return completed.stdout
 
-
-def encode(name, rgb_frames):
-    path = OUT / name
-    command = [
-        "ffmpeg",
-        "-y",
-        "-loglevel",
-        "error",
-        "-f",
-        "rawvideo",
-        "-pix_fmt",
-        "rgb24",
-        "-s",
-        f"{WIDTH}x{HEIGHT}",
-        "-r",
-        str(FPS),
-        "-i",
-        "-",
-        "-an",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "slow",
-        "-crf",
-        "30",
-        "-pix_fmt",
-        "yuv420p",
-        "-movflags",
-        "+faststart",
-        str(path),
-    ]
-    completed = subprocess.run(
-        command,
-        input=rgb_frames,
-        check=False,
-    )
-    if completed.returncode != 0:
-        raise SystemExit(f"ffmpeg failed: {name}")
-    print(path)
+    for start in range(0, expected, frame_size):
+        yield completed.stdout[start : start + frame_size]
 
 
 CASES = [
@@ -226,4 +192,11 @@ CASES = [
 ]
 
 for output_name, case in CASES:
-    encode(output_name, render_rgb_frames(case))
+    output = write_rgb24_movie(
+        OUT / output_name,
+        render_rgb_frames(case),
+        WIDTH,
+        HEIGHT,
+        FPS,
+    )
+    print(output)
