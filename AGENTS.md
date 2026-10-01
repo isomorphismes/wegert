@@ -79,3 +79,22 @@ receipts, and other build-time support belong under `_` in this repository.
 Keep maintained source canonical in its source location and preserve intended
 top-level soft links. Do not create duplicate writable copies merely to satisfy
 a familiar Android or build-system layout.
+
+## Offline mathematical movie assembly
+
+For generated mathematical movies, this repository owns the Wegert scene
+trajectory and still rendering only. Write a numbered still sequence beginning
+at frame zero, such as `frame-000000.png` or `frame-000000.ppm`, and use
+`isomorphisms/kitchen/tasks/movie-from-stills/build.sh` to assemble the MP4.
+
+Do not add or copy a project-local `movie.py`, raw-RGB-to-FFmpeg wrapper, or
+other movie-encoding abstraction. If the shared FFmpeg command needs to change,
+change and test it in Kitchen.
+
+The still sequence may remain checked in alongside the movie when useful. The
+Wegert repository controls what changes from frame to frame: roots, poles,
+coefficients, viewport/camera state, or other mathematical/rendering controls.
+
+This rule is for generated mathematical artifacts. It does not weaken the
+runtime-evidence rules above: an offline still-sequence movie is not evidence
+that the Android app itself performed that motion.
