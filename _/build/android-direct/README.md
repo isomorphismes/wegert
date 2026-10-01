@@ -9,4 +9,4 @@ The F-Droid release path remains separate under `_/build/fdroid/`. Direct DEX/JN
 
 ## Canonical generic boundary
 
-The generic DEX/JNI/NDK architecture and APK route are documented in [isomorphisms/android-NDK](https://github.com/isomorphisms/android-NDK/blob/ndk-dex-jni-migration/ARCHITECTURE.md). This directory remains Wegert's application-specific direct-DEX/JNI integration and release-qualification lane; its renderer, assets, package identity, and signer do not move into the generic layer.
+The generic DEX/JNI/NDK architecture and APK route are documented in [isomorphisms/android-NDK](https://github.com/isomorphisms/android-NDK/blob/main/ARCHITECTURE.md). This directory remains Wegert's application-specific direct-DEX/JNI integration and release-qualification lane; its renderer, assets, package identity, and signer do not move into the generic layer.
