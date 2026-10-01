@@ -91,8 +91,11 @@ jobs:
       - name: Build debug APK
         run: gradle --no-daemon :app:assembleDebug
 
-      - name: Verify stable test signing identity
-        run: bash android-signing/verify-test-signing.sh app/build/outputs/apk/debug/app-debug.apk
+      - name: Verify finished APK signer against central registry
+        uses: isomorphisms/ai-ci/android-signing@b3af13b3ab2bac9dd7c72bf9dd855ed5a17609b5
+        with:
+          apk: _/build/app/build/outputs/apk/debug/app-debug.apk
+          lane: test
 
       - name: Verify APK contains every supported ABI
         run: |
