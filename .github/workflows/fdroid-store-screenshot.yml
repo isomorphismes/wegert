@@ -1,0 +1,155 @@
+name: Refresh F-Droid store screenshot
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Successful Android workflow run on main
+        required: true
+        type: string
+  push:
+    branches:
+      - fdroid/store-screenshot-provenance
+    paths:
+      - '.github/workflows/fdroid-store-screenshot.yml'
+      - '_/build/fdroid/crop-png.py'
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and validate Android evidence run
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DISPATCH_RUN_ID: ${{ inputs.source_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" = workflow_dispatch ]]; then
+            source_run_id="$DISPATCH_RUN_ID"
+          else
+            source_run_id="$(
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=main&status=success&per_page=100" \
+                --jq '[.workflow_runs[]
+                  | select(.path == ".github/workflows/android.yml")
+                  | select(.event == "push")
+                  | select(.conclusion == "success")][0].id'
+            )"
+          fi
+          [[ "$source_run_id" =~ ^[0-9]+$ ]]
+
+          run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$source_run_id")"
+          jq -e '
+            .conclusion == "success" and
+            .head_branch == "main" and
+            .event == "push" and
+            .name == "Android native build and device emulation" and
+            .path == ".github/workflows/android.yml"
+          ' <<<"$run_json" >/dev/null
+
+          source_sha="$(jq -r '.head_sha' <<<"$run_json")"
+          [[ "$source_sha" =~ ^[0-9a-f]{40}$ ]]
+          echo "run_id=$source_run_id" >> "$GITHUB_OUTPUT"
+          echo "sha=$source_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Download MIRO A1 runtime evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ steps.source.outputs.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/miro-evidence"
+          mkdir -p "$evidence"
+          gh run download "$SOURCE_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name wegert-miro-a1-emulator-evidence \
+            --dir "$evidence"
+          test -s "$evidence/wegert-miro-a1.png"
+          test -s "$evidence/wegert-miro-a1.log"
+
+      - name: Replace store screenshot with documented runtime crop
+        env:
+          SOURCE_RUN_ID: ${{ steps.source.outputs.run_id }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        working-directory: _/build
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="$RUNNER_TEMP/miro-evidence/wegert-miro-a1.png"
+          output="app/src/main/play/listings/en-US/graphics/phone-screenshots/1.png"
+
+          python3 - "$raw" <<'PY'
+          import struct
+          import sys
+
+          with open(sys.argv[1], "rb") as stream:
+              header = stream.read(24)
+          assert header[:8] == b"\x89PNG\r\n\x1a\n"
+          assert header[12:16] == b"IHDR"
+          width, height = struct.unpack(">II", header[16:24])
+          if (width, height) != (1280, 720):
+              raise SystemExit(f"unexpected MIRO screenshot size: {width}x{height}")
+          PY
+
+          python3 fdroid/crop-png.py "$raw" "$output" 0 0 1180 720
+
+          raw_sha="$(sha256sum "$raw" | awk '{print $1}')"
+          output_sha="$(sha256sum "$output" | awk '{print $1}')"
+
+          cat > fdroid/store-screenshot.provenance <<EOF
+          source_repository=$GITHUB_REPOSITORY
+          source_workflow=.github/workflows/android.yml
+          source_run_id=$SOURCE_RUN_ID
+          source_run_url=https://github.com/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID
+          source_commit=$SOURCE_SHA
+          source_artifact=wegert-miro-a1-emulator-evidence
+          source_file=wegert-miro-a1.png
+          source_size=1280x720
+          source_sha256=$raw_sha
+          crop=1180x720+0+0
+          crop_reason=remove Android navigation-button rail only
+          output_path=app/src/main/play/listings/en-US/graphics/phone-screenshots/1.png
+          output_size=1180x720
+          output_sha256=$output_sha
+          refreshed_by_run_id=$GITHUB_RUN_ID
+          EOF
+
+          printf '%s  %s\n' "$output_sha" "$output" > fdroid/store-screenshot.sha256
+          sha256sum -c fdroid/store-screenshot.sha256
+
+      - name: Commit refreshed store asset to this branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF_NAME" = main ]]; then
+            echo "Refusing to commit a screenshot refresh directly to main" >&2
+            exit 1
+          fi
+
+          git add \
+            _/build/app/src/main/play/listings/en-US/graphics/phone-screenshots/1.png \
+            _/build/fdroid/store-screenshot.provenance \
+            _/build/fdroid/store-screenshot.sha256
+
+          if git diff --cached --quiet; then
+            echo "Store screenshot already matches this evidence run"
+            exit 0
+          fi
+
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m "Refresh F-Droid store screenshot from Android CI"
+          git push origin "HEAD:$GITHUB_REF_NAME"
