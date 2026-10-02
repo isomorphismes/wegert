@@ -139,7 +139,7 @@ jobs:
             exit 1
           fi
 
-          git add \
+          git add -f \
             _/build/app/src/main/play/listings/en-US/graphics/phone-screenshots/1.png \
             _/build/fdroid/store-screenshot.provenance \
             _/build/fdroid/store-screenshot.sha256
