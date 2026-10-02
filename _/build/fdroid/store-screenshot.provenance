@@ -1,0 +1,15 @@
+source_repository=isomorphismes/wegert
+source_workflow=.github/workflows/android.yml
+source_run_id=36935120946
+source_run_url=https://github.com/isomorphismes/wegert/actions/runs/36935120946
+source_commit=b3963e125eeae6a9b7d7fb8c1932f37204306e6f
+source_artifact=wegert-miro-a1-emulator-evidence
+source_file=wegert-miro-a1.png
+source_size=1280x720
+source_sha256=b58351eeb03902e1ae40e31dcd260dae5e96d16d6dba979839df1402b4376391
+crop=1180x720+0+0
+crop_reason=remove Android navigation-button rail only
+output_path=app/src/main/play/listings/en-US/graphics/phone-screenshots/1.png
+output_size=1180x720
+output_sha256=f4f59be4c075f4184954b3e4db0360fea0a370394612d5e9f91ce0904c62e348
+refreshed_by_run_id=36962192071

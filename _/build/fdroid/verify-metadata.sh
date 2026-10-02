@@ -11,6 +11,8 @@ locale="$play/listings/en-US"
 release_note="$play/release-notes/en-US/default.txt"
 icon="$locale/graphics/icon/icon.png"
 screenshots_dir="$locale/graphics/phone-screenshots"
+screenshot_provenance="$repo_root/fdroid/store-screenshot.provenance"
+screenshot_hashes="$repo_root/fdroid/store-screenshot.sha256"
 builder="$repo_root/fdroid/build-apk.sh"
 
 metadata_version_name="$(sed -n 's/^  - versionName: \(.*\)$/\1/p' "$metadata" | tail -n 1)"
@@ -77,6 +79,19 @@ test -s "$icon"
 
 mapfile -t screenshots < <(find "$screenshots_dir" -maxdepth 1 -type f -name '*.png' -print | sort)
 test "${#screenshots[@]}" -ge 1
+
+test -s "$screenshot_provenance"
+test -s "$screenshot_hashes"
+(cd "$repo_root" && sha256sum -c fdroid/store-screenshot.sha256)
+grep -Fxq 'source_workflow=.github/workflows/android.yml' "$screenshot_provenance"
+grep -Fxq 'source_artifact=wegert-miro-a1-emulator-evidence' "$screenshot_provenance"
+grep -Eq '^source_run_id=[0-9]+$' "$screenshot_provenance"
+grep -Eq '^source_commit=[0-9a-f]{40}$' "$screenshot_provenance"
+grep -Eq '^source_sha256=[0-9a-f]{64}$' "$screenshot_provenance"
+grep -Fxq 'crop=1180x720+0+0' "$screenshot_provenance"
+grep -Fxq 'output_path=app/src/main/play/listings/en-US/graphics/phone-screenshots/1.png' "$screenshot_provenance"
+grep -Fxq 'output_size=1180x720' "$screenshot_provenance"
+grep -Eq '^output_sha256=[0-9a-f]{64}$' "$screenshot_provenance"
 
 test "$(wc -m < "$locale/title.txt")" -le 51
 test "$(wc -m < "$locale/short-description.txt")" -le 81
