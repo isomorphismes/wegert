@@ -7,12 +7,6 @@ on:
         description: Successful Android workflow run on main
         required: true
         type: string
-  push:
-    branches:
-      - fdroid/store-screenshot-provenance
-    paths:
-      - '.github/workflows/fdroid-store-screenshot.yml'
-      - '_/build/fdroid/crop-png.py'
 
 permissions:
   actions: read
@@ -20,7 +14,6 @@ permissions:
 
 jobs:
   refresh:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -29,28 +22,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Resolve and validate Android evidence run
+      - name: Validate Android evidence run
         id: source
         env:
           GH_TOKEN: ${{ github.token }}
-          DISPATCH_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ github.event_name }}" = workflow_dispatch ]]; then
-            source_run_id="$DISPATCH_RUN_ID"
-          else
-            source_run_id="$(
-              gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=main&status=success&per_page=100" \
-                --jq '[.workflow_runs[]
-                  | select(.path == ".github/workflows/android.yml")
-                  | select(.event == "push")
-                  | select(.conclusion == "success")][0].id'
-            )"
-          fi
-          [[ "$source_run_id" =~ ^[0-9]+$ ]]
+          [[ "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]]
 
-          run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$source_run_id")"
+          run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID")"
           jq -e '
             .conclusion == "success" and
             .head_branch == "main" and
@@ -61,13 +43,12 @@ jobs:
 
           source_sha="$(jq -r '.head_sha' <<<"$run_json")"
           [[ "$source_sha" =~ ^[0-9a-f]{40}$ ]]
-          echo "run_id=$source_run_id" >> "$GITHUB_OUTPUT"
           echo "sha=$source_sha" >> "$GITHUB_OUTPUT"
 
       - name: Download MIRO A1 runtime evidence
         env:
           GH_TOKEN: ${{ github.token }}
-          SOURCE_RUN_ID: ${{ steps.source.outputs.run_id }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -82,7 +63,7 @@ jobs:
 
       - name: Replace store screenshot with documented runtime crop
         env:
-          SOURCE_RUN_ID: ${{ steps.source.outputs.run_id }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
         working-directory: _/build
         shell: bash

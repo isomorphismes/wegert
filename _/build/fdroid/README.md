@@ -17,6 +17,12 @@ The canonical upstream store metadata is Triple-T under `app/src/main/play`. `fd
 
 The F-Droid workflow makes two clean direct builds and requires byte-identical unsigned APKs. It also runs the recipe inside F-Droid's production-like buildserver image and checks metadata, scanner output, ABI packaging, and upstream Triple-T extraction through F-Droid's legacy-named `tools/check-fastlane.py`.
 
+## Store screenshot provenance
+
+The checked phone screenshot is generated from Wegert runtime evidence rather than copied from an undocumented image. Run `Refresh F-Droid store screenshot` on a non-main branch and give it a successful main-branch Android workflow run ID. The workflow downloads that run's `wegert-miro-a1-emulator-evidence`, crops only the Android navigation-button rail, and commits the resulting Triple-T screenshot plus `fdroid/store-screenshot.provenance` and `fdroid/store-screenshot.sha256`.
+
+`fdroid/verify-metadata.sh` verifies the screenshot hash and the provenance fields. The refresh workflow refuses to commit directly to `main`; the generated asset goes through ordinary review with the rest of the release source.
+
 ## Local checks
 
 From the repository root:

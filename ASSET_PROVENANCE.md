@@ -40,11 +40,13 @@ Current store screenshot:
 
 - `_/build/app/src/main/play/listings/en-US/graphics/phone-screenshots/1.png`
 
-Commit `944adcce4927b84e795354cff8e75be7eada7417` added the first Fastlane phone screenshot. Commit `a685c58adf7f6b1d99f46727ea65334937a97b45` (`Fix F-Droid phone screenshot asset`) replaced it with the current image; later history only moved/renamed the store path.
+The current store image is runtime evidence from Wegert's own Android workflow, not an imported or reconstructed image. `.github/workflows/fdroid-store-screenshot.yml` refreshes the checked store copy from a successful main-branch `Android native build and device emulation` run. It consumes the `wegert-miro-a1-emulator-evidence` artifact and its `wegert-miro-a1.png` runtime screenshot.
 
-No checked-in capture command, source file, import URL, or attribution identifies where the current screenshot came from or who captured it.
+The only presentation edit is a crop from the raw 1280x720 screenshot to 1180x720, removing the 100-pixel Android navigation-button rail at the right edge. App pixels are not synthesized, recolored, rescaled, or otherwise repaired. The raw screenshot remains in the cited GitHub Actions artifact.
 
-**Copyright/license status:** unresolved. The capture/import source and licensing authority need a copyright-holder statement; commit authorship alone is not used as proof.
+Exact provenance is checked in at `_/build/fdroid/store-screenshot.provenance`. It records the source workflow run, source commit, artifact/file identity, raw SHA-256, crop, output path, and output SHA-256. `_/build/fdroid/store-screenshot.sha256` binds the Triple-T store asset to that record, and `fdroid/verify-metadata.sh` verifies the binding.
+
+The previous store screenshot introduced through commits `944adcce4927b84e795354cff8e75be7eada7417` and `a685c58adf7f6b1d99f46727ea65334937a97b45` had unresolved source/holder authority. It remains part of repository history, but it is no longer the current F-Droid/Triple-T asset.
 
 ## Recorded touch demonstrations
 
