@@ -14,6 +14,11 @@ snapping and dragging. `wegert_function_evaluate` composes numerator and
 denominator factor products with complex difference/product/quotient.
 Root expansion now composes named multiplication by a linear factor on complex
 polynomial coefficients. Its scalar buffer is an intercompiler adapter.
+`code/complex_math.c` is the single implementation owner for both compiler
+lanes. The existing `complex_math_ick.c` and `complex_math_fallback.c` paths are
+source aliases, so their arithmetic cannot drift independently. The maintained
+model checks require both paths to resolve to that owner. The exported ABI and
+double-precision coefficient arithmetic are retained.
 
 `factor_state.c` owns exact factor cancellation and insertion, with private
 search/removal helpers. `factor_snap.c` owns the screen-radius selection rule.
