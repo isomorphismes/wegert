@@ -86,8 +86,8 @@ static int read_function(struct wegert_function *function) {
     for (int index = 0; index < zero_count; ++index) {
         if (scanf(
             "%f %f",
-            &function->zeros[index][0],
-            &function->zeros[index][1]
+            &function->zeros[index].real,
+            &function->zeros[index].imaginary
         ) != 2) {
             return -1;
         }
@@ -95,8 +95,8 @@ static int read_function(struct wegert_function *function) {
     for (int index = 0; index < pole_count; ++index) {
         if (scanf(
             "%f %f",
-            &function->poles[index][0],
-            &function->poles[index][1]
+            &function->poles[index].real,
+            &function->poles[index].imaginary
         ) != 2) {
             return -1;
         }
@@ -157,8 +157,8 @@ int main(int argc, char **argv) {
     struct wegert_scene scene;
     wegert_scene_initialize_default(&scene);
     wegert_scene_resize(&scene, width, height);
-    scene.view.center[0] = center_x;
-    scene.view.center[1] = center_y;
+    scene.view.center.real = center_x;
+    scene.view.center.imaginary = center_y;
     scene.view.half_height = half_height;
 
     size_t rgba_bytes = (size_t)width * (size_t)height * 4u;

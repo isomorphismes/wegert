@@ -2,9 +2,10 @@
 #define WEGERT_VIEW_H
 
 #include <stdbool.h>
+#include "complex_value.h"
 
 struct wegert_view {
-    float center[2];
+    struct complex_value center;
     float half_height;
 };
 
@@ -23,7 +24,7 @@ bool wegert_view_screen_to_complex(
     int height,
     float screen_x,
     float screen_y,
-    float output[2]
+    struct complex_value *output
 );
 
 bool wegert_view_pan_by_pixels(

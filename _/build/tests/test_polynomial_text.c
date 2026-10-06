@@ -7,8 +7,8 @@
 #include "../polynomial_text.h"
 
 static void test_polynomial_without_poles(void) {
-    const float zeros[MAX_FACTORS][2] = {{1.0f, 0.0f}};
-    const float poles[MAX_FACTORS][2] = {{0.0f, 0.0f}};
+    const struct complex_value zeros[MAX_FACTORS] = {{1.0f, 0.0f}};
+    const struct complex_value poles[MAX_FACTORS] = {{0.0f, 0.0f}};
     char output[256];
 
     polynomial_text_format_function(zeros, 1, poles, 0, output, sizeof(output));
@@ -17,8 +17,8 @@ static void test_polynomial_without_poles(void) {
 }
 
 static void test_division_sign_and_separate_denominator_factors(void) {
-    const float zeros[MAX_FACTORS][2] = {{1.0f, 0.0f}};
-    const float poles[MAX_FACTORS][2] = {{2.0f, 0.0f}, {0.0f, 1.0f}};
+    const struct complex_value zeros[MAX_FACTORS] = {{1.0f, 0.0f}};
+    const struct complex_value poles[MAX_FACTORS] = {{2.0f, 0.0f}, {0.0f, 1.0f}};
     char output[256];
 
     polynomial_text_format_function(zeros, 1, poles, 2, output, sizeof(output));

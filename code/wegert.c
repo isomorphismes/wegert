@@ -109,7 +109,7 @@ struct engine {
     float last_y;
     enum factor_kind captured_factor_kind;
     int captured_factor_index;
-    float captured_factor_original[2];
+    struct complex_value captured_factor_original;
     float captured_factor_world_units_per_pixel;
     float pinch_last_distance;
     float pinch_last_mid_x;
@@ -125,19 +125,19 @@ static void initialize_scene(struct engine *engine) {
     // Right-handed trefoil Jones polynomial in the convention
     // V(z) = z + z^3 - z^4 = -z(z-r1)(z-r2)(z-r3).
     // The shader applies the leading -1 as a pi phase rotation.
-    engine->scene.view.center[0] = 0.55f;
-    engine->scene.view.center[1] = 0.0f;
+    engine->scene.view.center.real = 0.55f;
+    engine->scene.view.center.imaginary = 0.0f;
     engine->scene.view.half_height = 1.65f;
 
     engine->scene.function.zero_count = 4;
-    engine->scene.function.zeros[0][0] = 0.0f;
-    engine->scene.function.zeros[0][1] = 0.0f;
-    engine->scene.function.zeros[1][0] = 1.4655712f;
-    engine->scene.function.zeros[1][1] = 0.0f;
-    engine->scene.function.zeros[2][0] = -0.2327856f;
-    engine->scene.function.zeros[2][1] = 0.7925520f;
-    engine->scene.function.zeros[3][0] = -0.2327856f;
-    engine->scene.function.zeros[3][1] = -0.7925520f;
+    engine->scene.function.zeros[0].real = 0.0f;
+    engine->scene.function.zeros[0].imaginary = 0.0f;
+    engine->scene.function.zeros[1].real = 1.4655712f;
+    engine->scene.function.zeros[1].imaginary = 0.0f;
+    engine->scene.function.zeros[2].real = -0.2327856f;
+    engine->scene.function.zeros[2].imaginary = 0.7925520f;
+    engine->scene.function.zeros[3].real = -0.2327856f;
+    engine->scene.function.zeros[3].imaginary = -0.7925520f;
     engine->scene.function.pole_count = 0;
 #endif
     engine->placement_kind = FACTOR_ZERO;
@@ -523,7 +523,7 @@ static void draw_frame(struct engine *engine) {
     engine->dirty = false;
 }
 
-static void screen_to_complex(const struct engine *engine, float x, float y, float output[2]) {
+static void screen_to_complex(const struct engine *engine, float x, float y, struct complex_value *output) {
     (void)wegert_scene_screen_to_complex(&engine->scene, x, y, output);
 }
 
@@ -541,8 +541,8 @@ static float factor_snap_radius_pixels(const struct engine *engine) {
 
 static void snap_touch_to_factors(
     const struct engine *engine,
-    float point[2],
-    float factors[WEGERT_MAX_FACTORS][2],
+    struct complex_value *point,
+    struct complex_value factors[WEGERT_MAX_FACTORS],
     int factor_count
 ) {
     float world_per_pixel = wegert_scene_world_units_per_pixel(&engine->scene);
@@ -566,16 +566,16 @@ static void add_zero(struct engine *engine, float x, float y) {
         return;
     }
 
-    float factor[2];
-    screen_to_complex(engine, x, y, factor);
-    snap_touch_to_factors(engine, factor, engine->scene.function.poles, engine->scene.function.pole_count);
+    struct complex_value factor;
+    screen_to_complex(engine, x, y, &factor);
+    snap_touch_to_factors(engine, &factor, engine->scene.function.poles, engine->scene.function.pole_count);
     enum factor_change change = factor_insert_reduced(
         engine->scene.function.zeros,
         &engine->scene.function.zero_count,
         engine->scene.function.poles,
         &engine->scene.function.pole_count,
-        factor[0],
-        factor[1]
+        factor.real,
+        factor.imaginary
     );
     if (change == FACTOR_UNCHANGED) {
         return;
@@ -590,16 +590,16 @@ static void add_pole(struct engine *engine, float x, float y) {
         return;
     }
 
-    float factor[2];
-    screen_to_complex(engine, x, y, factor);
-    snap_touch_to_factors(engine, factor, engine->scene.function.zeros, engine->scene.function.zero_count);
+    struct complex_value factor;
+    screen_to_complex(engine, x, y, &factor);
+    snap_touch_to_factors(engine, &factor, engine->scene.function.zeros, engine->scene.function.zero_count);
     enum factor_change change = factor_insert_reduced(
         engine->scene.function.poles,
         &engine->scene.function.pole_count,
         engine->scene.function.zeros,
         &engine->scene.function.zero_count,
-        factor[0],
-        factor[1]
+        factor.real,
+        factor.imaginary
     );
     if (change == FACTOR_UNCHANGED) {
         return;
@@ -638,29 +638,28 @@ static void capture_factor(
 ) {
     engine->captured_factor_kind = target->kind;
     engine->captured_factor_index = target->index;
-    const float *position = target->kind == FACTOR_POLE
+    struct complex_value position = target->kind == FACTOR_POLE
         ? engine->scene.function.poles[target->index]
         : engine->scene.function.zeros[target->index];
-    engine->captured_factor_original[0] = position[0];
-    engine->captured_factor_original[1] = position[1];
+    engine->captured_factor_original = position;
     engine->captured_factor_world_units_per_pixel =
         wegert_scene_world_units_per_pixel(&engine->scene);
 }
 
 static void move_captured_factor(struct engine *engine, float x, float y) {
-    float *position = NULL;
+    struct complex_value *position = NULL;
     if (
         engine->captured_factor_kind == FACTOR_ZERO &&
         engine->captured_factor_index >= 0 &&
         engine->captured_factor_index < engine->scene.function.zero_count
     ) {
-        position = engine->scene.function.zeros[engine->captured_factor_index];
+        position = &engine->scene.function.zeros[engine->captured_factor_index];
     } else if (
         engine->captured_factor_kind == FACTOR_POLE &&
         engine->captured_factor_index >= 0 &&
         engine->captured_factor_index < engine->scene.function.pole_count
     ) {
-        position = engine->scene.function.poles[engine->captured_factor_index];
+        position = &engine->scene.function.poles[engine->captured_factor_index];
     }
     if (position == NULL) {
         return;

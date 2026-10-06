@@ -1,8 +1,8 @@
 #include "wegert_view.h"
 
 void wegert_view_initialize_default(struct wegert_view *view) {
-    view->center[0] = 0.0f;
-    view->center[1] = 0.0f;
+    view->center.real = 0.0f;
+    view->center.imaginary = 0.0f;
     view->half_height = 3.5f;
 }
 
@@ -29,7 +29,7 @@ bool wegert_view_screen_to_complex(
     int height,
     float screen_x,
     float screen_y,
-    float output[2]
+    struct complex_value *output
 ) {
     if (width <= 0 || height <= 0 || view->half_height <= 0.0f) {
         return false;
@@ -39,8 +39,8 @@ bool wegert_view_screen_to_complex(
     float ndc_x = 2.0f * screen_x / (float)width - 1.0f;
     float ndc_y = 1.0f - 2.0f * screen_y / (float)height;
 
-    output[0] = view->center[0] + ndc_x * view->half_height * aspect;
-    output[1] = view->center[1] + ndc_y * view->half_height;
+    output->real = view->center.real + ndc_x * view->half_height * aspect;
+    output->imaginary = view->center.imaginary + ndc_y * view->half_height;
     return true;
 }
 
@@ -56,9 +56,9 @@ bool wegert_view_pan_by_pixels(
     }
 
     float aspect = wegert_view_aspect(width, height);
-    view->center[0] -=
+    view->center.real -=
         2.0f * delta_x * view->half_height * aspect / (float)width;
-    view->center[1] +=
+    view->center.imaginary +=
         2.0f * delta_y * view->half_height / (float)height;
     return true;
 }

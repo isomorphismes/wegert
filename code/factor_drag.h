@@ -34,7 +34,7 @@ static inline bool factor_screen_position(
     const struct wegert_view *view,
     int width,
     int height,
-    const float position[2],
+    struct complex_value position,
     float *screen_x,
     float *screen_y
 ) {
@@ -45,9 +45,9 @@ static inline bool factor_screen_position(
     float pixels_per_world_unit =
         (float)height / (2.0f * view->half_height);
     *screen_x = 0.5f * (float)width
-        + (position[0] - view->center[0]) * pixels_per_world_unit;
+        + (position.real - view->center.real) * pixels_per_world_unit;
     *screen_y = 0.5f * (float)height
-        - (position[1] - view->center[1]) * pixels_per_world_unit;
+        - (position.imaginary - view->center.imaginary) * pixels_per_world_unit;
     return true;
 }
 
@@ -55,9 +55,9 @@ static inline struct factor_target nearest_factor_target(
     const struct wegert_view *view,
     int width,
     int height,
-    const float (*zeros)[2],
+    const struct complex_value *zeros,
     int zero_count,
-    const float (*poles)[2],
+    const struct complex_value *poles,
     int pole_count,
     float touch_x,
     float touch_y,
@@ -126,14 +126,14 @@ static inline bool drag_threshold_exceeded(float delta_x, float delta_y) {
 }
 
 static inline void dragged_factor_position(
-    const float original_position[2],
+    struct complex_value original_position,
     float screen_delta_x,
     float screen_delta_y,
     float world_units_per_pixel,
-    float output[2]
+    struct complex_value *output
 ) {
-    output[0] = original_position[0] + screen_delta_x * world_units_per_pixel;
-    output[1] = original_position[1] - screen_delta_y * world_units_per_pixel;
+    output->real = original_position.real + screen_delta_x * world_units_per_pixel;
+    output->imaginary = original_position.imaginary - screen_delta_y * world_units_per_pixel;
 }
 
 #endif

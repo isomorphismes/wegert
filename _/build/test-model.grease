@@ -1,0 +1,21 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) !== 2) {
+  echo 'usage: test-model.grease PROJECT NDK (absolute paths)'
+  exit 2
+}
+var project = ARGV[0]
+var ndk = ARGV[1]
+var root = "$project/_/build"
+var output = "$root/build/model-tests"
+var compiler = "$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang"
+mkdir -p "$output"
+for unit in test_wegert_function test_wegert_scene test_factor_state test_factor_snap factor_drag_test test_gesture_state test_polynomial_text test_wegert_placement_controls complex_math_test; do
+  "$compiler" --target=x86_64-linux-gnu --sysroot=/ -rtlib=libgcc -unwindlib=libgcc -std=c11 -O2 -Wall -Wextra -Werror -pedantic "$root/tests/$unit.c" "$root/wegert_function.c" "$root/factor_state.c" "$root/factor_snap.c" "$root/polynomial_text.c" "$root/wegert_view.c" "$root/wegert_scene.c" "$root/wegert_placement_controls.c" "$root/complex_math_fallback.c" -lm -o "$output/$unit"
+  "$output/$unit"
+done
+if "$compiler" -std=c11 -Werror=incompatible-pointer-types -c "$root/tests/reject_cartesian_as_roots.c" -o "$output/reject-cartesian.o" > "$output/reject-cartesian.log" 2>&1; then
+  echo 'FAIL raw Cartesian storage admitted as mathematical factors'
+  exit 1
+fi
+rg -q 'incompatible pointer types' "$output/reject-cartesian.log"

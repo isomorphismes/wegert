@@ -1,41 +1,35 @@
 #include "complex_math.h"
-
 #define WEGERT_MAX_FACTORS 64
+struct polynomial_coefficient { double real, imaginary; };
 
-void wegert_expand_roots_cartesian(
-    const float *roots_cartesian,
-    int root_count,
-    double *coefficients_cartesian
-) {
-    double coefficients[WEGERT_MAX_FACTORS + 1][2] = {{0.0, 0.0}};
-    coefficients[0][0] = 1.0;
-
-    if (root_count < 0) root_count = 0;
-    if (root_count > WEGERT_MAX_FACTORS) root_count = WEGERT_MAX_FACTORS;
-
-    for (int root_index = 0; root_index < root_count; ++root_index) {
-        double next[WEGERT_MAX_FACTORS + 1][2] = {{0.0, 0.0}};
-        double root_real = roots_cartesian[2 * root_index];
-        double root_imag = roots_cartesian[2 * root_index + 1];
-
-        for (int power = 0; power <= root_index; ++power) {
-            double coefficient_real = coefficients[power][0];
-            double coefficient_imag = coefficients[power][1];
-
-            next[power + 1][0] += coefficient_real;
-            next[power + 1][1] += coefficient_imag;
-            next[power][0] += -root_real * coefficient_real + root_imag * coefficient_imag;
-            next[power][1] += -root_real * coefficient_imag - root_imag * coefficient_real;
-        }
-
-        for (int power = 0; power <= root_index + 1; ++power) {
-            coefficients[power][0] = next[power][0];
-            coefficients[power][1] = next[power][1];
-        }
+static void multiply_by_linear_factor(struct polynomial_coefficient *coefficients,
+                                      int degree, struct polynomial_coefficient root)
+{
+    struct polynomial_coefficient next[WEGERT_MAX_FACTORS + 1]={{0,0}};
+    for (int power=0; power<=degree; ++power) {
+        struct polynomial_coefficient coefficient=coefficients[power];
+        next[power+1].real+=coefficient.real;
+        next[power+1].imaginary+=coefficient.imaginary;
+        next[power].real+=-root.real*coefficient.real+root.imaginary*coefficient.imaginary;
+        next[power].imaginary+=-root.real*coefficient.imaginary-root.imaginary*coefficient.real;
     }
+    for (int power=0; power<=degree+1; ++power) coefficients[power]=next[power];
+}
 
-    for (int index = 0; index <= WEGERT_MAX_FACTORS; ++index) {
-        coefficients_cartesian[2 * index] = coefficients[index][0];
-        coefficients_cartesian[2 * index + 1] = coefficients[index][1];
+/* Adapter for separately compiled objects; the mathematical working state is
+ * a polynomial with named complex coefficients, not a Cartesian buffer. */
+void wegert_expand_roots_cartesian(const float *roots_cartesian, int root_count,
+                                  double *coefficients_cartesian)
+{
+    struct polynomial_coefficient coefficients[WEGERT_MAX_FACTORS+1]={{1,0}};
+    if (root_count<0) root_count=0;
+    if (root_count>WEGERT_MAX_FACTORS) root_count=WEGERT_MAX_FACTORS;
+    for (int index=0; index<root_count; ++index) {
+        struct polynomial_coefficient root={roots_cartesian[2*index],roots_cartesian[2*index+1]};
+        multiply_by_linear_factor(coefficients,index,root);
+    }
+    for (int index=0; index<=WEGERT_MAX_FACTORS; ++index) {
+        coefficients_cartesian[2*index]=coefficients[index].real;
+        coefficients_cartesian[2*index+1]=coefficients[index].imaginary;
     }
 }

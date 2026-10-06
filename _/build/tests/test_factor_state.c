@@ -4,8 +4,8 @@
 #include "../factor_state.h"
 
 int main(void) {
-    float zeros[WEGERT_MAX_FACTORS][2] = {{0.0f, 0.0f}};
-    float poles[WEGERT_MAX_FACTORS][2] = {{0.0f, 0.0f}};
+    struct complex_value zeros[WEGERT_MAX_FACTORS] = {{0.0f, 0.0f}};
+    struct complex_value poles[WEGERT_MAX_FACTORS] = {{0.0f, 0.0f}};
     int zero_count = 0;
     int pole_count = 0;
 
@@ -22,7 +22,7 @@ int main(void) {
     assert(factor_insert_reduced(poles, &pole_count, zeros, &zero_count, 1.0f, 0.0f) ==
         FACTOR_CANCELLED_OPPOSITE);
     assert(zero_count == 1 && pole_count == 0);
-    assert(zeros[0][0] == 1.0f && zeros[0][1] == 0.0f);
+    assert(zeros[0].real == 1.0f && zeros[0].imaginary == 0.0f);
 
     assert(factor_insert_reduced(poles, &pole_count, zeros, &zero_count, 1.000001f, 0.0f) ==
         FACTOR_APPENDED);
@@ -41,7 +41,7 @@ int main(void) {
     assert(factor_insert_reduced(zeros, &zero_count, poles, &pole_count, 7.0f, -2.0f) ==
         FACTOR_CANCELLED_OPPOSITE);
     assert(zero_count == 1 && pole_count == 2);
-    assert(poles[1][0] == 7.0f && poles[1][1] == -2.0f);
+    assert(poles[1].real == 7.0f && poles[1].imaginary == -2.0f);
 
     zero_count = WEGERT_MAX_FACTORS;
     assert(factor_insert_reduced(zeros, &zero_count, poles, &pole_count, 7.0f, -2.0f) ==

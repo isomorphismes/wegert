@@ -79,12 +79,12 @@ jobs:
           /tmp/wegert-placement-controls-test
           cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_gesture_state.c -lm -o /tmp/wegert-gesture-test
           /tmp/wegert-gesture-test
-          cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_factor_state.c -o /tmp/wegert-factor-test
+          cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_factor_state.c factor_state.c -o /tmp/wegert-factor-test
           /tmp/wegert-factor-test
-          cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_factor_snap.c -lm -o /tmp/wegert-factor-snap-test
+          cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_factor_snap.c factor_snap.c factor_state.c -lm -o /tmp/wegert-factor-snap-test
           /tmp/wegert-factor-snap-test
           cc -std=c11 -Wall -Wextra -Werror -pedantic \
-            tests/test_polynomial_text.c complex_math_fallback.c \
+            tests/test_polynomial_text.c polynomial_text.c wegert_function.c complex_math_fallback.c \
             -lm -o /tmp/wegert-polynomial-text-test
           /tmp/wegert-polynomial-text-test
 

@@ -22,8 +22,8 @@ static void test_nearest_factor_wins_across_kinds(void) {
         .center = {0.0f, 0.0f},
         .half_height = 2.5f
     };
-    const float zeros[][2] = {{0.0f, 0.0f}, {-1.0f, 1.0f}};
-    const float poles[][2] = {{0.2f, 0.0f}};
+    const struct complex_value zeros[] = {{0.0f, 0.0f}, {-1.0f, 1.0f}};
+    const struct complex_value poles[] = {{0.2f, 0.0f}};
 
     struct factor_target target = nearest_factor_target(
         &view, 1000, 500, zeros, 2, poles, 1, 516.0f, 250.0f, 24.0f
@@ -39,7 +39,7 @@ static void test_target_outside_radius_is_rejected(void) {
         .center = {0.0f, 0.0f},
         .half_height = 2.5f
     };
-    const float zeros[][2] = {{0.0f, 0.0f}};
+    const struct complex_value zeros[] = {{0.0f, 0.0f}};
 
     struct factor_target target = nearest_factor_target(
         &view, 1000, 500, zeros, 1, NULL, 0, 525.0f, 250.0f, 24.0f
@@ -54,7 +54,7 @@ static void test_target_on_radius_is_included(void) {
         .center = {0.0f, 0.0f},
         .half_height = 2.5f
     };
-    const float poles[][2] = {{0.0f, 0.0f}};
+    const struct complex_value poles[] = {{0.0f, 0.0f}};
 
     struct factor_target target = nearest_factor_target(
         &view, 1000, 500, NULL, 0, poles, 1, 524.0f, 250.0f, 24.0f
@@ -70,7 +70,7 @@ static void test_screen_projection_uses_view_center(void) {
         .center = {3.0f, -2.0f},
         .half_height = 2.5f
     };
-    const float position[] = {4.0f, -1.0f};
+    const struct complex_value position = {4.0f, -1.0f};
     float screen_x = 0.0f;
     float screen_y = 0.0f;
 
@@ -82,13 +82,13 @@ static void test_screen_projection_uses_view_center(void) {
 }
 
 static void test_drag_uses_original_position_and_full_screen_delta(void) {
-    const float original_position[] = {1.25f, -0.5f};
-    float output[2] = {0.0f, 0.0f};
+    const struct complex_value original_position = {1.25f, -0.5f};
+    struct complex_value output = {0.0f, 0.0f};
 
-    dragged_factor_position(original_position, 20.0f, -30.0f, 0.01f, output);
+    dragged_factor_position(original_position, 20.0f, -30.0f, 0.01f, &output);
 
-    assert(nearly_equal(output[0], 1.45f));
-    assert(nearly_equal(output[1], -0.2f));
+    assert(nearly_equal(output.real, 1.45f));
+    assert(nearly_equal(output.imaginary, -0.2f));
 }
 
 static void test_drag_threshold_is_strict(void) {

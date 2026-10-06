@@ -22,7 +22,7 @@ bool wegert_scene_screen_to_complex(
     const struct wegert_scene *scene,
     float screen_x,
     float screen_y,
-    float output[2]
+    struct complex_value *output
 );
 
 bool wegert_scene_pan_by_pixels(

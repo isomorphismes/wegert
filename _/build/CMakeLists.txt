@@ -27,6 +27,9 @@ option(
 set(WEGERT_SOURCES
     wegert.c
     wegert_function.c
+    factor_state.c
+    factor_snap.c
+    polynomial_text.c
     wegert_view.c
     wegert_scene.c
     wegert_gles.c

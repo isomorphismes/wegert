@@ -24,7 +24,7 @@ bool wegert_scene_screen_to_complex(
     const struct wegert_scene *scene,
     float screen_x,
     float screen_y,
-    float output[2]
+    struct complex_value *output
 ) {
     return wegert_view_screen_to_complex(
         &scene->view,

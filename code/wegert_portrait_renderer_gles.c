@@ -120,8 +120,8 @@ bool wegert_portrait_renderer_gles_render_frame(
     glUseProgram(renderer->program);
     glUniform2f(
         renderer->center_location,
-        scene->view.center[0],
-        scene->view.center[1]
+        scene->view.center.real,
+        scene->view.center.imaginary
     );
     glUniform1f(renderer->half_height_location, scene->view.half_height);
     glUniform1f(renderer->aspect_location, wegert_scene_aspect(scene));
@@ -132,15 +132,18 @@ bool wegert_portrait_renderer_gles_render_frame(
     );
     glUniform1i(renderer->zero_count_location, scene->function.zero_count);
     glUniform1i(renderer->pole_count_location, scene->function.pole_count);
+    float zero_coordinates[WEGERT_MAX_FACTORS * 2], pole_coordinates[WEGERT_MAX_FACTORS * 2];
+    complex_values_pack(scene->function.zeros, WEGERT_MAX_FACTORS, zero_coordinates);
+    complex_values_pack(scene->function.poles, WEGERT_MAX_FACTORS, pole_coordinates);
     glUniform2fv(
         renderer->zeros_location,
         WEGERT_MAX_FACTORS,
-        &scene->function.zeros[0][0]
+        zero_coordinates
     );
     glUniform2fv(
         renderer->poles_location,
         WEGERT_MAX_FACTORS,
-        &scene->function.poles[0][0]
+        pole_coordinates
     );
 
     glBindVertexArray(renderer->vao);
