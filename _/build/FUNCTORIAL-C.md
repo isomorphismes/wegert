@@ -3,6 +3,11 @@
 **FUNCTORIAL + ICK BLOCKED:** application C meets current Bionic headers that
 ICK cannot parse (`_Nonnull`, `_Nullable`, Android availability annotations).
 The successful freestanding math leaf is not full application qualification.
+The existing source-built workflow keeps its required check identifier, but
+its receipt explicitly says `application_c=NDK-clang`, `polynomial_leaf=ICK`
+(arm64 only) and `full_icky=0`. It retains the stableDebug key, NDK r29 and ABI
+set while pinning the current ICK source. Its AArch64/QEMU qualification is a
+separate hosted lane, not new A1 physical evidence.
 
 Complex values own zeros, poles, view centres, projected material points,
 snapping and dragging. `wegert_function_evaluate` composes numerator and

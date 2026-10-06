@@ -1,4 +1,4 @@
-name: ICK source-built Wegert boundary
+name: ICK leaf / NDK application Wegert boundary
 
 on:
   pull_request:
@@ -9,10 +9,12 @@ permissions:
 
 env:
   ICK_REPOSITORY: dilapidated-shed/ick
-  ICK_COMMIT: 6972a59d95feb7292da9b5fd9b67a26706f1b6de
+  ICK_COMMIT: 79eccb8ff232e05bdbb9e345fc224f251636b43f
   ANDROID_NDK_VERSION: 29.0.14206865
 
 jobs:
+  # Preserve the established check identifier; the receipt qualifies a leaf,
+  # never the complete native application.
   source-built-ick-apk:
     runs-on: ubuntu-24.04
     timeout-minutes: 150
@@ -130,7 +132,7 @@ jobs:
         with:
           gradle-version: '9.5.1'
 
-      - name: Build Wegert APK with the fresh ICK object
+      - name: Build NDK application APK with the fresh ICK leaf
         shell: bash
         run: |
           set -euxo pipefail
@@ -156,7 +158,15 @@ jobs:
         shell: bash
         run: |
           {
-            echo '### ICK → Wegert consumer receipt'
+            echo '### ICK leaf / NDK application consumer receipt'
+            echo
+            echo 'application_c=NDK-clang'
+            echo 'polynomial_leaf=ICK (arm64-v8a only)'
+            echo 'full_icky=0'
+            echo "sysroot=Android NDK $ANDROID_NDK_VERSION"
+            echo 'linker=Android NDK lld'
+            echo 'packager=Gradle / Android build tools'
+            echo 'signer=existing stableDebug / wegert-debug.keystore'
             echo
             echo "PASS: ICK source pinned at \`$ICK_REPOSITORY@$ICK_COMMIT\`"
             echo
@@ -171,7 +181,7 @@ jobs:
             echo 'PASS: APK contains arm64-v8a, armeabi-v7a, and x86_64 native libraries'
             echo
             echo
-            echo 'SKIP: this is not Android ARM64 runtime execution and does not qualify F-Droid source rebuilding'
+            echo 'SKIP: full application ICK compilation is blocked on Bionic annotations; this is not Android ARM64 runtime execution or physical-device acceptance and does not qualify F-Droid source rebuilding'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Retain source-built evidence
