@@ -43,27 +43,21 @@ grep -Fq "application-label:'zero & infinity'" "$scratch/badging"
 grep -Fxq "sdkVersion:'$WEGERT_MIN_SDK'" "$scratch/badging"
 grep -Fxq "targetSdkVersion:'$WEGERT_TARGET_SDK'" "$scratch/badging"
 
-# F-Droid signs its own source build. No test/release key may leak into
-# the unsigned artifact that our repository gives to fdroidserver.
+# F-Droid signs the APK that it source-builds; never bundle a developer signature.
 if "$apksigner" verify "$apk" >"$scratch/signature-check" 2>&1; then
-    echo "F-Droid build unexpectedly carries an APK signature" >&2
+    echo "F-Droid source-built APK unexpectedly carries a signature" >&2
     exit 1
 fi
-if grep -Eq '^META-INF/[^/]+[.](RSA|DSA|EC|SF)
- "$scratch/files"; then
-    echo "F-Droid build unexpectedly carries JAR signing files" >&2
+if grep -Eq '^META-INF/[^/]+[.](RSA|DSA|EC|SF)$' "$scratch/files"; then
+    echo "F-Droid source-built APK unexpectedly carries JAR signing files" >&2
     exit 1
 fi
-
-# This is the independent source-built NativeActivity release lane,
-# not the direct-DEX test/qualification artifact.
-if grep -Eq '^classes([0-9]*)[.]dex
- "$scratch/files"; then
-    echo "F-Droid NativeActivity release unexpectedly contains DEX" >&2
+if grep -Eq '^classes([0-9]*)[.]dex$' "$scratch/files"; then
+    echo "NativeActivity F-Droid APK unexpectedly contains DEX" >&2
     exit 1
 fi
 if grep -Fq "android.permission.INTERNET" "$scratch/badging"; then
-    echo "Unexpected Android network permission in offline Wegert release" >&2
+    echo "Offline Wegert release unexpectedly requests network permission" >&2
     exit 1
 fi
 
