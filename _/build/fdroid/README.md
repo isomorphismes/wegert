@@ -48,3 +48,26 @@ ysh fdroid/store-status.grease
 ```
 
 The first command reports the public fdroiddata merge-request state and comments. The second checks F-Droid's public package API/store page against `fdroid/release.properties`. A package 404 is a normal pending state; transport/API failures still fail the check.
+
+## Release versus prerelease
+
+- **Candidate / prerelease:** an artifact from GitHub Actions, an ICK qualification
+  branch, or a GitHub prerelease. It is meant for inspection and testing, not
+  F-Droid update distribution. The repository's public debug signer is
+  **not** the F-Droid release signer.
+- **Tagged upstream release:** `v0.2.0` (versionCode 101) is created only after
+  the exact main-branch candidate and both Android/F-Droid runs are successful
+  **and** the matching APK has been exercised on physical Android hardware.
+  A tag alone is not proof of publication.
+- **F-Droid submission:** an *open* fdroiddata merge request with the exact
+  tagged source, passing F-Droid CI and review. A closed or merely drafted
+  request does not count.
+- **Published F-Droid release:** F-Droid has built and signed the APK and
+  the official package API confirms availability of that version. No Google
+  Play account, tax paperwork, screenshots, or weekly submission cadence is
+  needed for this release track.
+
+The current GitHub debug APK and an eventual F-Droid-signed APK will normally
+have different signing certificates. Android cannot update one in place to the
+other. Back up any user data before uninstalling a test build to install the
+F-Droid version. Do not call GitHub test APKs interchangeable F-Droid releases.
