@@ -33,6 +33,7 @@ test "$current_version_name" = "$WEGERT_VERSION_NAME"
 test "$current_version_code" = "$WEGERT_VERSION_CODE"
 test "$metadata_ndk" = "$WEGERT_NDK_VERSION"
 
+grep -Fxq 'Name: zero & infinity' "$metadata"
 grep -Fxq 'SourceCode: https://github.com/isomorphismes/wegert' "$metadata"
 grep -Fxq 'Repo: https://github.com/isomorphismes/wegert.git' "$metadata"
 grep -Fxq 'AutoUpdateMode: Version' "$metadata"
@@ -91,7 +92,55 @@ grep -Eq '^source_sha256=[0-9a-f]{64}$' "$screenshot_provenance"
 grep -Fxq 'crop=1180x720+0+0' "$screenshot_provenance"
 grep -Fxq 'output_path=app/src/main/play/listings/en-US/graphics/phone-screenshots/1.png' "$screenshot_provenance"
 grep -Fxq 'output_size=1180x720' "$screenshot_provenance"
-grep -Eq '^output_sha256=[0-9a-f]{64}$' "$screenshot_provenance"
+grep -Eq '^output_sha256=[0-9a-f]{64}
+
+test "$(wc -m < "$locale/title.txt")" -le 51
+test "$(wc -m < "$locale/short-description.txt")" -le 81
+test "$(wc -m < "$locale/full-description.txt")" -le 4001
+test "$(wc -m < "$release_note")" -le 501
+
+python3 - "$icon" "${screenshots[@]}" <<'PY'
+import struct
+import sys
+from pathlib import Path
+
+
+def png_size(path: Path) -> tuple[int, int]:
+    with path.open("rb") as stream:
+        header = stream.read(24)
+    if header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR":
+        raise SystemExit(f"not a PNG: {path}")
+    return struct.unpack(">II", header[16:24])
+
+
+icon = Path(sys.argv[1])
+if png_size(icon) != (512, 512):
+    raise SystemExit(f"F-Droid icon must be 512x512: {icon}")
+
+for raw_path in sys.argv[2:]:
+    path = Path(raw_path)
+    width, height = png_size(path)
+    if width < 1 or height < 1:
+        raise SystemExit(f"empty screenshot: {path} ({width}x{height})")
+PY
+
+if grep -Eq '<uses-permission[^>]+android.permission.INTERNET' "$repo_root/app/src/main/AndroidManifest.xml"; then
+    echo "Triple-T description says there is no network permission, but the manifest requests it" >&2
+    exit 1
+fi
+
+printf 'metadata: %s (%s), tag auto-update enabled\n' "$WEGERT_VERSION_NAME" "$WEGERT_VERSION_CODE"
+printf 'F-Droid build: direct NDK/CMake + aapt2, no Gradle\n'
+printf 'triple-t: title, descriptions, icon, release note, and %d phone screenshot(s) via subdir _/build\n' "${#screenshots[@]}"
+printf 'apk packaging: one universal APK with arm64-v8a, armeabi-v7a, and x86_64\n'
+ "$screenshot_provenance"
+test "$(grep -c '^output_sha256=' "$screenshot_provenance")" -eq 1
+recorded_screenshot_sha="$(sed -n 's/^output_sha256=//p' "$screenshot_provenance")"
+actual_screenshot_sha="$(sha256sum "$screenshots_dir/1.png" | awk '{print $1}')"
+if test "$recorded_screenshot_sha" != "$actual_screenshot_sha"; then
+    echo "Store screenshot provenance hash does not match its actual bytes" >&2
+    exit 1
+fi
 
 test "$(wc -m < "$locale/title.txt")" -le 51
 test "$(wc -m < "$locale/short-description.txt")" -le 81
