@@ -68,7 +68,8 @@ android {
         targetSdk = 36
         versionCode = releaseVersionCode
         versionName = releaseVersionName
-        manifestPlaceholders["appLabel"] = if (fdroidBuild) "zero & infinity" else "Wegert"
+        // Keep the installed launcher identity the same across test, ICK and F-Droid packages.
+        manifestPlaceholders["appLabel"] = "zero & infinity"
 
         // arm64-v8a is the main real phone/tablet target. armeabi-v7a keeps
         // the same native app installable on 32-bit Android/Android Go userspace,
