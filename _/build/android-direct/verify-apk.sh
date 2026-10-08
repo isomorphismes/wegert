@@ -41,6 +41,7 @@ unzip -p "$apk" assets/licenses/NOTICE.txt | grep -Fq 'Apache License, Version 2
 
 badging=$("$aapt2" dump badging "$apk")
 printf '%s\n' "$badging" | grep -Fq "package: name='org.isomorphisms.wegert'"
+printf '%s\n' "$badging" | grep -Fxq "application-label:'zero & infinity'"
 printf '%s\n' "$badging" | grep -Fq "launchable-activity: name='org.isomorphisms.wegert.WegertActivity'"
 
 printf 'PASS: direct DEX/JNI APK %s\n' "$apk"

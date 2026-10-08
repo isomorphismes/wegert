@@ -152,6 +152,14 @@ jobs:
           unzip -Z1 "$apk" | grep -Fxq 'lib/armeabi-v7a/libwegert.so'
           unzip -Z1 "$apk" | grep -Fxq 'lib/x86_64/libwegert.so'
 
+      - name: Verify launcher label in ICK-containing APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk=_/build/app/build/outputs/apk/debug/app-debug.apk
+          badging="$("$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$apk")"
+          printf '%s\n' "$badging" | grep -Fxq "application-label:'zero & infinity'"
+
       - name: Record source-built consumer receipt
         shell: bash
         run: |
