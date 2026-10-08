@@ -40,6 +40,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Verify F-Droid shell syntax before expensive builds
+        run: |
+          bash -n fdroid/verify-metadata.sh fdroid/verify-apk.sh \
+            fdroid/release-values.sh fdroid/reproducible-build.sh \
+            fdroid/build-apk.sh fdroid/run-fdroiddata-tests.sh \
+            fdroid/test-inside-buildserver.sh
       - name: Verify release and Triple-T metadata
         run: fdroid/verify-metadata.sh
 
@@ -81,6 +87,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Verify F-Droid shell syntax before expensive builds
+        run: |
+          bash -n fdroid/verify-metadata.sh fdroid/verify-apk.sh \
+            fdroid/release-values.sh fdroid/reproducible-build.sh \
+            fdroid/build-apk.sh fdroid/run-fdroiddata-tests.sh \
+            fdroid/test-inside-buildserver.sh
       - name: Verify release and Triple-T metadata
         run: fdroid/verify-metadata.sh
 
