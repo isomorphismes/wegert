@@ -112,7 +112,25 @@ jobs:
         run: fdroid/verify-metadata.sh
 
       - name: Run fdroiddata metadata, scanner, and production build tests
-        run: fdroid/run-fdroiddata-tests.sh
+        run: |
+          mkdir -p build/fdroid-diagnostics
+          fdroid/run-fdroiddata-tests.sh > build/fdroid-diagnostics/production.log 2>&1
+
+      - name: Retain bounded production diagnostics
+        if: always()
+        run: |
+          if test -f build/fdroid-diagnostics/production.log; then
+            tail -n 200 build/fdroid-diagnostics/production.log
+            gzip -c build/fdroid-diagnostics/production.log > build/fdroid-diagnostics/production.log.gz
+          fi
+
+      - name: Upload compressed production log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wegert-fdroid-production-log
+          path: _/build/build/fdroid-diagnostics/production.log.gz
+          if-no-files-found: warn
 
       - uses: actions/upload-artifact@v4
         with:
