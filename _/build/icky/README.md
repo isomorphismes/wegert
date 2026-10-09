@@ -25,3 +25,14 @@ Cartesian source selection and the explicit owned-complex source selection.
 `complex-extraction-evidence.tsv` records their digests. Fresh ARM/AArch64
 compiler, source-built-object/QEMU, APK and emulator results remain obligations
 of the updated exact-head workflows; prior receipts are not relabeled.
+
+The hosted F-Droid reproducibility lane keeps both application trees as clean
+`git archive` extractions. It passes the explicitly pinned shared interface and
+current-run compiler stages as external immutable build inputs, just as it
+passes the declared NDK r29. Before each application build, `Restore.mk verify`
+checks the shared Git revision and all consumed shared files, every archived
+compiler-stage member and the exact member inventory (only `.restored` may be
+extra), source/ABI/API26/Fortify2 receipts, and relocated driver/frontend hashes.
+The independent production F-Droid lane still bootstraps and qualifies all three
+compilers from its pinned source libraries. Metadata normalization, APK scanning,
+the two-build byte comparison and branch-specific release gates are unchanged.
