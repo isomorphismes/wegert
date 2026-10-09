@@ -1,5 +1,4 @@
 name: Publish tested APK
-
 on:
   workflow_dispatch:
     inputs:
@@ -11,11 +10,12 @@ on:
         description: Exact main-branch commit qualified by that run
         required: true
         type: string
-
 permissions:
   actions: read
   contents: write
-
+concurrency:
+  group: wegert-release-publication
+  cancel-in-progress: false
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -23,143 +23,90 @@ jobs:
     env:
       SOURCE_RUN_ID: ${{ inputs.source_run_id }}
       SOURCE_SHA: ${{ inputs.source_sha }}
-
     steps:
-      - name: Validate the requested direct DEX/JNI run
+      - name: Reject non-main dispatch
+        run: test "$GITHUB_REF" = refs/heads/main
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: isomorphisms/ai-ci
+          ref: 40d4fb5a4e7549a00e1a1f9bed6e6f5cf094720c
+          path: aici-policy
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact source, workflow and merged release policy
+        id: release
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: bash
         run: |
           set -euo pipefail
-          [[ "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]]
-          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
-
-          run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID")"
-          jq -e \
-            --arg sha "$SOURCE_SHA" \
-            '.conclusion == "success" and
-             .head_sha == $sha and
-             .head_branch == "main" and
-             .event == "push" and
-             .name == "Direct DEX and JNI Android build" and
-             .path == ".github/workflows/direct-dex-jni.yml"' \
-            <<<"$run_json" >/dev/null
-
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.source_sha }}
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Read source-controlled release identity
-        id: release
-        shell: bash
-        run: |
-          set -euo pipefail
-          source _/build/fdroid/release-values.sh
-          echo "version=$WEGERT_VERSION_NAME" >> "$GITHUB_OUTPUT"
-          echo "code=$WEGERT_VERSION_CODE" >> "$GITHUB_OUTPUT"
-          echo "tag=v$WEGERT_VERSION_NAME" >> "$GITHUB_OUTPUT"
-
-      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ && "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          test "$(git rev-parse HEAD)" = "$GITHUB_WORKFLOW_SHA"
+          git merge-base --is-ancestor "$SOURCE_SHA" HEAD
+          git -C aici-policy fetch origin main
+          git -C aici-policy merge-base --is-ancestor HEAD origin/main
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > "$RUNNER_TEMP/source-run.json"
+          bash aici-policy/release-promotion/gate.sh verify-run \
+            "$RUNNER_TEMP/source-run.json" "$GITHUB_REPOSITORY" "$SOURCE_SHA" "$SOURCE_RUN_ID" .github/workflows/direct-dex-jni.yml
+          git show "$SOURCE_SHA:_/build/fdroid/release.properties" > "$RUNNER_TEMP/release.properties"
+          version=$(bash aici-policy/release-promotion/gate.sh property "$RUNNER_TEMP/release.properties" versionName)
+          code=$(bash aici-policy/release-promotion/gate.sh property "$RUNNER_TEMP/release.properties" versionCode)
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$code" =~ ^[1-9][0-9]*$ ]]
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "attempt=$(jq -r '.run_attempt' "$RUNNER_TEMP/source-run.json")" >> "$GITHUB_OUTPUT"
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
         with:
           packages: ''
-
       - name: Install APK inspection tool
         run: sdkmanager "build-tools;36.0.0"
-
-      - name: Download and verify the exact ART-qualified APK
+      - name: Download and inspect the exact ART-qualified APK
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
           RELEASE_CODE: ${{ steps.release.outputs.code }}
-        shell: bash
         run: |
           set -euo pipefail
-          mkdir -p release/direct
-          gh run download "$SOURCE_RUN_ID" \
-            --repo "$GITHUB_REPOSITORY" \
-            --name wegert-direct-dex-jni \
-            --dir release/direct
-
-          source_apk=release/direct/wegert-direct-debug.apk
+          mkdir -p "$RUNNER_TEMP/direct" "$RUNNER_TEMP/test-assets"
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name wegert-direct-dex-jni --dir "$RUNNER_TEMP/direct"
+          source_apk="$RUNNER_TEMP/direct/wegert-direct-debug.apk"
           test -s "$source_apk"
-          grep -Fxq "wegert=$SOURCE_SHA" release/direct/revisions.txt
-          expected_hash="$(awk '$2 ~ /wegert-direct-debug[.]apk$/ {print $1}' release/direct/sha256sums.txt)"
-          test -n "$expected_hash"
+          grep -Fxq "wegert=$SOURCE_SHA" "$RUNNER_TEMP/direct/revisions.txt"
+          expected_hash=$(awk '$2 ~ /wegert-direct-debug[.]apk$/ {n++; hash=$1} END {if(n!=1) exit 1; print hash}' "$RUNNER_TEMP/direct/sha256sums.txt")
+          [[ "$expected_hash" =~ ^[0-9a-f]{64}$ ]]
           test "$(sha256sum "$source_apk" | awk '{print $1}')" = "$expected_hash"
-
           unzip -t "$source_apk"
-          for required in \
-            AndroidManifest.xml \
-            classes.dex \
-            lib/arm64-v8a/libwegert.so \
-            lib/armeabi-v7a/libwegert.so \
-            lib/x86_64/libwegert.so; do
-            unzip -Z1 "$source_apk" | grep -Fxq "$required"
+          unzip -Z1 "$source_apk" > "$RUNNER_TEMP/entries"
+          for entry in AndroidManifest.xml classes.dex lib/arm64-v8a/libwegert.so lib/armeabi-v7a/libwegert.so lib/x86_64/libwegert.so; do
+            grep -Fxq "$entry" "$RUNNER_TEMP/entries"
           done
-
           sdk_root="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
-          "$sdk_root/build-tools/36.0.0/aapt" dump badging "$source_apk" \
-            > "$RUNNER_TEMP/wegert-direct-badging.txt"
-          grep -Fq \
-            "package: name='org.isomorphisms.wegert' versionCode='$RELEASE_CODE' versionName='$RELEASE_VERSION'" \
-            "$RUNNER_TEMP/wegert-direct-badging.txt"
-          grep -Fq \
-            "launchable-activity: name='org.isomorphisms.wegert.WegertActivity'" \
-            "$RUNNER_TEMP/wegert-direct-badging.txt"
-
-          release_apk="release/wegert-$RELEASE_VERSION.apk"
-          cp "$source_apk" "$release_apk"
-          (
-            cd release
-            sha256sum "wegert-$RELEASE_VERSION.apk" \
-              > "wegert-$RELEASE_VERSION.apk.sha256"
-          )
-
-      - name: Require the release tag to identify the tested source
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.release.outputs.tag }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          tag_sha="$(
-            gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" \
-              --jq '.object.sha'
-          )"
-          test "$tag_sha" = "$SOURCE_SHA"
-
-      - name: Publish durable GitHub prerelease
+          "$sdk_root/build-tools/36.0.0/aapt" dump badging "$source_apk" > "$RUNNER_TEMP/badging"
+          grep -Fq "package: name='org.isomorphisms.wegert' versionCode='$RELEASE_CODE' versionName='$RELEASE_VERSION'" "$RUNNER_TEMP/badging"
+          grep -Fxq "application-label:'zero & infinity'" "$RUNNER_TEMP/badging"
+          grep -Fq "launchable-activity: name='org.isomorphisms.wegert.WegertActivity'" "$RUNNER_TEMP/badging"
+          cp "$source_apk" "$RUNNER_TEMP/test-assets/zero-infinity-$RELEASE_VERSION-direct-test.apk"
+          (cd "$RUNNER_TEMP/test-assets"; sha256sum "zero-infinity-$RELEASE_VERSION-direct-test.apk" > "zero-infinity-$RELEASE_VERSION-direct-test.apk.sha256")
+      - name: Verify the finished APK's stable test signer
+        uses: isomorphisms/ai-ci/android-signing@b3af13b3ab2bac9dd7c72bf9dd855ed5a17609b5
+        with:
+          apk: ${{ runner.temp }}/direct/wegert-direct-debug.apk
+          lane: test
+      - name: Publish only in the separate non-overwriting test namespace
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
-          RELEASE_TAG: ${{ steps.release.outputs.tag }}
-        shell: bash
+          SOURCE_ATTEMPT: ${{ steps.release.outputs.attempt }}
         run: |
           set -euo pipefail
-          release_title="Wegert Android test $RELEASE_VERSION"
-          release_notes="Installable direct DEX/JNI test APK from run $SOURCE_RUN_ID at commit $SOURCE_SHA.
-
-          That exact artifact passed the direct source-pinned DEX build, native symbol checks, installation on ART, and the JNI sentinel check before publication. It is signed with the repository's public test-only debug key. F-Droid remains a separate source-build and signing boundary."
-
-          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release edit "$RELEASE_TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --title "$release_title" \
-              --notes "$release_notes" \
-              --prerelease
-          else
-            gh release create "$RELEASE_TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --verify-tag \
-              --title "$release_title" \
-              --notes "$release_notes" \
-              --prerelease
-          fi
-
-          gh release upload "$RELEASE_TAG" \
-            "release/wegert-$RELEASE_VERSION.apk" \
-            "release/wegert-$RELEASE_VERSION.apk.sha256" \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > "$RUNNER_TEMP/source-run-after.json"
+          bash aici-policy/release-promotion/gate.sh verify-run \
+            "$RUNNER_TEMP/source-run-after.json" "$GITHUB_REPOSITORY" "$SOURCE_SHA" "$SOURCE_RUN_ID" .github/workflows/direct-dex-jni.yml
+          test "$(jq -r '.run_attempt' "$RUNNER_TEMP/source-run-after.json")" = "$SOURCE_ATTEMPT"
+          bash aici-policy/release-promotion/gate.sh publish-test \
+            "$GITHUB_REPOSITORY" "$SOURCE_SHA" "$SOURCE_RUN_ID" "$SOURCE_ATTEMPT" "$RELEASE_VERSION" "$RUNNER_TEMP/test-assets"

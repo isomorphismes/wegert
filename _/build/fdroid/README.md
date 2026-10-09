@@ -9,8 +9,8 @@ Wegert remains the internal project/package name. The intended F-Droid listing i
 1. Keep `fdroid/release.properties`, `app/build.gradle.kts`, and `fdroid/org.isomorphisms.wegert.yml.template` on the same version name/code.
 2. Merge the release candidate to `main` and record the exact successful main-branch push Android and F-Droid workflow runs. PR runs are not main-branch release receipts.
 3. From that F-Droid run, install the APK in **`wegert-fdroid-device-candidate`**, not the unrelated Gradle/ICK or direct-DEX APK. Verify its `candidate.properties` source and APK hash. Replace the existing test installation without uninstalling first; do not hide a signer or version downgrade error by deleting the app.
-4. On physical hardware, check the launcher name, zero/pole placement and dragging, pan, pinch, clear, Android Back, background/resume, and relaunch. Record the device, exact candidate hash, source SHA and observed pass/fail results in release issue #68. An emulator or earlier APK test does not supply these observations.
-5. Only then run `Tag tested F-Droid release` for that exact source SHA and the two successful run IDs. Never create the tag merely to unblock a build.
+4. On physical hardware, check the launcher name, rendered portrait, zero/pole placement and dragging, pan, pinch, clear, Android Back, background/resume, and relaunch. Record the device, exact candidate hash, source SHA and observed pass/fail results in `_/build/fdroid/acceptance/SOURCE_SHA.json` on reviewed `main`, and link that record from release issue #68. An emulator or earlier APK test does not supply these observations. The exact schema is described below.
+5. Only then run `Tag tested F-Droid release` from `main` for that exact source SHA and the two successful run IDs. It downloads the actual F-Droid artifacts again, requires the committed matching physical record, and creates an annotated immutable tag binding its hash. Missing, failed or mismatched evidence blocks tagging. Never create the tag merely to unblock a build.
 6. Copy `fdroid/org.isomorphisms.wegert.yml.template` into fdroiddata, submit the upstream merge request, address review, and confirm actual official package publication. The existing `Publish tested APK` workflow is a separate GitHub direct-DEX prerelease path, not a prerequisite for F-Droid submission.
 
 The canonical upstream store metadata is Triple-T under `app/src/main/play`. `fdroid/verify-metadata.sh` rejects the old `fastlane/metadata/android` tree if it reappears, so CI cannot silently fall back to a second metadata source.
@@ -26,6 +26,18 @@ The F-Droid workflow checks out the explicit source revision in both build jobs.
 The production-like fdroiddata job independently checks metadata, scanner output, manifest flags and Triple-T extraction through F-Droid's legacy-named `tools/check-fastlane.py`. Its update check is explicitly deferred until the matching public release tag exists. It does not represent F-Droid's official pipeline or reviewer acceptance.
 
 `prepare-device-candidate.sh` signs a copy of the verified unsigned APK with the existing stable public **test-only** key. It compares the complete application-entry inventory and every entry's bytes before and after signing. It leaves the source-built unsigned APK unchanged, rechecks the signer, and emits source/unsigned/candidate hashes. Its receipt deliberately says `physical_device=NOT_RUN`. The central AICI signer registry independently verifies the finished candidate before artifact upload.
+
+## Enforced promotion and physical observation
+
+Both publishing workflows run policy from their reviewed default-branch workflow revision, not from the source SHA selected by an input. They pin AICI's `release-promotion/gate.sh` by full commit SHA and require that policy revision to be an ancestor of AICI main before promotion. Their shared concurrency group serializes release writes. These workflow guards do not prevent a repository administrator from bypassing or rewriting policy.
+
+`collect-release-context.sh OUTPUT_DIRECTORY` is read-only preparation. With the exact source/run inputs and pinned AICI checkout supplied by the workflow, it validates both successful main-branch runs, retrieves the F-Droid candidate and unsigned APK, reads properties as data, rehashes both files, and rejects mismatches or a rerun during collection. It produces `context.json` and `acceptance-draft.json`; every observation in the generated draft is `NOT_RUN`.
+
+The accepted record uses AICI's `physical-acceptance-v1` schema: the exact `binding` from `context.json`, `decision: accepted`, a named observer, a reference to the actual human report, a UTC observation time, physical device model and Android version, and every required check with `result: PASS` and an actual observation in `detail`. Copy only facts from the human's report; missing tests remain missing. A maintainer can prepare the record from that report so the tester does not have to fill out JSON. This is auditable testimony, not a claim of hardware attestation.
+
+Commit the completed observation to `_/build/fdroid/acceptance/SOURCE_SHA.json` in a later reviewed main-branch commit. Do not rebuild the candidate merely to record its own future test: the tested source only needs to remain an ancestor of that policy/record commit. The tagging command verifies the record against the downloaded bytes immediately before creating the tag and binds its SHA-256 in the annotation. Never rewrite an accepted record or move an existing tag; conflicting retries stop.
+
+The direct-DEX publisher no longer needs or touches `v0.2.0`. Its tag is `test-vVERSION-FULLSHA-runID-aATTEMPT`; those tags cannot match the ordinary-version regex in the F-Droid template. Test files carry `direct-test` in their names. Existing stable/draft releases, unexpected assets, moved tags, differing bytes, and failed API lookups stop publication. Identical existing bytes are left alone, and interrupted uploads can add missing files without deleting anything. This does not certify the direct-DEX experiment as an F-Droid candidate.
 
 ## Store screenshot provenance
 
@@ -46,6 +58,8 @@ fdroid/run-fdroiddata-tests.sh
 ```
 
 The guard test uses synthetic ZIP/SDK fixtures to prove rejection behavior, not Android execution. The reproducible build needs the pinned Android SDK/NDK/CMake inputs. The fdroiddata test additionally needs Docker and a public source ref. Existing inline Python in the inherited packaging scripts remains migration debt; this change adds no new Python program.
+
+The unfiltered `Release promotion safety` workflow additionally runs the pinned AICI positive/adversarial suite and `test-release-promotion.sh` with an explicit AICI checkout. Those tests execute the real collector against synthetic Git histories, run responses and artifact bytes; they reject wrong source, version, NDK evidence, changed bytes, duplicate hashes, failed/fork runs, stale output and changing run attempts. Synthetic acceptance drafts cannot pass the physical gate.
 
 F-Droid performs its own source build and signs the resulting APK. Neither the unsigned build artifact nor its test-signed device candidate is a published F-Droid release.
 
