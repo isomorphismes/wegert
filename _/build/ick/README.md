@@ -2,15 +2,18 @@
 
 This is a build-host Grease procedure for the existing NativeActivity app.
 It compiles every application C translation unit, including the complex-math
-implementation, and the NDK native-activity glue with ICK. The NDK owns the
-Android platform link and APK resource packaging. A second library is compiled
-with NDK Clang from the same sources for export/ABI comparison.
+implementation, directly with current ICK through the shared CMake boundary.
+NDK r29 compiles its unchanged NativeActivity glue, assembles ICK output, links
+and packages the APK. A second library is compiled with NDK Clang from the
+immutable pre-migration source at `71e6f969b102d70a06ebb2d98b6426f79f287173`
+for the existing export/ABI comparison. Current glyph source is never rewritten.
 
-Inputs are a verified compiler archive, an ICK checkout containing the shared
-application qualifier, NDK r29, SDK 36, a new output directory, and the real
-Grease invocation. The procedure pins the compiler archive to ICK
-515c0f29fe6e2e96e10495fbaf25da93532e7722 and verifies its published SHA-256.
-It checks the compiler driver and cc1 individually after extraction.
+Inputs are an exact ICK `c61e448251744a2f40ad743ebef1a027bdcd2f9d` checkout,
+its qualified installed ARM compiler stage, NDK r29, SDK 36, a new output
+directory and the real Grease invocation. The shared interface checkout under
+`_/ai-ci-ick` must be `4ea071a96239f3a29ca6d98454feb59947d87cfe`.
+The procedure verifies source and interface revisions, requires cc1 to remain
+inside the installed stage and reruns the shared ARM/Bionic/Fortify2 qualifier.
 
 The build's domains are source revisions, SHA-256 digests, compiler artifacts,
 ARMv7/A32/softfp objects, Android shared libraries, and signed test APKs.
@@ -25,9 +28,8 @@ application Java, Gradle or generated DEX.
 
 Invoke the actual Grease runtime with `qualify-armv7.grease` and arguments:
 
-1. ICK checkout containing `qualification/android-boundary/compile-application.grease`;
-2. exact compiler ZIP from artifact 11466225121 in
-   https://github.com/dilapidated-shed/ick/actions/runs/37581942577;
+1. Exact current ICK source checkout;
+2. qualified installed `armeabi-v7a` stage containing `bin/arm-linux-gnueabi-gcc`;
 3. NDK r29 directory;
 4. Android SDK directory with build-tools 36.0.0 and platform 36;
 5. a new absolute output directory;
@@ -38,3 +40,6 @@ version and public test signing identity. It does not certify replacement
 installation, application behavior, physical MIRO A1 execution, C67 execution,
 16 KiB runtime compatibility, numerical/rendered output equivalence, or F-Droid
 reproducibility. Those acceptance stages remain separate.
+
+The checked `evidence/` files remain historical qualification of the earlier
+ICK515 archive. They are not relabeled as evidence for the current source.

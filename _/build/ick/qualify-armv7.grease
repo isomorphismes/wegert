@@ -1,66 +1,64 @@
 #!/usr/bin/env grease
 set -eu -o pipefail
 if (len(ARGV) < 6) {
-  echo 'usage: qualify-armv7.grease ICK_CHECKOUT COMPILER_ZIP NDK SDK NEW_OUTPUT GREASE [GREASE_ARGS...]'
+  echo 'usage: qualify-armv7.grease ICK_CHECKOUT ICK_ARM_STAGE NDK SDK NEW_OUTPUT GREASE [GREASE_ARGS...]'
   exit 2
 }
-var ick_source = ARGV[0]
-var archive = ARGV[1]
-var ndk = ARGV[2]
-var sdk = ARGV[3]
-setvar ick_source = $(readlink -f "$ick_source")
-setvar archive = $(readlink -f "$archive")
-setvar ndk = $(readlink -f "$ndk")
-setvar sdk = $(readlink -f "$sdk")
+var ick_source = $(readlink -f "$[ARGV[0]]")
+var stage = $(readlink -f "$[ARGV[1]]")
+var ndk = $(readlink -f "$[ARGV[2]]")
+var sdk = $(readlink -f "$[ARGV[3]]")
 var output = ARGV[4]
-var runtime = ARGV[5:]
 var script_dir = $(dirname "$(readlink -f "$0")")
 var repo = $(git -C "$script_dir" rev-parse --show-toplevel)
 var source_revision = $(git -C "$repo" rev-parse HEAD)
-var qualifier = "$ick_source/qualification/android-boundary/compile-application.grease"
-var compiler_revision = '515c0f29fe6e2e96e10495fbaf25da93532e7722'
-var archive_digest = 'd3d60223712a8f5119451e15344f9a22ace0824eca19f2e78792b0dc18ab509c'
-test -f "$qualifier"
-test -f "$archive"
-test -d "$ndk"
-test -d "$sdk"
+var compiler_revision = 'c61e448251744a2f40ad743ebef1a027bdcd2f9d'
+var shared_revision = '4ea071a96239f3a29ca6d98454feb59947d87cfe'
+var reference_revision = '71e6f969b102d70a06ebb2d98b6426f79f287173'
+var shared = "$repo/_/ai-ci-ick"
+var compiler = "$stage/bin/arm-linux-gnueabi-gcc"
+test "$(git -C "$ick_source" rev-parse HEAD)" = "$compiler_revision"
+test "$(git -C "$shared" rev-parse HEAD)" = "$shared_revision"
+test -x "$compiler"
+var cc1 = $("$compiler" -print-prog-name=cc1)
+test -x "$cc1"
+if (not cc1.startsWith(stage ++ '/')) {
+  echo 'cc1 escaped the qualified installed stage'
+  exit 1
+}
 test ! -e "$output"
 if (len(output) === 0 or output[0] !== '/') {
   echo 'output must be an absolute path'
   exit 2
 }
-test "$(sha256sum "$archive" | awk '{print $1}')" = "$archive_digest"
-mkdir -p "$output/compiler" "$output/objects" "$output/reference" "$output/package/lib/armeabi-v7a" "$output/assets"
-unzip -q "$archive" -d "$output/compiler"
-var compiler = "$output/compiler/xgcc"
-var cc1 = "$output/compiler/cc1"
-test "$(sha256sum "$compiler" | awk '{print $1}')" = 'c78697d096ffe8ba10fbcc3bae9b35d0c934bee11a3626813656ac84e126f9ad'
-test "$(sha256sum "$cc1" | awk '{print $1}')" = '289dee590a515e6426a6ab74d7dc8c143e428836a3a79036a75444f0622fba73'
-chmod 755 "$compiler" "$cc1" "$output/compiler/collect2"
-test "$("$compiler" "-B$output/compiler/" -print-prog-name=cc1)" = "$cc1"
+mkdir -p "$output/reference" "$output/reference-source" "$output/package/lib/armeabi-v7a" "$output/assets"
+make -f "$shared/ick-android/Makefile" qualify ABI=armeabi-v7a "ICK_SOURCE=$ick_source" "ICK_STAGE=$stage" "NDK=$ndk" FORTIFY_SOURCE=2 "QUALIFY_BUILD=$output/compiler-qualification"
+cmake -S "$repo/_/build" -B "$output/cmake" -G Ninja "-DCMAKE_TOOLCHAIN_FILE=$ndk/build/cmake/android.toolchain.cmake" -DANDROID_ABI=armeabi-v7a -DANDROID_PLATFORM=android-26 -DANDROID_STL=none -DANDROID_ARM_MODE=arm -DCMAKE_BUILD_TYPE=Release -DWEGERT_USE_ICK_PREBUILT=OFF -DWEGERT_USE_ICK_COMPLEX_SOURCE=ON "-DWEGERT_ICK_STAGE=$stage" "-DWEGERT_ICK_SHARED=$shared"
+cmake --build "$output/cmake" --target wegert --parallel 2
+cp "$output/cmake/libwegert.so" "$output/libwegert.so"
 var llvm = "$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin"
 var reference = "$llvm/armv7a-linux-androideabi26-clang"
 var glue_dir = "$ndk/sources/android/native_app_glue"
-var flags = ['-I' ++ repo ++ '/code', '-I' ++ glue_dir, '-DBIONIC_IOCTL_NO_SIGNEDNESS_OVERLOAD', '-Wall', '-Wextra']
+# Compile the immutable original source as the stock-C control. Never rewrite
+# current glyph source to make the reference frontend accept it.
+git fetch origin "$reference_revision"
+git archive "$reference_revision" code | tar -x -C "$output/reference-source"
+var reference_code = "$output/reference-source/code"
+var flags = ['-I' ++ reference_code, '-I' ++ glue_dir, '-DBIONIC_IOCTL_NO_SIGNEDNESS_OVERLOAD', '-Wall', '-Wextra']
 var names = ['wegert', 'wegert_function', 'wegert_view', 'wegert_scene', 'wegert_gles', 'wegert_portrait_renderer_gles', 'wegert_placement_controls', 'wegert_overlay_renderer_gles', 'complex_math_ick', 'android_native_app_glue']
-var objects = []
 var reference_objects = []
-printf 'wegert_source\t%s\ncompiler_source\t%s\ncompiler_archive_sha256\t%s\nabi\tarmeabi-v7a/A32/softfp\ncompile_owner\tICK\nlink_owner\tNDK-r29\nphysical_execution\tNOT_RUN\noutput_equivalence\tNOT_RUN\nfdroid\tNOT_RUN\n' "$source_revision" "$compiler_revision" "$archive_digest" > "$output/receipt.tsv"
+printf 'wegert_source\t%s\ncompiler_source\t%s\nreference_source\t%s\nabi\tarmeabi-v7a/A32/softfp\ncompile_owner\tICK\nlink_owner\tNDK-r29\nphysical_execution\tNOT_RUN\noutput_equivalence\tNOT_RUN\nfdroid\tNOT_RUN\n' "$source_revision" "$compiler_revision" "$reference_revision" > "$output/receipt.tsv"
 for name in (names) {
-  var source = "$repo/code/$name.c"
+  var source = "$reference_code/$name.c"
   if (name === 'android_native_app_glue') {
     setvar source = "$glue_dir/android_native_app_glue.c"
   }
-  var object = "$output/objects/$name.o"
   var reference_object = "$output/reference/$name.o"
-  @runtime "$qualifier" "$compiler" "$ndk" 26 "$source" "$object" "-B$output/compiler/" @flags
   "$reference" -std=c17 -O2 -fPIC -marm -march=armv7-a -mfloat-abi=softfp -mfpu=vfpv3-d16 @flags -c "$source" -o "$reference_object" > "$reference_object.log" 2>&1
-  setvar objects = objects ++ [object]
   setvar reference_objects = reference_objects ++ [reference_object]
-  sha256sum "$source" "$object" "$reference_object" >> "$output/source-and-object.sha256"
+  sha256sum "$source" "$reference_object" >> "$output/source-and-object.sha256"
 }
 var link_flags = ['-shared', '-Wl,-z,defs', '-Wl,-z,text', '-Wl,--fatal-warnings', '-Wl,-soname,libwegert.so', '-Wl,-u,ANativeActivity_onCreate']
-"$reference" @link_flags @objects -landroid -llog -lEGL -lGLESv3 -lm -o "$output/libwegert.so"
 "$reference" @link_flags @reference_objects -landroid -llog -lEGL -lGLESv3 -lm -o "$output/reference/libwegert.so"
 "$llvm/llvm-readobj" --elf-output-style=GNU -h -l -d "$output/libwegert.so" > "$output/android-elf.txt"
 "$llvm/llvm-nm" -D --defined-only "$output/libwegert.so" | awk '{print $3}' | sort -u > "$output/ick.exports"
