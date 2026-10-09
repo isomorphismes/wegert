@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Wegert — interactive phase portraits of complex rational functions.">
-  <title>Wegert — Complex functions, made visible</title>
+  <title>Wegert — interactive phase portraits</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
       <span>Wegert</span>
     </a>
     <nav aria-label="Primary navigation">
-      <a href="#features">Features</a>
+      <a href="#controls">Controls</a>
       <a href="#colour">Colour</a>
       <a href="#android">Android</a>
       <a href="https://github.com/isomorphismes/wegert">Source</a>
@@ -24,77 +24,78 @@
   <main id="top">
     <section class="intro section">
       <div class="intro_copy">
-        <p class="section_label">Complex analysis you can touch</p>
-        <h1>Complex functions,<br>made visible.</h1>
+        <p class="section_label">Phase portraits of rational functions</p>
+        <h1>Move the zeros.<br>Move the poles.</h1>
         <p class="intro_text">
-          Interactive Wegert phase portraits of rational functions. Place zeros and poles,
-          drag them through the complex plane, pan, zoom, and watch the portrait respond immediately.
+          Add factors on the complex plane and drag them. Pan or pinch to zoom.
+          The portrait and formula update from the same state.
         </p>
         <div class="actions">
           <a class="button primary" href="https://github.com/isomorphismes/wegert/releases/download/v0.1.50/wegert-0.1.50.apk">
             Download Android test APK
           </a>
-          <a class="button secondary" href="https://github.com/isomorphismes/wegert">View source</a>
+          <a class="button secondary" href="https://github.com/isomorphismes/wegert">Source</a>
         </div>
-        <p class="release_note">v0.1.50 prerelease · test-only signing key</p>
+        <p class="release_note">v0.1.50 prerelease · public test signing key</p>
       </div>
 
       <figure class="intro_visual">
         <div class="image_frame">
-          <img src="rendered_images/wegert_g.png" alt="Wegert phase portrait of g(z) = (z − 1)(z − 2)(z − 5)">
+          <img src="rendered_images/wegert_g.png" alt="Phase portrait of g(z) = (z − 1)(z − 2)(z − 5)">
         </div>
         <figcaption><code>g(z) = (z − 1)(z − 2)(z − 5)</code></figcaption>
       </figure>
     </section>
 
-    <section class="capabilities" aria-label="Wegert capabilities">
-      <span>Zeros &amp; poles</span>
-      <span>Pan &amp; pinch</span>
-      <span>GLES rendering</span>
-      <span>Open source</span>
+    <section class="capabilities" aria-label="Wegert summary">
+      <span>○ zeros</span>
+      <span>× poles</span>
+      <span>arg f(z) → hue</span>
+      <span>log |f(z)| → lightness</span>
     </section>
 
-    <section class="section centered" id="features">
-      <p class="section_label">Direct manipulation</p>
-      <h2>Work with the function itself.</h2>
+    <section class="section centered" id="controls">
+      <p class="section_label">Controls</p>
+      <h2>The picture follows the factors.</h2>
       <p class="section_intro">
-        Wegert keeps the interaction close to the mathematics: factors are visible objects,
-        movement changes the function, and the portrait responds immediately.
+        Zeros and poles are the editable state. The formula and portrait read that same state.
       </p>
 
       <div class="feature_grid">
         <article class="card">
           <div class="card_symbol" aria-hidden="true">○ ×</div>
-          <h3>Place zeros and poles</h3>
-          <p>Add factors directly to the portrait. Opposite factors cancel one-for-one at the same location.</p>
+          <h3>Add</h3>
+          <p>Choose zero or pole, then tap the portrait. Opposite factors cancel at the same point.</p>
         </article>
         <article class="card">
           <div class="card_symbol" aria-hidden="true">↔</div>
-          <h3>Drag the geometry</h3>
-          <p>Move existing factors with one finger. Drag empty portrait space to move the visible complex domain.</p>
+          <h3>Drag</h3>
+          <p>Drag a marker to move its factor. Drag empty space to pan the visible domain.</p>
         </article>
         <article class="card">
           <div class="card_symbol" aria-hidden="true">⌕</div>
-          <h3>Pan and zoom</h3>
-          <p>Use ordinary touch gestures to move through ℂ while the mathematical coordinates remain authoritative.</p>
+          <h3>Zoom</h3>
+          <p>Pinch to change scale without changing the underlying factor coordinates.</p>
         </article>
         <article class="card">
           <div class="card_symbol" aria-hidden="true">f</div>
-          <h3>See the rational formula</h3>
-          <p>The formula overlay follows the same zeros and poles as the portrait, including denominator factors.</p>
+          <h3>Read</h3>
+          <p>The displayed rational formula uses the same zeros and poles as the renderer.</p>
         </article>
       </div>
     </section>
 
     <section class="section colour_section" id="colour">
       <div>
-        <p class="section_label">Domain colouring</p>
-        <h2>One image carries phase and magnitude.</h2>
+        <p class="section_label">Colour</p>
+        <h2>Hue is phase. Lightness is log modulus.</h2>
         <p>
-          Hue records the phase of the function. Lightness varies with log modulus,
-          repeating across magnitude decades. Zeros and poles become structures you can see instead of coordinates you only calculate.
+          The reusable colour core takes the value of a complex function. Function construction stays upstream.
+          The mapping follows the phase-portrait approach developed by Elias Wegert.
         </p>
-        <a class="text_link" href="https://github.com/isomorphismes/wegert/blob/main/code/wegert_color.glsl">Read the colour core →</a>
+        <a class="text_link" href="https://doi.org/10.1007/978-3-0348-0180-5">Elias Wegert, Visual Complex Functions →</a>
+        <br>
+        <a class="text_link" href="https://github.com/isomorphismes/wegert/blob/main/code/wegert_color.glsl">Read the GLSL colour core →</a>
       </div>
       <div class="formula_panel" aria-label="Colour mapping summary">
         <div><span>Hue</span><strong>arg f(z)</strong></div>
@@ -109,24 +110,22 @@
       </div>
       <div>
         <p class="section_label">Android</p>
-        <h2>A small native app for the complex plane.</h2>
+        <h2>Install the test build.</h2>
         <p>
-          The current prerelease is an installable test APK. The repository also contains the source,
-          Android packaging, host-side tests, emulator smoke tests, and rendering provenance.
+          Native C and GLES. The prerelease APK includes ARM64 and ARMv7 device builds.
         </p>
         <div class="actions">
           <a class="button primary" href="https://github.com/isomorphismes/wegert/releases/download/v0.1.50/wegert-0.1.50.apk">Download APK</a>
-          <a class="button secondary" href="https://github.com/isomorphismes/wegert/releases">All releases</a>
+          <a class="button secondary" href="https://github.com/isomorphismes/wegert/releases">Releases</a>
         </div>
       </div>
     </section>
 
     <section class="section source_section">
-      <p class="section_label">Open source</p>
-      <h2>The picture is not a black box.</h2>
+      <p class="section_label">Source</p>
+      <h2>C, GLSL, and the build.</h2>
       <p>
-        The readable C and GLSL are kept in the repository alongside the mathematical and rendering contracts.
-        Build and packaging support stays separate under <code>_</code>.
+        Readable source lives in <code>code/</code>. Android packaging, tests, CI, and release machinery live under <code>_/build/</code>.
       </p>
       <pre><code>cd _/build
 gradle :app:assembleDebug</code></pre>
