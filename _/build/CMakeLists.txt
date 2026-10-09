@@ -63,7 +63,10 @@ set(WEGERT_ICK_STAGE "${CMAKE_CURRENT_SOURCE_DIR}/ick-stages/${ANDROID_ABI}" CAC
 if(NOT ICK_COMPILER)
     ick_android_stage(ROOT "${WEGERT_ICK_STAGE}" FORTIFY_SOURCE 2)
 endif()
-set(WEGERT_ICK_OPTIONS -Wall -Wextra -Wpedantic "-ffile-prefix-map=${WEGERT_ICK_SHARED}=/opt/ai-ci-ick")
+# Keep compiler resource paths identical for internal and external stage layouts.
+set(WEGERT_ICK_OPTIONS -Wall -Wextra -Wpedantic
+    "-ffile-prefix-map=${WEGERT_ICK_SHARED}=/opt/ai-ci-ick"
+    "-ffile-prefix-map=${WEGERT_ICK_STAGE}=./ick-stages/${ANDROID_ABI}")
 if(WEGERT_ICON_CAPTURE)
     list(APPEND WEGERT_ICK_OPTIONS -DWEGERT_ICON_CAPTURE=1)
 endif()
