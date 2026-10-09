@@ -16,8 +16,8 @@ Builds:
     subdir: _/build
     output: build/fdroid/wegert-release-unsigned.apk
     srclibs:
-      - ICK@c61e448251744a2f40ad743ebef1a027bdcd2f9d
-      - AICI@4ea071a96239f3a29ca6d98454feb59947d87cfe
+      - ICK@fbe86e23d55cfec2000c08e61deea2a407fd7175
+      - AICI@66023d128a316cf9ab2c5146df60bb9fed82bb17
     sudo:
       - apt-get update
       - apt-get install -y build-essential flex bison texinfo libgmp-dev libmpfr-dev libmpc-dev binutils-arm-linux-gnueabi binutils-aarch64-linux-gnu binutils-x86-64-linux-gnu

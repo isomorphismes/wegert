@@ -47,7 +47,7 @@ jobs:
 
       - name: Qualify direct native ICK compilation
         id: ick-host
-        uses: isomorphisms/ai-ci/ick-host@4ea071a96239f3a29ca6d98454feb59947d87cfe
+        uses: isomorphisms/ai-ci/ick-host@66023d128a316cf9ab2c5146df60bb9fed82bb17
 
       - name: Install Mesa EGL/GLES
         run: |
