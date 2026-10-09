@@ -60,6 +60,8 @@ Readable source lives in [`code/`](code/).
 
 The root-level C/GLSL names remain entry-point symlinks into `code/`.
 
+Detailed rendering, gesture, test, emulator, and release notes are in [`docs/technical-notes.md`](docs/technical-notes.md).
+
 ## Build
 
 Requirements: Android SDK 36, NDK r29 (`29.0.14206865`), CMake 3.22.1, JDK 17, Gradle 9.5.1, and Android Gradle Plugin 9.3.1.
