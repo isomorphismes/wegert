@@ -23,6 +23,10 @@ The reusable colour core is [`code/wegert_color.glsl`](code/wegert_color.glsl). 
 
 This project follows the phase-portrait approach developed by **Elias Wegert**. See [*Visual Complex Functions: An Introduction with Phase Portraits*](https://doi.org/10.1007/978-3-0348-0180-5).
 
+More Wegert: [*Complex Beauties* calendars, 2011–2024](https://blogs.hrz.tu-freiberg.de/mathekalender/english/) · [complete 2024 calendar PDF](https://www.dropbox.com/scl/fi/w1mi4oqfgcaxztgaheoex/calendar2024Eng_no_margins.pdf?dl=0&rlkey=eifi7vh63t2lgqpxn0e1adfv0) · [research profile](https://www.researchgate.net/profile/Elias-Wegert) · [visual.wegert.com](https://visual.wegert.com/).
+
+The 2024 calendar credits Elias Wegert, Gunter Semmler, Pamela Gorkin, and Ulrich Daepp.
+
 ## Controls
 
 - tap ○ or ×, then tap the portrait to add a zero or pole
