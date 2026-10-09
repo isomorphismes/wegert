@@ -11,7 +11,7 @@ for the existing export/ABI comparison. Current glyph source is never rewritten.
 Inputs are an exact ICK `fbe86e23d55cfec2000c08e61deea2a407fd7175` checkout,
 its qualified installed ARM compiler stage, NDK r29, SDK 36, a new output
 directory and the real Grease invocation. The shared interface checkout under
-`_/ai-ci-ick` must be `66023d128a316cf9ab2c5146df60bb9fed82bb17`.
+`_/ai-ci-ick` must be `f6d825d15cd3c0c34ae1b43240a463ff5d343090`.
 The procedure verifies source and interface revisions, requires cc1 to remain
 inside the installed stage and reruns the shared ARM/Bionic/Fortify2 qualifier.
 

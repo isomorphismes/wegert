@@ -2,7 +2,7 @@
 
 Twenty maintained C/header expressions use `÷` directly. Canonical source remains under `code/`; all 65 existing C/header symlinks are preserved. URLs, shader division, literal text, and frozen compiler controls are separate from maintained C arithmetic.
 
-The selected compiler is ICK `fbe86e23d55cfec2000c08e61deea2a407fd7175`, through shared interface `isomorphisms/ai-ci@66023d128a316cf9ab2c5146df60bb9fed82bb17`. `OwnedC.cmake` compiles every selected application C unit to assembly. NDK r29 assembles that output, compiles its unchanged NativeActivity glue and links the application. The independently selected complex-math object/source option remains explicit. The direct DEX/JNI path adds its existing JNI C unit through the same ICK producer.
+The selected compiler is ICK `fbe86e23d55cfec2000c08e61deea2a407fd7175`, through shared interface `isomorphisms/ai-ci@f6d825d15cd3c0c34ae1b43240a463ff5d343090`. `OwnedC.cmake` compiles every selected application C unit to assembly. NDK r29 assembles that output, compiles its unchanged NativeActivity glue and links the application. The independently selected complex-math object/source option remains explicit. The direct DEX/JNI path adds its existing JNI C unit through the same ICK producer.
 
 The complete inherited NDK CMake flags remain: API26, Fortify2, stack protection, build-type optimization/debug intent and existing warnings. The bounded checked header adapter preserves Bionic checking for the functions used here, including snprintf/vsnprintf. Unsupported calls fail. No source normalization or stock-C retry exists.
 

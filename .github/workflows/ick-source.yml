@@ -11,6 +11,8 @@ env:
   ICK_REPOSITORY: dilapidated-shed/ick
   ICK_COMMIT: fbe86e23d55cfec2000c08e61deea2a407fd7175
   ANDROID_NDK_VERSION: 29.0.14206865
+  # NDK r29 assembles target output and does not accept GNU as .base64.
+  gcc_cv_as_base64: 'no'
 
 jobs:
   ick-compilers:
@@ -31,7 +33,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: isomorphisms/ai-ci
-          ref: 66023d128a316cf9ab2c5146df60bb9fed82bb17
+          ref: f6d825d15cd3c0c34ae1b43240a463ff5d343090
           path: _/ai-ci-ick
           persist-credentials: false
       - name: Download all qualified ICK ABI stages
@@ -90,8 +92,9 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          make -C ick-build/build -j2 all-gcc
-          make -C ick-build/build install-gcc
+          make -C ick-build/build -j2 gcc_cv_as_base64=no all-gcc
+          grep -Fx '/* #undef HAVE_GAS_BASE64 */' ick-build/build/gcc/auto-host.h
+          make -C ick-build/build gcc_cv_as_base64=no install-gcc
           ick="$GITHUB_WORKSPACE/ick-build/stage/bin/aarch64-linux-gnu-gcc"
           "$ick" --version
           cc1_path="$("$ick" -print-prog-name=cc1)"

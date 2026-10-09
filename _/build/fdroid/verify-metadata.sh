@@ -41,7 +41,7 @@ grep -Fxq 'UpdateCheckData: _/build/fdroid/release.properties|versionCode=([0-9]
 grep -Fxq '    subdir: _/build' "$metadata"
 grep -Fxq '      - SDK_ROOT="$$SDK$$" NDK_ROOT="$$NDK$$" bash fdroid/build-apk.sh' "$metadata"
 grep -Fxq '      - ICK@fbe86e23d55cfec2000c08e61deea2a407fd7175' "$metadata"
-grep -Fxq '      - AICI@66023d128a316cf9ab2c5146df60bb9fed82bb17' "$metadata"
+grep -Fxq '      - AICI@f6d825d15cd3c0c34ae1b43240a463ff5d343090' "$metadata"
 
 # Triple-T is the one upstream source-metadata layout. Keeping the old Fastlane
 # tree beside it would allow an accidental fallback or two drifting copies.

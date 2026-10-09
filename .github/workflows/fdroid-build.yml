@@ -54,7 +54,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: isomorphisms/ai-ci
-          ref: 66023d128a316cf9ab2c5146df60bb9fed82bb17
+          ref: f6d825d15cd3c0c34ae1b43240a463ff5d343090
           path: _/ai-ci-ick
           persist-credentials: false
       - name: Download all qualified ICK ABI stages
