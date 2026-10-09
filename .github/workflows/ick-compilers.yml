@@ -21,7 +21,7 @@ jobs:
       - name: Install the declared NDK r29
         run: sdkmanager "ndk;29.0.14206865"
       - name: Build and qualify exact ICK source and Fortify2 boundary
-        uses: isomorphisms/ai-ci/ick-android@4ea071a96239f3a29ca6d98454feb59947d87cfe
+        uses: isomorphisms/ai-ci/ick-android@66023d128a316cf9ab2c5146df60bb9fed82bb17
         with:
           abi: ${{ matrix.abi }}
           ndk: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865

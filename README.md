@@ -110,7 +110,7 @@ scene representation.
 
 ## Android build
 
-Maintained C uses direct `÷` through ICK `c61e448251744a2f40ad743ebef1a027bdcd2f9d`. Build prerequisites and the actual producer boundary are documented in [`_/build/icky/README.md`](_/build/icky/README.md). All Android routes require the pinned shared interface under `_/ai-ci-ick` and qualified stages under `_/build/ick-stages/<abi>`. The hosted workflows restore them automatically; F-Droid builds them from pinned source libraries.
+Maintained C uses direct `÷` through ICK `fbe86e23d55cfec2000c08e61deea2a407fd7175`. Build prerequisites and the actual producer boundary are documented in [`_/build/icky/README.md`](_/build/icky/README.md). All Android routes require the pinned shared interface under `_/ai-ci-ick` and qualified stages under `_/build/ick-stages/<abi>`. The hosted workflows restore them automatically; F-Droid builds them from pinned source libraries.
 
 Other requirements are Android SDK 36, NDK r29 (`29.0.14206865`), CMake 3.22.1, JDK 17, Gradle 9.5.1, and Android Gradle Plugin 9.3.1.
 
