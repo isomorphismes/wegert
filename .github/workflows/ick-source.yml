@@ -9,17 +9,42 @@ permissions:
 
 env:
   ICK_REPOSITORY: dilapidated-shed/ick
-  ICK_COMMIT: 6972a59d95feb7292da9b5fd9b67a26706f1b6de
+  ICK_COMMIT: fbe86e23d55cfec2000c08e61deea2a407fd7175
   ANDROID_NDK_VERSION: 29.0.14206865
+  # NDK r29 assembles target output and does not accept GNU as .base64.
+  gcc_cv_as_base64: 'no'
 
 jobs:
+  ick-compilers:
+    uses: ./.github/workflows/ick-compilers.yml
   source-built-ick-apk:
+    needs: ick-compilers
     runs-on: ubuntu-24.04
     timeout-minutes: 150
 
     steps:
       - name: Check out Wegert
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Check out the pinned owned C producer interface
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: isomorphisms/ai-ci
+          ref: f6d825d15cd3c0c34ae1b43240a463ff5d343090
+          path: _/ai-ci-ick
+          persist-credentials: false
+      - name: Download all qualified ICK ABI stages
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: wegert-ick-*
+          merge-multiple: true
+          path: _/build/ick-packages
+      - name: Restore checked producers at canonical build paths
+        working-directory: ${{ github.workspace }}
+        run: make -f _/build/icky/Restore.mk restore
 
       - name: Remove checked ICK object before qualification
         shell: bash
@@ -67,8 +92,9 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          make -C ick-build/build -j2 all-gcc
-          make -C ick-build/build install-gcc
+          make -C ick-build/build -j2 gcc_cv_as_base64=no all-gcc
+          grep -Fx '/* #undef HAVE_GAS_BASE64 */' ick-build/build/gcc/auto-host.h
+          make -C ick-build/build gcc_cv_as_base64=no install-gcc
           ick="$GITHUB_WORKSPACE/ick-build/stage/bin/aarch64-linux-gnu-gcc"
           "$ick" --version
           cc1_path="$("$ick" -print-prog-name=cc1)"
@@ -126,68 +152,86 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/checkout@v4
         with:
-          gradle-version: '9.5.1'
+          repository: isomorphisms/catfood
+          ref: 7cbf4b3873bf165c1ef079b1d89fa9340085f86d
+          path: catfood-policy
+          persist-credentials: false
 
-      - name: Build Wegert APK with the fresh ICK object
-        shell: bash
-        run: |
-          set -euxo pipefail
-          cp "$RUNNER_TEMP/complex_math_ick.o" _/build/complex_math_ick.o
-          test "$(sha256sum _/build/complex_math_ick.o | awk '{print $1}')" =                "$(sha256sum "$RUNNER_TEMP/complex_math_ick.o" | awk '{print $1}')"
-          (
-            cd _/build
-            gradle --no-daemon :app:assembleDebug
-          )
+      - uses: actions/checkout@v4
+        with:
+          repository: isomorphisms/android-NDK
+          ref: 58bf23c6f6a3b279bf2e5bd7866537771b49cf0c
+          path: android-ndk-packager
+          persist-credentials: false
 
-      - name: Verify packaged ABI set
-        shell: bash
-        run: |
-          set -euxo pipefail
-          apk=_/build/app/build/outputs/apk/debug/app-debug.apk
-          test -s "$apk"
-          unzip -t "$apk"
-          unzip -Z1 "$apk" | grep -Fxq 'lib/arm64-v8a/libwegert.so'
-          unzip -Z1 "$apk" | grep -Fxq 'lib/armeabi-v7a/libwegert.so'
-          unzip -Z1 "$apk" | grep -Fxq 'lib/x86_64/libwegert.so'
+      - uses: actions/checkout@v4
+        with:
+          repository: isomorphisms/ai-ci
+          ref: 01608a2493fa409463f70e8fbfd8a123ef59ee85
+          path: aici-signing-policy
+          persist-credentials: false
 
-      - name: Verify launcher label in ICK-containing APK
+      - name: Build A1/C67 direct NativeActivity APKs from one plan, no Gradle
         shell: bash
+        env:
+          CATFOOD_CHECKOUT: ${{ github.workspace }}/catfood-policy
+          ANDROID_NDK_REPO: ${{ github.workspace }}/android-ndk-packager
+          AICI_CHECKOUT: ${{ github.workspace }}/aici-signing-policy
+          WEGERT_ICK_OBJECT: ${{ runner.temp }}/complex_math_ick.o
         run: |
           set -euo pipefail
-          apk=_/build/app/build/outputs/apk/debug/app-debug.apk
-          badging="$("$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$apk")"
-          printf '%s\n' "$badging" | grep -Fxq "application-label:'zero & infinity'"
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION"
+          bash _/build/nativeactivity/build-paired.sh "$RUNNER_TEMP/wegert-paired"
+
+      - name: Independently verify finished A1 APK test signer
+        uses: isomorphisms/ai-ci/android-signing@b3af13b3ab2bac9dd7c72bf9dd855ed5a17609b5
+        with:
+          apk: ${{ runner.temp }}/wegert-paired/wegert-armeabi-v7a.apk
+          lane: test
+
+      - name: Independently verify finished C67 APK test signer
+        uses: isomorphisms/ai-ci/android-signing@b3af13b3ab2bac9dd7c72bf9dd855ed5a17609b5
+        with:
+          apk: ${{ runner.temp }}/wegert-paired/wegert-arm64-v8a.apk
+          lane: test
 
       - name: Record source-built consumer receipt
         shell: bash
         run: |
           {
-            echo '### ICK → Wegert consumer receipt'
+            echo '### ICK → Wegert paired APK candidate'
             echo
-            echo "PASS: ICK source pinned at \`$ICK_REPOSITORY@$ICK_COMMIT\`"
+            echo "PASS: source-built ICK revision \`$ICK_REPOSITORY@$ICK_COMMIT\`"
             echo
-            echo 'PASS: ICK materialized and built from ICK-owned source'
+            echo 'PASS: Wegert complex boundary rebuilt as AArch64 PIC with reserved x18 protected'
             echo
-            echo 'PASS: Wegert \`complex_math_ick.c\` rebuilt as AArch64 PIC with reserved x18 protected'
+            echo 'PASS: Wegert AArch64 complex boundary executed under QEMU'
             echo
-            echo 'PASS: Wegert complex boundary executed under AArch64 QEMU'
+            echo 'PASS: Cat Food plan requires both A1 and C67'
             echo
-            echo 'PASS: debug APK built after replacing the checked object with the fresh ICK object'
+            echo 'PASS: separate signed NativeActivity APKs assembled without Gradle'
             echo
-            echo 'PASS: APK contains arm64-v8a, armeabi-v7a, and x86_64 native libraries'
+            echo 'PASS: finished APKs preserve zero & infinity and the central stable test signer'
             echo
+            echo 'CANDIDATE ONLY: Cat Food/NDK producer branches are not yet approved main'
             echo
-            echo 'SKIP: this is not Android ARM64 runtime execution and does not qualify F-Droid source rebuilding'
+            echo 'NOT VERIFIED: physical A1/C67 execution, replacement installation and F-Droid'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Retain source-built evidence
+      - name: Retain paired signed APK candidates and exact evidence
         uses: actions/upload-artifact@v4
         with:
-          name: wegert-source-built-ick
+          name: wegert-paired-ick-a1-c67-candidate
           path: |
-            _/build/app/build/outputs/apk/debug/app-debug.apk
+            ${{ runner.temp }}/wegert-paired/wegert-*.apk
+            ${{ runner.temp }}/wegert-paired/*.receipt.tsv
+            ${{ runner.temp }}/wegert-paired/android-plan.tsv
+            ${{ runner.temp }}/wegert-paired/apk-sha256.tsv
+            ${{ runner.temp }}/wegert-paired/native-sizes.tsv
+            ${{ runner.temp }}/wegert-paired/*.elf.txt
             ${{ runner.temp }}/complex_math_ick.o
             ${{ runner.temp }}/source-built-object.sha256
           if-no-files-found: error
+

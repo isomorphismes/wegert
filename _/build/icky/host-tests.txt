@@ -1,0 +1,26 @@
+mkdir -p "/dev/shm/division-glyph-languages/wegert-active/_/build/build/ick-host"
+"/workspace/scratch/f9bfe7fd7278/ick-build/gcc/xgcc" -fno-link-libatomic -std=c11 -Wall -Wextra -Wpedantic -Werror /dev/shm/division-glyph-languages/wegert-active/_/build/tests/factor_drag_test.c -lm -o "/dev/shm/division-glyph-languages/wegert-active/_/build/build/ick-host/factor-drag"
+"/dev/shm/division-glyph-languages/wegert-active/_/build/build/ick-host/factor-drag"
+"/workspace/scratch/f9bfe7fd7278/ick-build/gcc/xgcc" -fno-link-libatomic -std=c11 -Wall -Wextra -Wpedantic -Werror -O2 /dev/shm/division-glyph-languages/wegert-active/_/build/complex_math_fallback.c /dev/shm/division-glyph-languages/wegert-active/_/build/tests/complex_math_test.c -lm -o "/dev/shm/division-glyph-languages/wegert-active/_/build/build/ick-host/complex-math"
+"/dev/shm/division-glyph-languages/wegert-active/_/build/build/ick-host/complex-math"
+"/workspace/scratch/f9bfe7fd7278/ick-build/gcc/xgcc" -fno-link-libatomic -std=c11 -Wall -Wextra -Wpedantic -Werror /dev/shm/division-glyph-languages/wegert-active/_/build/wegert_function.c /dev/shm/division-glyph-languages/wegert-active/_/build/wegert_view.c /dev/shm/division-glyph-languages/wegert-active/_/build/wegert_scene.c /dev/shm/division-glyph-languages/wegert-active/_/build/tests/test_wegert_scene.c -lm -o "/dev/shm/division-glyph-languages/wegert-active/_/build/build/ick-host/scene"
+"/dev/shm/division-glyph-languages/wegert-active/_/build/build/ick-host/scene"
+Wegert scene tests passed
+"/workspace/scratch/f9bfe7fd7278/ick-build/gcc/xgcc" -fno-link-libatomic -std=c11 -Wall -Wextra -Wpedantic -Werror /dev/shm/division-glyph-languages/wegert-active/_/build/wegert_function.c /dev/shm/division-glyph-languages/wegert-active/_/build/tests/test_wegert_function.c -o "/dev/shm/division-glyph-languages/wegert-active/_/build/build/ick-host/function"
+"/dev/shm/division-glyph-languages/wegert-active/_/build/build/ick-host/function"
+Wegert function tests passed
+"/workspace/scratch/f9bfe7fd7278/ick-build/gcc/xgcc" -fno-link-libatomic -std=c11 -Wall -Wextra -Wpedantic -Werror /dev/shm/division-glyph-languages/wegert-active/_/build/wegert_placement_controls.c /dev/shm/division-glyph-languages/wegert-active/_/build/tests/test_wegert_placement_controls.c -lm -o "/dev/shm/division-glyph-languages/wegert-active/_/build/build/ick-host/placement-controls"
+"/dev/shm/division-glyph-languages/wegert-active/_/build/build/ick-host/placement-controls"
+placement control tests passed
+"/workspace/scratch/f9bfe7fd7278/ick-build/gcc/xgcc" -fno-link-libatomic -std=c11 -Wall -Wextra -Wpedantic -Werror /dev/shm/division-glyph-languages/wegert-active/_/build/tests/test_gesture_state.c -lm -o "/dev/shm/division-glyph-languages/wegert-active/_/build/build/ick-host/gesture"
+"/dev/shm/division-glyph-languages/wegert-active/_/build/build/ick-host/gesture"
+gesture state tests passed
+"/workspace/scratch/f9bfe7fd7278/ick-build/gcc/xgcc" -fno-link-libatomic -std=c11 -Wall -Wextra -Wpedantic -Werror /dev/shm/division-glyph-languages/wegert-active/_/build/tests/test_factor_state.c -o "/dev/shm/division-glyph-languages/wegert-active/_/build/build/ick-host/factor"
+"/dev/shm/division-glyph-languages/wegert-active/_/build/build/ick-host/factor"
+factor state tests passed
+"/workspace/scratch/f9bfe7fd7278/ick-build/gcc/xgcc" -fno-link-libatomic -std=c11 -Wall -Wextra -Wpedantic -Werror /dev/shm/division-glyph-languages/wegert-active/_/build/tests/test_factor_snap.c -lm -o "/dev/shm/division-glyph-languages/wegert-active/_/build/build/ick-host/factor-snap"
+"/dev/shm/division-glyph-languages/wegert-active/_/build/build/ick-host/factor-snap"
+factor snap tests passed
+"/workspace/scratch/f9bfe7fd7278/ick-build/gcc/xgcc" -fno-link-libatomic -std=c11 -Wall -Wextra -Wpedantic -Werror /dev/shm/division-glyph-languages/wegert-active/_/build/tests/test_polynomial_text.c /dev/shm/division-glyph-languages/wegert-active/_/build/complex_math_fallback.c -lm -o "/dev/shm/division-glyph-languages/wegert-active/_/build/build/ick-host/polynomial-text"
+"/dev/shm/division-glyph-languages/wegert-active/_/build/build/ick-host/polynomial-text"
+polynomial text tests passed

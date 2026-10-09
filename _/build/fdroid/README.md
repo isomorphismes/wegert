@@ -11,7 +11,7 @@ Wegert remains the internal project/package name. F-Droid publishes it as **zero
 3. Install the tested Android artifact on the release phone/tablet and exercise factor placement/dragging, pan, pinch, clear, and Android Back.
 4. Only then run `Tag tested F-Droid release` for that exact source SHA and the two successful run IDs.
 5. `Publish tested APK` requires the same tested source and immutable tag.
-6. Copy `fdroid/org.isomorphisms.wegert.yml.template` into fdroiddata and submit the upstream merge request.
+6. Copy `fdroid/org.isomorphisms.wegert.yml.template` into fdroiddata with the pinned `fdroid/srclibs/ICK.yml` and `AICI.yml` definitions, and submit the upstream merge request.
 
 The canonical upstream store metadata is Triple-T under `app/src/main/play`. `fdroid/verify-metadata.sh` rejects the old `fastlane/metadata/android` tree if it reappears, so CI cannot silently fall back to a second metadata source.
 
@@ -34,7 +34,7 @@ fdroid/reproducible-build.sh
 fdroid/run-fdroiddata-tests.sh
 ```
 
-The first check is cheap. The reproducible build needs the pinned Android SDK/NDK/CMake inputs. The fdroiddata test additionally needs Docker and a public source ref.
+The first check is cheap. The reproducible build needs the pinned Android SDK/NDK/CMake inputs, the shared producer checkout under `_/ai-ci-ick`, and qualified ICK stages under `_/build/ick-stages/<abi>`. The hosted workflow restores those stages. The F-Droid recipe instead builds all three from the exact ICK/AICI source libraries before invoking the same packaging command. The fdroiddata test additionally needs Docker and a public source ref.
 
 F-Droid performs its own source build and signs the resulting APK. The upstream unsigned APK is only a build/inspection artifact.
 

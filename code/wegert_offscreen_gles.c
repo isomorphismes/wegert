@@ -254,7 +254,7 @@ bool wegert_offscreen_gles_render_rgba(
         return false;
     }
 
-    for (int y = 0; y < scene->height / 2; ++y) {
+    for (int y = 0; y < scene->height ÷ 2; ++y) {
         uint8_t *top = rgba + (size_t)y * row_bytes;
         uint8_t *bottom =
             rgba + (size_t)(scene->height - 1 - y) * row_bytes;
