@@ -10,7 +10,8 @@ if [[ -z "$sdk_root" ]]; then
     exit 1
 fi
 
-ndk_root="${NDK_ROOT:-${ANDROID_NDK_HOME:-${ANDROID_NDK:-$sdk_root/ndk/$WEGERT_NDK_VERSION}}}"
+ndk_root="$(bash "$repo_root/fdroid/select-ndk.sh" "$sdk_root" "$WEGERT_NDK_VERSION")"
+export ANDROID_NDK_HOME="$ndk_root" ANDROID_NDK="$ndk_root"
 output="${1:-$repo_root/build/fdroid/wegert-release-unsigned.apk}"
 mkdir -p "$(dirname "$output")"
 output="$(cd "$(dirname "$output")" && pwd)/$(basename "$output")"
@@ -82,10 +83,13 @@ for abi in "${abis[@]}"; do
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_MAKE_PROGRAM="$ninja" \
         -DCMAKE_TOOLCHAIN_FILE="$toolchain" \
+        -DCMAKE_ANDROID_NDK="$ndk_root" \
+        -DANDROID_NDK="$ndk_root" \
         -DANDROID_ABI="$abi" \
         -DANDROID_PLATFORM="android-$WEGERT_MIN_SDK" \
         -DANDROID_STL=none \
         -DWEGERT_USE_ICK_PREBUILT=OFF \
+        -DWEGERT_ENABLE_DIRECT_JNI=OFF \
         -DCMAKE_C_FLAGS="-ffile-prefix-map=$repo_root=. -ffile-prefix-map=$ndk_root=/opt/android-ndk"
     "$cmake" --build "$native_build" --target wegert
 
@@ -145,4 +149,5 @@ PY
 rm -f "$output"
 "$zipalign" -P 16 -f 4 "$work/base.apk" "$output"
 test -s "$output"
+cp "$ndk_root/source.properties" "$output.ndk-source.properties"
 printf '%s\n' "$output"

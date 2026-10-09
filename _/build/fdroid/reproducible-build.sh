@@ -16,7 +16,7 @@ source_date_epoch="$(git -C "$git_root" show -s --format=%ct "$source_revision")
 
 build_once() {
     local run="$1"
-    local source_dir="$work_root/source"
+    local source_dir="$work_root/source-$run"
     local source_build="$source_dir/_/build"
     local result="$output_dir/run-$run.apk"
 

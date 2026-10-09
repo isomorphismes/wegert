@@ -8,6 +8,12 @@ on:
       - '*.h'
       - '*.glsl'
       - '*.frag.in'
+      - 'code/**'
+      - 'LICENSE'
+      - 'COPYING'
+      - 'NOTICE'
+      - 'THIRD_PARTY.md'
+      - 'ASSET_PROVENANCE.md'
       - '_/build/**'
   push:
     branches:
@@ -20,8 +26,21 @@ on:
       - '*.h'
       - '*.glsl'
       - '*.frag.in'
+      - 'code/**'
+      - 'LICENSE'
+      - 'COPYING'
+      - 'NOTICE'
+      - 'THIRD_PARTY.md'
+      - 'ASSET_PROVENANCE.md'
       - '_/build/**'
   workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
 
 concurrency:
   group: fdroid-build-${{ github.event.pull_request.number || github.ref }}
@@ -38,13 +57,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ env.SOURCE_REVISION }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Verify F-Droid shell syntax before expensive builds
         run: |
           for script in fdroid/*.sh; do
             bash -n "$script"
           done
+      - name: Exercise release guard positive and negative controls
+        run: bash fdroid/test-release-guards.sh
       - name: Verify release and Triple-T metadata
         run: fdroid/verify-metadata.sh
 
@@ -69,14 +92,34 @@ jobs:
           path: |
             _/build/build/reproducible-fdroid/wegert-*-fdroid-unsigned.apk
             _/build/build/reproducible-fdroid/wegert-*-fdroid-unsigned.apk.sha256
+            _/build/build/reproducible-fdroid/run-*.apk.ndk-source.properties
             _/build/build/reproducible-fdroid/diffoscope.txt
+          if-no-files-found: error
+
+      - name: Sign an unchanged F-Droid payload for physical testing only
+        id: device_candidate
+        run: |
+          source fdroid/release-values.sh
+          bash fdroid/prepare-device-candidate.sh \
+            "build/reproducible-fdroid/wegert-$WEGERT_VERSION_NAME-fdroid-unsigned.apk" \
+            build/fdroid-device-candidate
+          echo "apk=_/build/build/fdroid-device-candidate/zero-infinity-$WEGERT_VERSION_NAME-device-candidate.apk" >> "$GITHUB_OUTPUT"
+
+      - name: Independently verify the finished candidate's stable test signer
+        uses: isomorphisms/ai-ci/android-signing@b3af13b3ab2bac9dd7c72bf9dd855ed5a17609b5
+        with:
+          apk: ${{ steps.device_candidate.outputs.apk }}
+          lane: test
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wegert-fdroid-device-candidate
+          path: _/build/build/fdroid-device-candidate/
           if-no-files-found: error
 
   fdroiddata-recipe:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    env:
-      SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
     defaults:
       run:
         working-directory: _/build
@@ -84,7 +127,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ env.SOURCE_REVISION }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Verify F-Droid shell syntax before expensive builds
         run: |
@@ -102,3 +147,30 @@ jobs:
           name: wegert-fdroiddata-apk
           path: _/build/build/fdroiddata/
           if-no-files-found: error
+
+  compare-source-builds:
+    needs: [release-apk, fdroiddata-recipe]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_REVISION }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: wegert-fdroid-unsigned
+          path: direct
+      - uses: actions/download-artifact@v4
+        with:
+          name: wegert-fdroiddata-apk
+          path: buildserver
+      - name: Require the independent buildserver APK to match the direct rebuild
+        run: |
+          set -euo pipefail
+          source _/build/fdroid/release-values.sh
+          direct="direct/wegert-$WEGERT_VERSION_NAME-fdroid-unsigned.apk"
+          server="buildserver/org.isomorphisms.wegert_$WEGERT_VERSION_CODE.apk"
+          sha256sum "$direct" "$server"
+          cmp "$direct" "$server"
+          echo 'PASS: two clean direct builds and the independent fdroiddata buildserver produced identical APK bytes' >> "$GITHUB_STEP_SUMMARY"
