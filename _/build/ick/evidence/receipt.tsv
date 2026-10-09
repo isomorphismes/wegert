@@ -1,0 +1,14 @@
+wegert_source	c4bfda7a5a9b8dc0079f86a3e9f605437e4c3c6c
+compiler_source	515c0f29fe6e2e96e10495fbaf25da93532e7722
+compiler_archive_sha256	d3d60223712a8f5119451e15344f9a22ace0824eca19f2e78792b0dc18ab509c
+abi	armeabi-v7a/A32/softfp
+compile_owner	ICK
+link_owner	NDK-r29
+physical_execution	NOT_RUN
+output_equivalence	NOT_RUN
+fdroid	NOT_RUN
+full_application_compile	PASS
+ndk_platform_link	PASS
+reference_export_comparison	PASS
+apk_packaging	PASS
+stable_test_signer	PASS

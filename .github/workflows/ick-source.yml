@@ -9,17 +9,42 @@ permissions:
 
 env:
   ICK_REPOSITORY: dilapidated-shed/ick
-  ICK_COMMIT: 6972a59d95feb7292da9b5fd9b67a26706f1b6de
+  ICK_COMMIT: fbe86e23d55cfec2000c08e61deea2a407fd7175
   ANDROID_NDK_VERSION: 29.0.14206865
+  # NDK r29 assembles target output and does not accept GNU as .base64.
+  gcc_cv_as_base64: 'no'
 
 jobs:
+  ick-compilers:
+    uses: ./.github/workflows/ick-compilers.yml
   source-built-ick-apk:
+    needs: ick-compilers
     runs-on: ubuntu-24.04
     timeout-minutes: 150
 
     steps:
       - name: Check out Wegert
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Check out the pinned owned C producer interface
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: isomorphisms/ai-ci
+          ref: f6d825d15cd3c0c34ae1b43240a463ff5d343090
+          path: _/ai-ci-ick
+          persist-credentials: false
+      - name: Download all qualified ICK ABI stages
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: wegert-ick-*
+          merge-multiple: true
+          path: _/build/ick-packages
+      - name: Restore checked producers at canonical build paths
+        working-directory: ${{ github.workspace }}
+        run: make -f _/build/icky/Restore.mk restore
 
       - name: Remove checked ICK object before qualification
         shell: bash
@@ -67,8 +92,9 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          make -C ick-build/build -j2 all-gcc
-          make -C ick-build/build install-gcc
+          make -C ick-build/build -j2 gcc_cv_as_base64=no all-gcc
+          grep -Fx '/* #undef HAVE_GAS_BASE64 */' ick-build/build/gcc/auto-host.h
+          make -C ick-build/build gcc_cv_as_base64=no install-gcc
           ick="$GITHUB_WORKSPACE/ick-build/stage/bin/aarch64-linux-gnu-gcc"
           "$ick" --version
           cc1_path="$("$ick" -print-prog-name=cc1)"

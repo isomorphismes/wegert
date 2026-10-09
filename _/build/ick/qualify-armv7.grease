@@ -1,0 +1,92 @@
+#!/usr/bin/env grease
+set -eu -o pipefail
+if (len(ARGV) < 6) {
+  echo 'usage: qualify-armv7.grease ICK_CHECKOUT ICK_ARM_STAGE NDK SDK NEW_OUTPUT GREASE [GREASE_ARGS...]'
+  exit 2
+}
+var ick_source = $(readlink -f "$[ARGV[0]]")
+var stage = $(readlink -f "$[ARGV[1]]")
+var ndk = $(readlink -f "$[ARGV[2]]")
+var sdk = $(readlink -f "$[ARGV[3]]")
+var output = ARGV[4]
+var script_dir = $(dirname "$(readlink -f "$0")")
+var repo = $(git -C "$script_dir" rev-parse --show-toplevel)
+var source_revision = $(git -C "$repo" rev-parse HEAD)
+var compiler_revision = 'fbe86e23d55cfec2000c08e61deea2a407fd7175'
+var shared_revision = 'f6d825d15cd3c0c34ae1b43240a463ff5d343090'
+var reference_revision = '71e6f969b102d70a06ebb2d98b6426f79f287173'
+var shared = "$repo/_/ai-ci-ick"
+var compiler = "$stage/bin/arm-linux-gnueabi-gcc"
+test "$(git -C "$ick_source" rev-parse HEAD)" = "$compiler_revision"
+test "$(git -C "$shared" rev-parse HEAD)" = "$shared_revision"
+test -x "$compiler"
+var cc1 = $("$compiler" -print-prog-name=cc1)
+test -x "$cc1"
+if (not cc1.startsWith(stage ++ '/')) {
+  echo 'cc1 escaped the qualified installed stage'
+  exit 1
+}
+test ! -e "$output"
+if (len(output) === 0 or output[0] !== '/') {
+  echo 'output must be an absolute path'
+  exit 2
+}
+mkdir -p "$output/reference" "$output/reference-source" "$output/package/lib/armeabi-v7a" "$output/assets"
+make -f "$shared/ick-android/Makefile" qualify ABI=armeabi-v7a "ICK_SOURCE=$ick_source" "ICK_STAGE=$stage" "NDK=$ndk" FORTIFY_SOURCE=2 "QUALIFY_BUILD=$output/compiler-qualification"
+cmake -S "$repo/_/build" -B "$output/cmake" -G Ninja "-DCMAKE_TOOLCHAIN_FILE=$ndk/build/cmake/android.toolchain.cmake" -DANDROID_ABI=armeabi-v7a -DANDROID_PLATFORM=android-26 -DANDROID_STL=none -DANDROID_ARM_MODE=arm -DCMAKE_BUILD_TYPE=Release -DWEGERT_USE_ICK_PREBUILT=OFF -DWEGERT_USE_ICK_COMPLEX_SOURCE=ON "-DWEGERT_ICK_STAGE=$stage" "-DWEGERT_ICK_SHARED=$shared"
+cmake --build "$output/cmake" --target wegert --parallel 2
+cp "$output/cmake/libwegert.so" "$output/libwegert.so"
+var llvm = "$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin"
+var reference = "$llvm/armv7a-linux-androideabi26-clang"
+var glue_dir = "$ndk/sources/android/native_app_glue"
+# Compile the immutable original source as the stock-C control. Never rewrite
+# current glyph source to make the reference frontend accept it.
+git fetch origin "$reference_revision"
+git archive "$reference_revision" code | tar -x -C "$output/reference-source"
+var reference_code = "$output/reference-source/code"
+var flags = ['-I' ++ reference_code, '-I' ++ glue_dir, '-DBIONIC_IOCTL_NO_SIGNEDNESS_OVERLOAD', '-Wall', '-Wextra']
+var names = ['wegert', 'wegert_function', 'wegert_view', 'wegert_scene', 'wegert_gles', 'wegert_portrait_renderer_gles', 'wegert_placement_controls', 'wegert_overlay_renderer_gles', 'complex_math_ick', 'android_native_app_glue']
+var reference_objects = []
+printf 'wegert_source\t%s\ncompiler_source\t%s\nreference_source\t%s\nabi\tarmeabi-v7a/A32/softfp\ncompile_owner\tICK\nlink_owner\tNDK-r29\nphysical_execution\tNOT_RUN\noutput_equivalence\tNOT_RUN\nfdroid\tNOT_RUN\n' "$source_revision" "$compiler_revision" "$reference_revision" > "$output/receipt.tsv"
+for name in (names) {
+  var source = "$reference_code/$name.c"
+  if (name === 'android_native_app_glue') {
+    setvar source = "$glue_dir/android_native_app_glue.c"
+  }
+  var reference_object = "$output/reference/$name.o"
+  "$reference" -std=c17 -O2 -fPIC -marm -march=armv7-a -mfloat-abi=softfp -mfpu=vfpv3-d16 @flags -c "$source" -o "$reference_object" > "$reference_object.log" 2>&1
+  setvar reference_objects = reference_objects ++ [reference_object]
+  sha256sum "$source" "$reference_object" >> "$output/source-and-object.sha256"
+}
+var link_flags = ['-shared', '-Wl,-z,defs', '-Wl,-z,text', '-Wl,--fatal-warnings', '-Wl,-soname,libwegert.so', '-Wl,-u,ANativeActivity_onCreate']
+"$reference" @link_flags @reference_objects -landroid -llog -lEGL -lGLESv3 -lm -o "$output/reference/libwegert.so"
+"$llvm/llvm-readobj" --elf-output-style=GNU -h -l -d "$output/libwegert.so" > "$output/android-elf.txt"
+"$llvm/llvm-nm" -D --defined-only "$output/libwegert.so" | awk '{print $3}' | sort -u > "$output/ick.exports"
+"$llvm/llvm-nm" -D --defined-only "$output/reference/libwegert.so" | awk '{print $3}' | sort -u > "$output/reference.exports"
+diff -u "$output/reference.exports" "$output/ick.exports"
+rg -qx 'ANativeActivity_onCreate' "$output/ick.exports"
+rg -qx 'wegert_expand_roots_cartesian' "$output/ick.exports"
+cp "$output/libwegert.so" "$output/package/lib/armeabi-v7a/libwegert.so"
+var marker = '/*__WEGERT_COLOR_CORE__*/'
+test "$(rg -c -F "$marker" "$repo/code/wegert.frag.in")" = 1
+var color_insert = r'/\/\*__WEGERT_COLOR_CORE__\*\//r ' ++ repo ++ '/code/wegert_color.glsl'
+sed -e "$color_insert" -e '/\/\*__WEGERT_COLOR_CORE__\*\//d' "$repo/code/wegert.frag.in" > "$output/assets/wegert.frag"
+sed -e 's/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android">/<manifest xmlns:android="http:\/\/schemas.android.com\/apk\/res\/android" package="org.isomorphisms.wegert">/' -e 's/${appLabel}/zero \&amp; infinity/' "$repo/_/build/app/src/main/AndroidManifest.xml" > "$output/AndroidManifest.xml"
+var properties = "$repo/_/build/fdroid/release.properties"
+var version_code = $(sed -n 's/^versionCode=//p' "$properties")
+var version_name = $(sed -n 's/^versionName=//p' "$properties")
+var tools = "$sdk/build-tools/36.0.0"
+"$tools/aapt2" compile --dir "$repo/_/build/app/src/main/res" -o "$output/resources.zip"
+"$tools/aapt2" link -I "$sdk/platforms/android-36/android.jar" --manifest "$output/AndroidManifest.xml" --min-sdk-version 26 --target-sdk-version 36 --version-code "$version_code" --version-name "$version_name" -A "$output/assets" -o "$output/unaligned.apk" "$output/resources.zip"
+pushd "$output/package"
+zip -q -X -0 "$output/unaligned.apk" lib/armeabi-v7a/libwegert.so
+popd
+"$tools/zipalign" -P 16 -f 4 "$output/unaligned.apk" "$output/aligned.apk"
+"$tools/apksigner" sign --ks "$repo/_/build/app/wegert-debug.keystore" --ks-type PKCS12 --ks-pass pass:wegert-debug --key-pass pass:wegert-debug --ks-key-alias wegert-debug --out "$output/wegert-ick-armeabi-v7a.apk" "$output/aligned.apk"
+"$tools/apksigner" verify --verbose --print-certs "$output/wegert-ick-armeabi-v7a.apk" > "$output/signing.txt"
+rg -q 'certificate SHA-256 digest: de9b1d47c5a65e6d46a204b79dd9ee566b9d3c9832ba81ebc4213d3392e92ff9' "$output/signing.txt"
+"$tools/zipalign" -c -P 16 4 "$output/wegert-ick-armeabi-v7a.apk"
+unzip -t "$output/wegert-ick-armeabi-v7a.apk" > "$output/apk-integrity.txt"
+sha256sum "$compiler" "$cc1" "$output/libwegert.so" "$output/reference/libwegert.so" "$output/wegert-ick-armeabi-v7a.apk" > "$output/artifact.sha256"
+printf 'full_application_compile\tPASS\nndk_platform_link\tPASS\nreference_export_comparison\tPASS\napk_packaging\tPASS\nstable_test_signer\tPASS\n' >> "$output/receipt.tsv"
+printf '\033[32mPASS\033[0m complete ICK ARMv7 library and signed APK: %s\n' "$output/wegert-ick-armeabi-v7a.apk"

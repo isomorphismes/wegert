@@ -95,20 +95,7 @@ top-origin RGB24 frames on standard output. Movie tooling can therefore choose
 the scene for each frame without reimplementing rational-function evaluation or
 Wegert colouring.
 
-The host driver requires EGL/GLES development libraries. From `_/build`:
-
-```sh
-./android-direct/assemble-shader.sh /tmp/wegert.frag
-cc -std=c11 -Wall -Wextra -Werror -pedantic \
-  wegert_function.c wegert_view.c wegert_scene.c \
-  wegert_gles.c wegert_portrait_renderer_gles.c \
-  wegert_offscreen_gles.c wegert_render_frames.c \
-  -lEGL -lGLESv2 -lm -o /tmp/wegert-render-frames
-
-printf '3 0 1 0 2 0 5 0\n' |
-  EGL_PLATFORM=surfaceless /tmp/wegert-render-frames \
-    /tmp/wegert.frag 640 480 0 0 3.5 > /tmp/frame.rgb
-```
+The host driver requires EGL/GLES development libraries and the qualified native ICK compiler. The `renderer` target in `_/build/icky/Host.mk` builds it from canonical source with its existing strict warning flags; set `ICK` to the qualified compiler's absolute path. It writes `_/build/build/ick-host/wegert-render-frames`. The existing `android-direct/assemble-shader.sh` still assembles the canonical fragment source, and the renderer's stream and output formats are unchanged.
 
 The stream driver deliberately renders the portrait only. Android controls,
 formula overlays, movie encoding and other presentation belong downstream of
@@ -123,36 +110,16 @@ scene representation.
 
 ## Android build
 
-Requirements are Android SDK 36, NDK r29 (`29.0.14206865`), CMake 3.22.1, JDK 17, Gradle 9.5.1, and Android Gradle Plugin 9.3.1.
+Maintained C uses direct `÷` through ICK `fbe86e23d55cfec2000c08e61deea2a407fd7175`. Build prerequisites and the actual producer boundary are documented in [`_/build/icky/README.md`](_/build/icky/README.md). All Android routes require the pinned shared interface under `_/ai-ci-ick` and qualified stages under `_/build/ick-stages/<abi>`. The hosted workflows restore them automatically; F-Droid builds them from pinned source libraries.
+
+Other requirements are Android SDK 36, NDK r29 (`29.0.14206865`), CMake 3.22.1, JDK 17, Gradle 9.5.1, and Android Gradle Plugin 9.3.1.
 
 ```sh
 cd _/build
 gradle :app:assembleDebug
 ```
 
-The host-side gesture, pinch-zoom, factor-drag, canonical-factor, touch-snap, complex-arithmetic, and formula-formatting rules can be checked from the same build directory without an Android toolchain:
-
-```sh
-cd _/build
-cc -std=c11 -Wall -Wextra -Werror -pedantic wegert_function.c wegert_view.c wegert_scene.c tests/test_wegert_scene.c -lm -o /tmp/wegert-scene-test
-/tmp/wegert-scene-test
-cc -std=c11 -Wall -Wextra -Werror -pedantic wegert_function.c tests/test_wegert_function.c -o /tmp/wegert-function-test
-/tmp/wegert-function-test
-cc -std=c11 -Wall -Wextra -Werror -pedantic wegert_placement_controls.c tests/test_wegert_placement_controls.c -lm -o /tmp/wegert-placement-controls-test
-/tmp/wegert-placement-controls-test
-cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_gesture_state.c -lm -o /tmp/wegert-gesture-test
-/tmp/wegert-gesture-test
-cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_factor_state.c -o /tmp/wegert-factor-test
-/tmp/wegert-factor-test
-cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_factor_snap.c -lm -o /tmp/wegert-factor-snap-test
-/tmp/wegert-factor-snap-test
-cc -std=c11 -Wall -Wextra -Werror -pedantic tests/factor_drag_test.c -lm -o /tmp/wegert-factor-drag-test
-/tmp/wegert-factor-drag-test
-cc -std=c11 -Wall -Wextra -Werror -pedantic complex_math_fallback.c tests/complex_math_test.c -lm -o /tmp/wegert-complex-math-test
-/tmp/wegert-complex-math-test
-cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_polynomial_text.c complex_math_fallback.c -lm -o /tmp/wegert-polynomial-text-test
-/tmp/wegert-polynomial-text-test
-```
+The host-side gesture, pinch-zoom, factor-drag, canonical-factor, touch-snap, complex-arithmetic, and formula-formatting rules are exercised by all nine original test programs through the `test` target in `_/build/icky/Host.mk`, with `ICK` selecting the qualified native compiler. This target does not need an Android toolchain.
 
 The APK is written to repository path:
 

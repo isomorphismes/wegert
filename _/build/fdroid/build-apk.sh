@@ -86,6 +86,8 @@ for abi in "${abis[@]}"; do
         -DANDROID_PLATFORM="android-$WEGERT_MIN_SDK" \
         -DANDROID_STL=none \
         -DWEGERT_USE_ICK_PREBUILT=OFF \
+        -DWEGERT_ICK_SHARED="${WEGERT_ICK_SHARED:-$repo_root/../ai-ci-ick}" \
+        -DWEGERT_ICK_STAGE="${WEGERT_ICK_STAGE_ROOT:-$repo_root/ick-stages}/$abi" \
         -DCMAKE_C_FLAGS="-ffile-prefix-map=$repo_root=. -ffile-prefix-map=$ndk_root=/opt/android-ndk"
     "$cmake" --build "$native_build" --target wegert
 

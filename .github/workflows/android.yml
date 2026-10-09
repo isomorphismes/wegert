@@ -5,7 +5,10 @@ on:
   pull_request:
 
 jobs:
+  ick-compilers:
+    uses: ./.github/workflows/ick-compilers.yml
   build:
+    needs: ick-compilers
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -13,17 +16,41 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Qualify direct native ICK compilation
+        id: ick-host
+        uses: isomorphisms/ai-ci/ick-host@66023d128a316cf9ab2c5146df60bb9fed82bb17
+
+      - name: Check out the pinned owned C producer interface
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: isomorphisms/ai-ci
+          ref: f6d825d15cd3c0c34ae1b43240a463ff5d343090
+          path: _/ai-ci-ick
+          persist-credentials: false
+      - name: Download all qualified ICK ABI stages
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: wegert-ick-*
+          merge-multiple: true
+          path: _/build/ick-packages
+      - name: Restore checked producers at canonical build paths
+        working-directory: ${{ github.workspace }}
+        run: make -f _/build/icky/Restore.mk restore
 
       - name: Run factor-drag host tests
         run: |
-          cc -std=c11 -Wall -Wextra -Wpedantic -Werror \
+          "${{ steps.ick-host.outputs.compiler }}" -fno-link-libatomic -std=c11 -Wall -Wextra -Wpedantic -Werror \
             tests/factor_drag_test.c -lm \
             -o "$RUNNER_TEMP/wegert-factor-drag-test"
           "$RUNNER_TEMP/wegert-factor-drag-test"
 
       - name: Test non-arm64 Cartesian complex fallback
         run: |
-          cc -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
+          "${{ steps.ick-host.outputs.compiler }}" -fno-link-libatomic -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror \
             complex_math_fallback.c \
             tests/complex_math_test.c \
             -lm -o /tmp/wegert-complex-math-test
@@ -65,25 +92,25 @@ jobs:
 
       - name: Test host-side state rules
         run: |
-          cc -std=c11 -Wall -Wextra -Werror -pedantic \
+          "${{ steps.ick-host.outputs.compiler }}" -fno-link-libatomic -std=c11 -Wall -Wextra -Werror -pedantic \
             wegert_function.c wegert_view.c wegert_scene.c \
             tests/test_wegert_scene.c -lm -o /tmp/wegert-scene-test
           /tmp/wegert-scene-test
-          cc -std=c11 -Wall -Wextra -Werror -pedantic \
+          "${{ steps.ick-host.outputs.compiler }}" -fno-link-libatomic -std=c11 -Wall -Wextra -Werror -pedantic \
             wegert_function.c tests/test_wegert_function.c \
             -o /tmp/wegert-function-test
           /tmp/wegert-function-test
-          cc -std=c11 -Wall -Wextra -Werror -pedantic \
+          "${{ steps.ick-host.outputs.compiler }}" -fno-link-libatomic -std=c11 -Wall -Wextra -Werror -pedantic \
             wegert_placement_controls.c tests/test_wegert_placement_controls.c \
             -lm -o /tmp/wegert-placement-controls-test
           /tmp/wegert-placement-controls-test
-          cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_gesture_state.c -lm -o /tmp/wegert-gesture-test
+          "${{ steps.ick-host.outputs.compiler }}" -fno-link-libatomic -std=c11 -Wall -Wextra -Werror -pedantic tests/test_gesture_state.c -lm -o /tmp/wegert-gesture-test
           /tmp/wegert-gesture-test
-          cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_factor_state.c -o /tmp/wegert-factor-test
+          "${{ steps.ick-host.outputs.compiler }}" -fno-link-libatomic -std=c11 -Wall -Wextra -Werror -pedantic tests/test_factor_state.c -o /tmp/wegert-factor-test
           /tmp/wegert-factor-test
-          cc -std=c11 -Wall -Wextra -Werror -pedantic tests/test_factor_snap.c -lm -o /tmp/wegert-factor-snap-test
+          "${{ steps.ick-host.outputs.compiler }}" -fno-link-libatomic -std=c11 -Wall -Wextra -Werror -pedantic tests/test_factor_snap.c -lm -o /tmp/wegert-factor-snap-test
           /tmp/wegert-factor-snap-test
-          cc -std=c11 -Wall -Wextra -Werror -pedantic \
+          "${{ steps.ick-host.outputs.compiler }}" -fno-link-libatomic -std=c11 -Wall -Wextra -Werror -pedantic \
             tests/test_polynomial_text.c complex_math_fallback.c \
             -lm -o /tmp/wegert-polynomial-text-test
           /tmp/wegert-polynomial-text-test
