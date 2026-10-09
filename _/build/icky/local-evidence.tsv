@@ -1,0 +1,11 @@
+check	profile	result	sha256_or_detail
+host	original-nine-programs	PASS	Original assertions and warning flags retained; only native ICK source producer selected
+android	armeabi-v7a-r29-api26-Debug-JNI-Fortify2	PASS	dbe7999344186ae83d6758cb2667d66d863033715e0ff749855037411dee805b
+android	arm64-v8a-r29-api26-Debug-JNI-Fortify2	PASS	5247b9cf9469796142fa8be48bb30a793376e112ab475cc01303f494ddb64ca4
+android	x86_64-r29-api26-Debug-JNI-Fortify2	PASS	0d7b398627d905f219dd107fe36a75fb44992e595b4c660f4f55e42c084bf6d7
+renderer	original-two-frame-64x48-EGL-GLES-fixture	PASS	32ee1006293859956188cbf6d470d1ba2460aeca5f8de780e410d8c090ee4990;18432 bytes
+metadata	existing-release-store-and-screenshot-hashes	PASS	0.2.0;101;original signer and package unchanged
+source	canonical-code-and-source-links	PASS	20 arithmetic glyphs;65 C/header symlinks remain symlinks
+device	physical-app-runtime	NOT_RUN	Local source/link/offline-render checks do not assert physical app acceptance
+renderer-equivalence	immutable-original-03c137e6-vs-migrated-ICK	PASS	Actual existing EGL/GLES frame driver; both RGB outputs byte-identical
+android-variant	ARM-owned-complex-source-and-A64-prebuilt-icon	PASS	Complete alternative selected CMake source routes compile and link

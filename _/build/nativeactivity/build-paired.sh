@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Source-built ICK AArch64 boundary + explicit NDK compile/link, direct APKs.
+# Source-built ICK owned C + explicit NDK assembly/link, direct APKs.
 set -Eeuo pipefail
 repo=$(git -C "$(dirname -- "$0")" rev-parse --show-toplevel)
 : "${CATFOOD_CHECKOUT:?pinned Cat Food checkout required}"
@@ -59,8 +59,9 @@ cmp "$WEGERT_ICK_OBJECT" "$repo/_/build/complex_math_ick.o"
     printf 'aici_commit\t%s\n' "$(git -C "$AICI_CHECKOUT" rev-parse HEAD)"
     printf 'ick_object_sha256\t%s\n' "$(sha256sum "$WEGERT_ICK_OBJECT" | awk '{print $1}')"
     printf 'ick_aarch64_object\tPASS\n'
-    printf 'ndk_platform_compile_link\tREQUIRED\n'
-    printf 'armv7_ick_android_runtime\tNOT_VERIFIED\n'
+    printf 'owned_c_ick_compile\tREQUIRED\n'
+    printf 'ndk_glue_assembly_link\tREQUIRED\n'
+    printf 'armv7_ick_physical_runtime\tNOT_VERIFIED\n'
     printf 'a1_physical\tNOT_VERIFIED\nc67_physical\tNOT_VERIFIED\n'
 } > "$out/producer.receipt.tsv"
 for abi in armeabi-v7a arm64-v8a; do
