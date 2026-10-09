@@ -10,13 +10,18 @@ on:
       - '_/build/CMakeLists.txt'
       - '_/build/app/build.gradle.kts'
       - '.github/workflows/jones-trefoil-icon.yml'
+      - '.github/workflows/ick-compilers.yml'
+      - '_/build/icky/**'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  ick-compilers:
+    uses: ./.github/workflows/ick-compilers.yml
   capture:
+    needs: ick-compilers
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -24,6 +29,26 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Check out the pinned owned C producer interface
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: isomorphisms/ai-ci
+          ref: 4ea071a96239f3a29ca6d98454feb59947d87cfe
+          path: _/ai-ci-ick
+          persist-credentials: false
+      - name: Download all qualified ICK ABI stages
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: wegert-ick-*
+          merge-multiple: true
+          path: _/build/ick-packages
+      - name: Restore checked producers at canonical build paths
+        working-directory: ${{ github.workspace }}
+        run: make -f _/build/icky/Restore.mk restore
 
       - uses: actions/setup-java@v4
         with:

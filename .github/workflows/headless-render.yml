@@ -17,6 +17,8 @@ on:
       - 'code/wegert_color.glsl'
       - '_/build/android-direct/assemble-shader.sh'
       - '.github/workflows/headless-render.yml'
+      - '.github/workflows/ick-compilers.yml'
+      - '_/build/icky/**'
   pull_request:
     paths:
       - 'code/wegert_function.*'
@@ -31,12 +33,21 @@ on:
       - 'code/wegert_color.glsl'
       - '_/build/android-direct/assemble-shader.sh'
       - '.github/workflows/headless-render.yml'
+      - '.github/workflows/ick-compilers.yml'
+      - '_/build/icky/**'
 
 jobs:
   render:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Qualify direct native ICK compilation
+        id: ick-host
+        uses: isomorphisms/ai-ci/ick-host@4ea071a96239f3a29ca6d98454feb59947d87cfe
 
       - name: Install Mesa EGL/GLES
         run: |
@@ -48,7 +59,7 @@ jobs:
         run: |
           set -euo pipefail
           ./android-direct/assemble-shader.sh /tmp/wegert.frag
-          cc -std=c11 -Wall -Wextra -Werror -pedantic \
+          "${{ steps.ick-host.outputs.compiler }}" -fno-link-libatomic -std=c11 -Wall -Wextra -Werror -pedantic \
             wegert_function.c wegert_view.c wegert_scene.c \
             wegert_gles.c wegert_portrait_renderer_gles.c \
             wegert_offscreen_gles.c wegert_render_frames.c \
