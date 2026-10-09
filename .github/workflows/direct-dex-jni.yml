@@ -193,6 +193,12 @@ jobs:
           grep -Fxq "wegert=$QUALIFIED_SHA" _/build/build/direct/revisions.txt
           sha256sum -c _/build/build/direct/sha256sums.txt
 
+      - name: Enable KVM permissions
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
       - name: Execute the exact direct DEX/JNI APK on ART
         uses: reactivecircus/android-emulator-runner@v2
         with:
