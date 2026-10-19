@@ -1,0 +1,35 @@
+name: Recorded Grease host compatibility runtime
+description: Verify the existing native host payload and its declared portable launcher.
+runs:
+  using: composite
+  steps:
+    # GitHub fixes a shell for run steps. These are fixed bootstrap invocations;
+    # authored producer logic below runs through Grease, with no fallback.
+    - shell: bash
+      run: mkdir -p _/build/grease-host/bin
+    - shell: bash
+      working-directory: _/build/grease-host
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: gh api repos/dilapidated-shed/grease/actions/artifacts/12192502970/zip > grease-host.zip
+    - shell: bash
+      working-directory: _/build/grease-host
+      run: curl --fail --location --output grease-portable.tar.gz https://github.com/isomorphisms/grease/releases/download/tablet-aarch64-9b3dc8904891/grease-aarch64-termux.tar.gz
+    - shell: bash
+      working-directory: _/build/grease-host
+      run: sha256sum --check "${{ github.workspace }}/_/build/nativeactivity/grease-host.sha256"
+    - shell: bash
+      working-directory: _/build/grease-host
+      run: unzip -q grease-host.zip _bin/cxx-asan/ysh
+    - shell: bash
+      working-directory: _/build/grease-host
+      run: tar -xzf grease-portable.tar.gz ./bin/grease
+    - shell: bash
+      working-directory: _/build/grease-host
+      run: ln -s ../_bin/cxx-asan/ysh bin/ysh
+    - shell: bash
+      working-directory: _/build/grease-host
+      run: chmod +x bin/grease _bin/cxx-asan/ysh
+    - shell: bash
+      working-directory: _/build/grease-host
+      run: sha256sum --check "${{ github.workspace }}/_/build/nativeactivity/grease-runtime.sha256"

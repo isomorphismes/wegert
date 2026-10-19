@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 env:
   ICK_REPOSITORY: dilapidated-shed/ick
@@ -155,47 +156,66 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: isomorphisms/catfood
-          ref: 7cbf4b3873bf165c1ef079b1d89fa9340085f86d
+          ref: b5972788d85c04cb8b75881bc0df6fbcad2939bd
           path: catfood-policy
           persist-credentials: false
 
       - uses: actions/checkout@v4
         with:
           repository: isomorphisms/android-NDK
-          ref: 58bf23c6f6a3b279bf2e5bd7866537771b49cf0c
+          ref: 2b93dc9a84641e5f7eeb373c4360ff0538facd78
           path: android-ndk-packager
           persist-credentials: false
 
       - uses: actions/checkout@v4
         with:
           repository: isomorphisms/ai-ci
-          ref: 01608a2493fa409463f70e8fbfd8a123ef59ee85
+          ref: 13da59057294c44c0c294cbe52da98bad074ed2d
           path: aici-signing-policy
           persist-credentials: false
 
-      - name: Build A1/C67 direct NativeActivity APKs from one plan, no Gradle
-        shell: bash
+      - name: Check out the reconciled registered FP operation
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/flexible-pipes
+          ref: e2bb726483368140c04e1dbff4031493f5aece23
+          path: fp-registered-producer
+          persist-credentials: false
+
+      - name: Stage the recorded Grease host compatibility runtime
+        uses: ./.github/actions/grease-host
+
+      - name: Qualify native ICK for the independent artifact verifier
+        id: ick-native
+        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+
+      - name: Execute registered paired production and independent companion acceptance
+        shell: ${{ github.workspace }}/_/build/grease-host/bin/grease {0}
         env:
-          CATFOOD_CHECKOUT: ${{ github.workspace }}/catfood-policy
-          ANDROID_NDK_REPO: ${{ github.workspace }}/android-ndk-packager
-          AICI_CHECKOUT: ${{ github.workspace }}/aici-signing-policy
-          WEGERT_ICK_OBJECT: ${{ runner.temp }}/complex_math_ick.o
+          ICK: ${{ steps.ick-native.outputs.compiler }}
+          ASAN_OPTIONS: detect_leaks=0
         run: |
-          set -euo pipefail
-          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION"
-          bash _/build/nativeactivity/build-paired.sh "$RUNNER_TEMP/wegert-paired"
+          _/build/grease-host/bin/grease _/build/nativeactivity/run-registered-producer.grease \
+            "$GITHUB_WORKSPACE/fp-registered-producer" "$GITHUB_WORKSPACE/catfood-policy" \
+            "$GITHUB_WORKSPACE/aici-signing-policy" "$GITHUB_WORKSPACE/android-ndk-packager" \
+            "$RUNNER_TEMP/complex_math_ick.o" "$RUNNER_TEMP/wegert-paired" "$RUNNER_TEMP/wegert-fp-receipts"
 
       - name: Independently verify finished A1 APK test signer
-        uses: isomorphisms/ai-ci/android-signing@b3af13b3ab2bac9dd7c72bf9dd855ed5a17609b5
+        uses: isomorphisms/ai-ci/android-signing@13da59057294c44c0c294cbe52da98bad074ed2d
         with:
           apk: ${{ runner.temp }}/wegert-paired/wegert-armeabi-v7a.apk
           lane: test
 
       - name: Independently verify finished C67 APK test signer
-        uses: isomorphisms/ai-ci/android-signing@b3af13b3ab2bac9dd7c72bf9dd855ed5a17609b5
+        uses: isomorphisms/ai-ci/android-signing@13da59057294c44c0c294cbe52da98bad074ed2d
         with:
           apk: ${{ runner.temp }}/wegert-paired/wegert-arm64-v8a.apk
           lane: test
+
+      - name: Verify the produced A1 launcher label receipt
+        run: grep -Fxq 'launcher_label	zero & infinity' "${{ runner.temp }}/wegert-paired/wegert-armeabi-v7a.receipt.tsv"
+      - name: Verify the produced C67 launcher label receipt
+        run: grep -Fxq 'launcher_label	zero & infinity' "${{ runner.temp }}/wegert-paired/wegert-arm64-v8a.receipt.tsv"
 
       - name: Record source-built consumer receipt
         shell: bash
@@ -215,7 +235,7 @@ jobs:
             echo
             echo 'PASS: finished APKs preserve zero & infinity and the central stable test signer'
             echo
-            echo 'CANDIDATE ONLY: Cat Food/NDK producer branches are not yet approved main'
+            echo 'PASS: the registered operation proved current main ancestry for Cat Food, NDK and AICI policy inputs'
             echo
             echo 'NOT VERIFIED: physical A1/C67 execution, replacement installation and F-Droid'
           } >> "$GITHUB_STEP_SUMMARY"
@@ -235,3 +255,10 @@ jobs:
             ${{ runner.temp }}/source-built-object.sha256
           if-no-files-found: error
 
+      - name: Retain registered operation output even on refusal
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: wegert-registered-producer-receipts
+          path: ${{ runner.temp }}/wegert-fp-receipts/
+          if-no-files-found: warn

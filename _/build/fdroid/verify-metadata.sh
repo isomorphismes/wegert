@@ -33,6 +33,7 @@ test "$current_version_name" = "$WEGERT_VERSION_NAME"
 test "$current_version_code" = "$WEGERT_VERSION_CODE"
 test "$metadata_ndk" = "$WEGERT_NDK_VERSION"
 
+grep -Fxq 'Name: zero & infinity' "$metadata"
 grep -Fxq 'SourceCode: https://github.com/isomorphismes/wegert' "$metadata"
 grep -Fxq 'Repo: https://github.com/isomorphismes/wegert.git' "$metadata"
 grep -Fxq 'AutoUpdateMode: Version' "$metadata"
@@ -94,6 +95,13 @@ grep -Fxq 'crop=1180x720+0+0' "$screenshot_provenance"
 grep -Fxq 'output_path=app/src/main/play/listings/en-US/graphics/phone-screenshots/1.png' "$screenshot_provenance"
 grep -Fxq 'output_size=1180x720' "$screenshot_provenance"
 grep -Eq '^output_sha256=[0-9a-f]{64}$' "$screenshot_provenance"
+test "$(grep -c '^output_sha256=' "$screenshot_provenance")" -eq 1
+recorded_screenshot_sha="$(sed -n 's/^output_sha256=//p' "$screenshot_provenance")"
+actual_screenshot_sha="$(sha256sum "$screenshots_dir/1.png" | awk '{print $1}')"
+if test "$recorded_screenshot_sha" != "$actual_screenshot_sha"; then
+    echo "Store screenshot provenance hash does not match its actual bytes" >&2
+    exit 1
+fi
 
 test "$(wc -m < "$locale/title.txt")" -le 51
 test "$(wc -m < "$locale/short-description.txt")" -le 81
