@@ -190,7 +190,7 @@ jobs:
         uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
 
       - name: Execute registered paired production and independent companion acceptance
-        shell: ${{ github.workspace }}/_/build/grease-host/bin/grease {0}
+        shell: grease {0}
         env:
           ICK: ${{ steps.ick-native.outputs.compiler }}
           ASAN_OPTIONS: detect_leaks=0
