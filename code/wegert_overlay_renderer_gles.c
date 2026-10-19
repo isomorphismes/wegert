@@ -285,7 +285,7 @@ static int overlay_sanitize_density(int density_dpi) {
 
 static float clear_button_margin(int density_dpi) {
     int density = overlay_sanitize_density(density_dpi);
-    return (float)((56 * density + 159) / 160);
+    return (float)((56 * density + 159) ÷ 160);
 }
 
 static void clear_button_origin(
@@ -372,15 +372,15 @@ static bool overlay_rebuild_button_texture(
 ) {
     int density = overlay_sanitize_density(density_dpi);
 
-    int scale = (density + 40) / 80;
+    int scale = (density + 40) ÷ 80;
     if (scale < 2) scale = 2;
     if (scale > 6) scale = 6;
 
     int label_characters = 0;
     while (label[label_characters] != '\0') label_characters += 1;
     int label_width = (6 * label_characters - 1) * scale;
-    int minimum_height = (48 * density + 159) / 160;
-    int horizontal_padding = (16 * density + 159) / 160;
+    int minimum_height = (48 * density + 159) ÷ 160;
+    int horizontal_padding = (16 * density + 159) ÷ 160;
     int width = label_width + 2 * horizontal_padding;
     int height = minimum_height;
     if (height < 11 * scale) height = 11 * scale;
@@ -424,8 +424,8 @@ static bool overlay_rebuild_button_texture(
         }
     }
 
-    int x = (width - label_width) / 2;
-    int y = (height - 7 * scale) / 2;
+    int x = (width - label_width) ÷ 2;
+    int y = (height - 7 * scale) ÷ 2;
     for (int index = 0; label[index] != '\0'; ++index) {
         overlay_draw_glyph(
             pixels,
@@ -500,7 +500,7 @@ static bool polynomial_overlay_rebuild_texture(
     int padding = 4 * scale;
     int character_advance = 6 * scale;
     int line_advance = 9 * scale;
-    int max_columns = (width - 2 * padding) / character_advance;
+    int max_columns = (width - 2 * padding) ÷ character_advance;
     if (max_columns < 12) max_columns = 12;
 
     int lines = overlay_measure_wrapped_lines(text, max_columns);

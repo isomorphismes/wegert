@@ -38,6 +38,8 @@ git clone --filter=blob:none https://gitlab.com/fdroid/fdroidserver.git "$server
 git -C "$server" checkout --detach "$fdroidserver_revision"
 
 cp "$repo_root/fdroid/$appid.yml.template" "$data/metadata/$appid.yml"
+cp "$repo_root/fdroid/srclibs/ICK.yml" "$data/srclibs/ICK.yml"
+cp "$repo_root/fdroid/srclibs/AICI.yml" "$data/srclibs/AICI.yml"
 sed -i "s|^Repo: .*|Repo: $source_repo|" "$data/metadata/$appid.yml"
 release_tag_revision="$(git ls-remote "$source_repo" "refs/tags/v$WEGERT_VERSION_NAME" | awk 'NR == 1 { print $1 }')"
 if [[ "$release_tag_revision" != "$source_revision" ]]; then

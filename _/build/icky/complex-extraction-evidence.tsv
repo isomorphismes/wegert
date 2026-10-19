@@ -1,0 +1,6 @@
+profile	compiler_source	result	evidence
+native-original-nine	fbe86e23d55cfec2000c08e61deea2a407fd7175	PASS	Original assertions and warning/optimization flags retained; native cc1 SHA256 3c3886708a382cb4aff03d5d8a5fd0986f8a73359277f7bd39d71feaca7a452c
+x86_64-Debug-Cartesian-JNI	fbe86e23d55cfec2000c08e61deea2a407fd7175	COMPILE_LINK_PASS	Full NDK r29/API26/Fortify2 library; SHA256 ca1f1de18dcf8ffbd4c9d448d1ceddb26576b6397aad5ba06eb35287b62109fb
+x86_64-Debug-owned-complex-JNI	fbe86e23d55cfec2000c08e61deea2a407fd7175	COMPILE_LINK_PASS	Full NDK r29/API26/Fortify2 library; SHA256 c319fea68dc97dc68d194c882962fc92082a0af4aaf50761c1b5e2390010fa33
+previous-compiler-complex-test	c61e448251744a2f40ad743ebef1a027bdcd2f9d	PASS	Existing complex_math_test and unchanged canonical implementation execute under actual r29 static Bionic x86 O0; this profile was not an observed failure
+fixed-cross-compiler-and-application	fbe86e23d55cfec2000c08e61deea2a407fd7175	PENDING_HOSTED	Old ARM/AArch64 compiler receipts remain historical; updated workflows qualify new exact-source stages and preserve source-built-object/QEMU and APK/emulator gates

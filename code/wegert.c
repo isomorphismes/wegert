@@ -510,7 +510,7 @@ static void draw_frame(struct engine *engine) {
         }
 
         GLubyte pixel[4] = {0, 0, 0, 0};
-        glReadPixels(engine->scene.width / 2, engine->scene.height / 2, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+        glReadPixels(engine->scene.width ÷ 2, engine->scene.height ÷ 2, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
         GLenum error = glGetError();
         LOGI("first frame: center rgba=%u,%u,%u,%u glError=0x%x",
              pixel[0], pixel[1], pixel[2], pixel[3], error);
@@ -533,7 +533,7 @@ static float factor_snap_radius_pixels(const struct engine *engine) {
         density = 160;
     }
 
-    float radius = 24.0f * (float)density / 160.0f;
+    float radius = 24.0f * (float)density ÷ 160.0f;
     if (radius < 24.0f) radius = 24.0f;
     if (radius > 72.0f) radius = 72.0f;
     return radius;

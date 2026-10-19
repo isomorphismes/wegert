@@ -25,7 +25,7 @@ static inline float factor_touch_radius_pixels(int density_dpi) {
     bool has_concrete_density =
         density_dpi > 0 && density_dpi != 0xfffe && density_dpi != 0xffff;
     if (has_concrete_density) {
-        density_scale = (float)density_dpi / 160.0f;
+        density_scale = (float)density_dpi ÷ 160.0f;
     }
     return FACTOR_TOUCH_RADIUS_DP * density_scale;
 }
@@ -43,7 +43,7 @@ static inline bool factor_screen_position(
     }
 
     float pixels_per_world_unit =
-        (float)height / (2.0f * view->half_height);
+        (float)height ÷ (2.0f * view->half_height);
     *screen_x = 0.5f * (float)width
         + (position[0] - view->center[0]) * pixels_per_world_unit;
     *screen_y = 0.5f * (float)height

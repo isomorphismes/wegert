@@ -47,7 +47,7 @@ commits above remain provenance only; Wegert must not treat RHS as the active
 compiler source.
 
 `.github/workflows/ick-source.yml` pins ICK commit
-`6972a59d95feb7292da9b5fd9b67a26706f1b6de`. That lane:
+`fbe86e23d55cfec2000c08e61deea2a407fd7175`. That lane:
 
 1. checks out ICK and its pinned GCC reference;
 2. materializes the ICK-owned `ick/source/` and `ick/PRUNE` source tree;
