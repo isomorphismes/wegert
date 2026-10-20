@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 env:
   ICK_REPOSITORY: dilapidated-shed/ick
@@ -152,68 +153,112 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/checkout@v4
         with:
-          gradle-version: '9.5.1'
+          repository: isomorphisms/catfood
+          ref: b5972788d85c04cb8b75881bc0df6fbcad2939bd
+          path: catfood-policy
+          persist-credentials: false
 
-      - name: Build Wegert APK with the fresh ICK object
-        shell: bash
-        run: |
-          set -euxo pipefail
-          cp "$RUNNER_TEMP/complex_math_ick.o" _/build/complex_math_ick.o
-          test "$(sha256sum _/build/complex_math_ick.o | awk '{print $1}')" =                "$(sha256sum "$RUNNER_TEMP/complex_math_ick.o" | awk '{print $1}')"
-          (
-            cd _/build
-            gradle --no-daemon :app:assembleDebug
-          )
+      - uses: actions/checkout@v4
+        with:
+          repository: isomorphisms/android-NDK
+          ref: 2b93dc9a84641e5f7eeb373c4360ff0538facd78
+          path: android-ndk-packager
+          persist-credentials: false
 
-      - name: Verify packaged ABI set
-        shell: bash
-        run: |
-          set -euxo pipefail
-          apk=_/build/app/build/outputs/apk/debug/app-debug.apk
-          test -s "$apk"
-          unzip -t "$apk"
-          unzip -Z1 "$apk" | grep -Fxq 'lib/arm64-v8a/libwegert.so'
-          unzip -Z1 "$apk" | grep -Fxq 'lib/armeabi-v7a/libwegert.so'
-          unzip -Z1 "$apk" | grep -Fxq 'lib/x86_64/libwegert.so'
+      - uses: actions/checkout@v4
+        with:
+          repository: isomorphisms/ai-ci
+          ref: 13da59057294c44c0c294cbe52da98bad074ed2d
+          path: aici-signing-policy
+          persist-credentials: false
 
-      - name: Verify launcher label in ICK-containing APK
-        shell: bash
+      - name: Check out the reconciled registered FP operation
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: isomorphisms/flexible-pipes
+          ref: e2bb726483368140c04e1dbff4031493f5aece23
+          path: fp-registered-producer
+          persist-credentials: false
+
+      - name: Stage the recorded Grease host compatibility runtime
+        uses: ./.github/actions/grease-host
+
+      - name: Qualify native ICK for the independent artifact verifier
+        id: ick-native
+        uses: isomorphisms/ai-ci/ick-host@903b2cb27ea572c9c6cb2ffa9f39e0fbf06ec9f8
+
+      - name: Execute registered paired production and independent companion acceptance
+        shell: grease {0}
+        env:
+          ICK: ${{ steps.ick-native.outputs.compiler }}
+          ASAN_OPTIONS: detect_leaks=0
         run: |
-          set -euo pipefail
-          apk=_/build/app/build/outputs/apk/debug/app-debug.apk
-          badging="$("$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$apk")"
-          printf '%s\n' "$badging" | grep -Fxq "application-label:'zero & infinity'"
+          _/build/grease-host/bin/grease _/build/nativeactivity/run-registered-producer.grease \
+            "${{ github.workspace }}/fp-registered-producer" "${{ github.workspace }}/catfood-policy" \
+            "${{ github.workspace }}/aici-signing-policy" "${{ github.workspace }}/android-ndk-packager" \
+            "${{ runner.temp }}/complex_math_ick.o" "${{ runner.temp }}/wegert-paired" "${{ runner.temp }}/wegert-fp-receipts"
+
+      - name: Independently verify finished A1 APK test signer
+        uses: isomorphisms/ai-ci/android-signing@13da59057294c44c0c294cbe52da98bad074ed2d
+        with:
+          apk: ${{ runner.temp }}/wegert-paired/wegert-armeabi-v7a.apk
+          lane: test
+
+      - name: Independently verify finished C67 APK test signer
+        uses: isomorphisms/ai-ci/android-signing@13da59057294c44c0c294cbe52da98bad074ed2d
+        with:
+          apk: ${{ runner.temp }}/wegert-paired/wegert-arm64-v8a.apk
+          lane: test
+
+      - name: Verify the produced A1 launcher label receipt
+        run: grep -Fxq 'launcher_label	zero & infinity' "${{ runner.temp }}/wegert-paired/wegert-armeabi-v7a.receipt.tsv"
+      - name: Verify the produced C67 launcher label receipt
+        run: grep -Fxq 'launcher_label	zero & infinity' "${{ runner.temp }}/wegert-paired/wegert-arm64-v8a.receipt.tsv"
 
       - name: Record source-built consumer receipt
         shell: bash
         run: |
           {
-            echo '### ICK → Wegert consumer receipt'
+            echo '### ICK → Wegert paired APK candidate'
             echo
-            echo "PASS: ICK source pinned at \`$ICK_REPOSITORY@$ICK_COMMIT\`"
+            echo "PASS: source-built ICK revision \`$ICK_REPOSITORY@$ICK_COMMIT\`"
             echo
-            echo 'PASS: ICK materialized and built from ICK-owned source'
+            echo 'PASS: Wegert complex boundary rebuilt as AArch64 PIC with reserved x18 protected'
             echo
-            echo 'PASS: Wegert \`complex_math_ick.c\` rebuilt as AArch64 PIC with reserved x18 protected'
+            echo 'PASS: Wegert AArch64 complex boundary executed under QEMU'
             echo
-            echo 'PASS: Wegert complex boundary executed under AArch64 QEMU'
+            echo 'PASS: Cat Food plan requires both A1 and C67'
             echo
-            echo 'PASS: debug APK built after replacing the checked object with the fresh ICK object'
+            echo 'PASS: separate signed NativeActivity APKs assembled without Gradle'
             echo
-            echo 'PASS: APK contains arm64-v8a, armeabi-v7a, and x86_64 native libraries'
+            echo 'PASS: finished APKs preserve zero & infinity and the central stable test signer'
             echo
+            echo 'PASS: the registered operation proved current main ancestry for Cat Food, NDK and AICI policy inputs'
             echo
-            echo 'SKIP: this is not Android ARM64 runtime execution and does not qualify F-Droid source rebuilding'
+            echo 'NOT VERIFIED: physical A1/C67 execution, replacement installation and F-Droid'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Retain source-built evidence
+      - name: Retain paired signed APK candidates and exact evidence
         uses: actions/upload-artifact@v4
         with:
-          name: wegert-source-built-ick
+          name: wegert-paired-ick-a1-c67-candidate
           path: |
-            _/build/app/build/outputs/apk/debug/app-debug.apk
+            ${{ runner.temp }}/wegert-paired/wegert-*.apk
+            ${{ runner.temp }}/wegert-paired/*.receipt.tsv
+            ${{ runner.temp }}/wegert-paired/android-plan.tsv
+            ${{ runner.temp }}/wegert-paired/apk-sha256.tsv
+            ${{ runner.temp }}/wegert-paired/native-sizes.tsv
+            ${{ runner.temp }}/wegert-paired/*.elf.txt
             ${{ runner.temp }}/complex_math_ick.o
             ${{ runner.temp }}/source-built-object.sha256
           if-no-files-found: error
+
+      - name: Retain registered operation output even on refusal
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: wegert-registered-producer-receipts
+          path: ${{ runner.temp }}/wegert-fp-receipts/
+          if-no-files-found: warn

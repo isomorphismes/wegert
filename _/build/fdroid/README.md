@@ -57,7 +57,7 @@ fdroid/reproducible-build.sh
 fdroid/run-fdroiddata-tests.sh
 ```
 
-The guard test uses synthetic ZIP/SDK fixtures to prove rejection behavior, not Android execution. The reproducible build needs the pinned Android SDK/NDK/CMake inputs. The fdroiddata test additionally needs Docker and a public source ref. Existing inline Python in the inherited packaging scripts remains migration debt; this change adds no new Python program.
+The guard test uses synthetic ZIP/SDK fixtures to prove rejection behavior, not Android execution. The reproducible build needs the pinned Android SDK/NDK/CMake inputs, the shared producer checkout under `_/ai-ci-ick`, and qualified ICK stages under `_/build/ick-stages/<abi>`. The hosted workflow restores those stages; the F-Droid recipe builds all three from the exact ICK/AICI source libraries before invoking the same packaging command. The fdroiddata test additionally needs Docker and a public source ref. Existing inline Python in the inherited packaging scripts remains migration debt; this change adds no new Python program.
 
 The unfiltered `Release promotion safety` workflow additionally runs the pinned AICI positive/adversarial suite and `test-release-promotion.sh` with an explicit AICI checkout. Those tests execute the real collector against synthetic Git histories, run responses and artifact bytes; they reject wrong source, version, NDK evidence, changed bytes, duplicate hashes, failed/fork runs, stale output and changing run attempts. Synthetic acceptance drafts cannot pass the physical gate.
 

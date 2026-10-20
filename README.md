@@ -68,6 +68,15 @@ Detailed rendering, gesture, test, emulator, and release notes are in [`docs/tec
 
 ## Build
 
+Maintained C uses direct `÷` through ICK
+`fbe86e23d55cfec2000c08e61deea2a407fd7175`. All Android routes require the
+pinned shared interface under `_/ai-ci-ick` and qualified stages under
+`_/build/ick-stages/<abi>`; hosted workflows restore them and F-Droid builds
+them from pinned source libraries. See [the producer boundary](_/build/icky/README.md).
+The [paired NativeActivity producer](_/build/nativeactivity/README.md) retains
+separate A1/C67 APK candidates without Gradle. Build results do not establish
+physical replacement, F-Droid publication or release acceptance.
+
 Requirements: Android SDK 36, NDK r29 (`29.0.14206865`), CMake 3.22.1, JDK 17, Gradle 9.5.1, and Android Gradle Plugin 9.3.1.
 
 ```sh

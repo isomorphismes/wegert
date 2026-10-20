@@ -1,0 +1,40 @@
+#!/usr/bin/env grease
+# Requirements: actual source-built ICK object; explicit pinned FP/Cat Food/
+# AICI/NDK checkouts; qualified native ICK for AICI; fresh output and receipts.
+# The maintained FP operation must prove policy-main ancestry and reject bad
+# artifacts. This host candidate never supplies a physical-device receipt.
+if (int($#) !== 7) {
+  echo 'usage: run-registered-producer.grease FP CATFOOD AICI NDK OBJECT OUTPUT RECEIPTS' >&2
+  exit 2
+}
+var fp = $1
+var catfood = $2
+var aici = $3
+var ndk = $4
+var object = $5
+var output = $6
+var receipts = $7
+for path in @ARGV {
+  if (not path.startsWith('/')) {
+    echo 'all producer inputs and outputs must be absolute' >&2
+    exit 2
+  }
+}
+var root = "$(git -C "$(dirname -- "$0")" rev-parse --show-toplevel)"
+var ick = get(ENV, 'ICK') or ''
+var android_home = get(ENV, 'ANDROID_HOME') or ''
+var ndk_version = get(ENV, 'ANDROID_NDK_VERSION') or ''
+test -x "$ick"
+test -d "$android_home/ndk/$ndk_version"
+test -f "$object"
+test ! -e "$output"
+test -f "$fp/scripts/run-pipeline"
+var source_sha = "$(git -C "$root" rev-parse HEAD)"
+var object_sha = "$(sha256sum "$object" | cut -d ' ' -f 1)"
+env FP_ANDROID_REPOSITORY=isomorphismes/wegert \
+  FP_ANDROID_SOURCE_SHA="$source_sha" FP_ANDROID_APP_ROOT="$root" \
+  FP_CATFOOD_CHECKOUT="$catfood" FP_AICI_CHECKOUT="$aici" \
+  FP_ANDROID_NDK_CHECKOUT="$ndk" FP_ANDROID_ICK_OBJECT="$object" \
+  FP_ANDROID_ICK_OBJECT_SHA256="$object_sha" FP_ANDROID_OUTPUT_DIR="$output" \
+  ANDROID_NDK_HOME="$android_home/ndk/$ndk_version" \
+  python3 "$fp/scripts/run-pipeline" android-native-apk --runs-root "$receipts"
