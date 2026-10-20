@@ -46,3 +46,16 @@ positive controls pass. Current-head native/mutant, paired APK, independent
 artifact, ART/emulator, reproducibility and F-Droid buildserver checks still
 require hosted execution. Physical A1/C67 replacement, rendering and official
 publication remain NOT_RUN. Historical source-head receipts are not relabeled.
+
+The installed-command CLI runs exposed that this exact Grease runtime does
+not import implicit shell PWD/PATH/ICK variables. The registered Android
+producer had the same assumption. Workflow arguments now use explicit GitHub
+workspace and runner-temp contexts; ICK, ANDROID_HOME and ANDROID_NDK_VERSION
+are read from ENV. An actual missing-ICK execution now exits 1 at test -x,
+with no undefined-variable error or artifact. Full paired production remains a
+hosted gate, not a local PASS.
+
+Git transport and ref API source publication alone were observed to leave two
+CLI PR heads/workflow lists stale. This normal contents commit records the
+correction and preserves current-head synchronization without force or branch
+replacement. No source/compiler/negative-control gate is removed.
