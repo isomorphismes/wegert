@@ -196,9 +196,9 @@ jobs:
           ASAN_OPTIONS: detect_leaks=0
         run: |
           _/build/grease-host/bin/grease _/build/nativeactivity/run-registered-producer.grease \
-            "$GITHUB_WORKSPACE/fp-registered-producer" "$GITHUB_WORKSPACE/catfood-policy" \
-            "$GITHUB_WORKSPACE/aici-signing-policy" "$GITHUB_WORKSPACE/android-ndk-packager" \
-            "$RUNNER_TEMP/complex_math_ick.o" "$RUNNER_TEMP/wegert-paired" "$RUNNER_TEMP/wegert-fp-receipts"
+            "${{ github.workspace }}/fp-registered-producer" "${{ github.workspace }}/catfood-policy" \
+            "${{ github.workspace }}/aici-signing-policy" "${{ github.workspace }}/android-ndk-packager" \
+            "${{ runner.temp }}/complex_math_ick.o" "${{ runner.temp }}/wegert-paired" "${{ runner.temp }}/wegert-fp-receipts"
 
       - name: Independently verify finished A1 APK test signer
         uses: isomorphisms/ai-ci/android-signing@13da59057294c44c0c294cbe52da98bad074ed2d

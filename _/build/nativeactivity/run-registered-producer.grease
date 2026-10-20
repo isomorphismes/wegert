@@ -21,7 +21,11 @@ for path in @ARGV {
   }
 }
 var root = "$(git -C "$(dirname -- "$0")" rev-parse --show-toplevel)"
-test -x "$ICK"
+var ick = get(ENV, 'ICK') or ''
+var android_home = get(ENV, 'ANDROID_HOME') or ''
+var ndk_version = get(ENV, 'ANDROID_NDK_VERSION') or ''
+test -x "$ick"
+test -d "$android_home/ndk/$ndk_version"
 test -f "$object"
 test ! -e "$output"
 test -x "$fp/scripts/run-pipeline"
@@ -32,5 +36,5 @@ env FP_ANDROID_REPOSITORY=isomorphismes/wegert \
   FP_CATFOOD_CHECKOUT="$catfood" FP_AICI_CHECKOUT="$aici" \
   FP_ANDROID_NDK_CHECKOUT="$ndk" FP_ANDROID_ICK_OBJECT="$object" \
   FP_ANDROID_ICK_OBJECT_SHA256="$object_sha" FP_ANDROID_OUTPUT_DIR="$output" \
-  ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION" \
+  ANDROID_NDK_HOME="$android_home/ndk/$ndk_version" \
   "$fp/scripts/run-pipeline" android-native-apk --runs-root "$receipts"
