@@ -28,7 +28,7 @@ test -x "$ick"
 test -d "$android_home/ndk/$ndk_version"
 test -f "$object"
 test ! -e "$output"
-test -x "$fp/scripts/run-pipeline"
+test -f "$fp/scripts/run-pipeline"
 var source_sha = "$(git -C "$root" rev-parse HEAD)"
 var object_sha = "$(sha256sum "$object" | cut -d ' ' -f 1)"
 env FP_ANDROID_REPOSITORY=isomorphismes/wegert \
@@ -37,4 +37,4 @@ env FP_ANDROID_REPOSITORY=isomorphismes/wegert \
   FP_ANDROID_NDK_CHECKOUT="$ndk" FP_ANDROID_ICK_OBJECT="$object" \
   FP_ANDROID_ICK_OBJECT_SHA256="$object_sha" FP_ANDROID_OUTPUT_DIR="$output" \
   ANDROID_NDK_HOME="$android_home/ndk/$ndk_version" \
-  "$fp/scripts/run-pipeline" android-native-apk --runs-root "$receipts"
+  python3 "$fp/scripts/run-pipeline" android-native-apk --runs-root "$receipts"
