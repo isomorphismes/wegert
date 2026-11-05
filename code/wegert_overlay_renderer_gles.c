@@ -148,9 +148,9 @@ static void overlay_draw_glyph(
                         height,
                         x + column * scale + dx,
                         y + row * scale + dy,
-                        248,
                         244,
-                        232,
+                        244,
+                        244,
                         255
                     );
                 }
@@ -392,10 +392,10 @@ static bool overlay_rebuild_button_texture(
     }
 
     for (size_t index = 0; index < pixel_count; ++index) {
-        pixels[index * 4u + 0u] = 18;
-        pixels[index * 4u + 1u] = 18;
-        pixels[index * 4u + 2u] = 18;
-        pixels[index * 4u + 3u] = 230;
+        pixels[index * 4u + 0u] = 47;
+        pixels[index * 4u + 1u] = 47;
+        pixels[index * 4u + 2u] = 47;
+        pixels[index * 4u + 3u] = 255;
     }
 
     int border = scale > 2 ? 2 : 1;
@@ -403,11 +403,11 @@ static bool overlay_rebuild_button_texture(
         for (int thickness = 0; thickness < border; ++thickness) {
             overlay_set_pixel(
                 pixels, width, height, x, thickness,
-                238, 235, 224, 255
+                69, 69, 69, 255
             );
             overlay_set_pixel(
                 pixels, width, height, x, height - 1 - thickness,
-                238, 235, 224, 255
+                69, 69, 69, 255
             );
         }
     }
@@ -415,11 +415,11 @@ static bool overlay_rebuild_button_texture(
         for (int thickness = 0; thickness < border; ++thickness) {
             overlay_set_pixel(
                 pixels, width, height, thickness, y,
-                238, 235, 224, 255
+                69, 69, 69, 255
             );
             overlay_set_pixel(
                 pixels, width, height, width - 1 - thickness, y,
-                238, 235, 224, 255
+                69, 69, 69, 255
             );
         }
     }
@@ -516,21 +516,21 @@ static bool polynomial_overlay_rebuild_texture(
     }
 
     for (size_t index = 0; index < pixel_count; ++index) {
-        pixels[index * 4u + 0u] = 18;
-        pixels[index * 4u + 1u] = 18;
-        pixels[index * 4u + 2u] = 18;
-        pixels[index * 4u + 3u] = 214;
+        pixels[index * 4u + 0u] = 47;
+        pixels[index * 4u + 1u] = 47;
+        pixels[index * 4u + 2u] = 47;
+        pixels[index * 4u + 3u] = 255;
     }
 
     for (int x = 0; x < width; ++x) {
         for (int thickness = 0; thickness < 2; ++thickness) {
             overlay_set_pixel(
                 pixels, width, height, x, thickness,
-                238, 235, 224, 240
+                69, 69, 69, 255
             );
             overlay_set_pixel(
                 pixels, width, height, x, height - 1 - thickness,
-                238, 235, 224, 240
+                69, 69, 69, 255
             );
         }
     }
@@ -538,11 +538,11 @@ static bool polynomial_overlay_rebuild_texture(
         for (int thickness = 0; thickness < 2; ++thickness) {
             overlay_set_pixel(
                 pixels, width, height, thickness, y,
-                238, 235, 224, 240
+                69, 69, 69, 255
             );
             overlay_set_pixel(
                 pixels, width, height, width - 1 - thickness, y,
-                238, 235, 224, 240
+                69, 69, 69, 255
             );
         }
     }
