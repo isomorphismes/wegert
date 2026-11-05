@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Preserve the portrait canvas and existing fullscreen behavior. -->
+    <style name="Theme.WegertCharcoal" parent="Theme.Charcoal">
+        <item name="android:windowFullscreen">true</item>
+    </style>
+</resources>

@@ -1,12 +1,12 @@
 :root {
-  color-scheme: light;
-  --ink: #17171b;
-  --muted: #68686f;
-  --line: #e8e8ec;
-  --panel: #f7f7f9;
-  --accent: #5c47d6;
-  --accent_dark: #4432ad;
-  --page: #ffffff;
+  color-scheme: dark;
+  --ink: #F4F4F4;
+  --muted: #B4B4B4;
+  --line: #454545;
+  --panel: #2F2F2F;
+  --accent: #F4F4F4;
+  --accent_dark: #383838;
+  --page: #212121;
   --radius: 24px;
   --max: 1180px;
 }
@@ -74,7 +74,7 @@ nav {
   display: flex;
   align-items: center;
   gap: 28px;
-  color: #45454b;
+  color: var(--muted);
   font-size: 0.96rem;
 }
 
@@ -174,8 +174,8 @@ h3 {
 }
 
 .button.primary {
-  background: var(--accent);
-  color: white;
+  background: #383838;
+  color: var(--ink);
 }
 
 .button.primary:hover {
@@ -183,13 +183,13 @@ h3 {
 }
 
 .button.secondary {
-  border: 1px solid #d9d9df;
-  background: white;
+  border: 1px solid var(--line);
+  background: var(--panel);
 }
 
 .button.secondary:hover {
-  border-color: #bfbfc8;
-  background: #fafafa;
+  border-color: var(--muted);
+  background: #383838;
 }
 
 .release_note {
@@ -205,7 +205,7 @@ h3 {
 .image_frame {
   overflow: hidden;
   border-radius: 28px;
-  background: #f1efe8;
+  background: var(--panel);
   box-shadow: 0 24px 70px rgba(22, 19, 47, 0.13), 0 0 0 1px rgba(25, 25, 28, 0.06);
 }
 
@@ -232,7 +232,7 @@ h3 {
   gap: 16px 30px;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  color: #5f5f66;
+  color: var(--muted);
   font-size: 0.91rem;
   font-weight: 650;
 }
@@ -258,7 +258,7 @@ h3 {
   padding: 26px;
   border: 1px solid var(--line);
   border-radius: 20px;
-  background: #fff;
+  background: var(--panel);
 }
 
 .card p {
@@ -275,7 +275,7 @@ h3 {
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  background: #f1efff;
+  background: #383838;
   color: var(--accent);
   font-weight: 800;
 }
@@ -333,7 +333,7 @@ h3 {
   align-items: center;
   padding: 72px;
   border-radius: 32px;
-  background: #f7f6fb;
+  background: var(--panel);
 }
 
 .app_icon_wrap img {
@@ -367,8 +367,8 @@ h3 {
   overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: 16px;
-  background: #17171b;
-  color: #f5f5f7;
+  background: var(--page);
+  color: var(--ink);
   text-align: left;
   line-height: 1.7;
 }

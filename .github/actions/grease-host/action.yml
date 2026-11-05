@@ -11,7 +11,7 @@ runs:
       working-directory: _/build/grease-host
       env:
         GH_TOKEN: ${{ github.token }}
-      run: gh api repos/dilapidated-shed/grease/actions/artifacts/12192502970/zip > grease-host.zip
+      run: gh api repos/dilapidated-shed/grease/actions/artifacts/13062637698/zip > grease-host.zip
     - shell: bash
       working-directory: _/build/grease-host
       run: curl --fail --location --output grease-portable.tar.gz https://github.com/isomorphisms/grease/releases/download/tablet-aarch64-9b3dc8904891/grease-aarch64-termux.tar.gz
